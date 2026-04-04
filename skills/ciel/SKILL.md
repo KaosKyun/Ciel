@@ -61,7 +61,7 @@ OVERLAY: [ciel-overlay.md content if available]
 - Detect: is a domain skill available for this technology? (frontend, backend, security, database, etc.)
 - If yes → invoke it IN PARALLEL with the researcher agent. Domain skills = verified patterns. Researcher = current docs. Both needed.
 - Domain skill findings complement WebSearch — use both, cross-reference conflicts (stale skill vs fresh docs → trust docs).
-- If no domain skill exists → WebSearch only, no change.
+- If no domain skill exists → WebSearch only. Run `/ciel-recommend` to discover and install community plugins for this stack.
 
 **GitHub Issues search** (when external lib involved):
 - `site:github.com/[lib]/issues [symptom]` — open? closed with workaround?
