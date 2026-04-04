@@ -77,7 +77,7 @@ For each file:
 
 ## Step 9 — Dispatch critic (Standard/Critical)
 
-After FAIRE, dispatch **critic** (MODE=RELIRE):
+After FAIRE, dispatch a **`general-purpose` Agent** using `agents/critic.md` as its prompt (not `superpowers:code-reviewer` or any other named agent — load `agents/critic.md` to preserve Ciel's critique format):
 ```
 MODE: RELIRE
 CHANGED_FILES: [all modified files]

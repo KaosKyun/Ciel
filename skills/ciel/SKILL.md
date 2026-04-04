@@ -164,15 +164,16 @@ Any "I don't know" → investigate before acting. "It'll probably work" is NOT a
 
 **Chunked validation**: after each file — compile? types OK? 2 consecutive fails → STOP.
 
-### 9. RELIRE *(dispatch `critic` agent on Standard/Critical — inline format for Trivial)*
+### 9. RELIRE *(dispatch `general-purpose` Agent with `agents/critic.md` on Standard/Critical — inline format for Trivial)*
 
-**Standard/Critical — dispatch critic agent (MODE=RELIRE):**
+**Standard/Critical — dispatch a `general-purpose` Agent using `agents/critic.md` as its prompt:**
 ```
 MODE: RELIRE
 CHANGED_FILES: [list of all modified files]
 QUOI_GOAL: [original objective]
 IMPLEMENTATION: [what was done — 3-5 sentences]
 ```
+Important: use a `general-purpose` subagent (not `superpowers:code-reviewer` or any other named agent) — load `agents/critic.md` as the agent prompt to preserve Ciel's critique format.
 
 Fresh context = different blind spots (CriticBench 2024: self-critique is the hardest critique mode for LLMs — isolated critic reduces degeneration of thought).
 
