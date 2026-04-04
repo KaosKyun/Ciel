@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/pre-write-gate.sh",
+            "statusMessage": "Ciel: vérification FLUX avant écriture..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/post-write-relire.sh",
+            "statusMessage": "Ciel: injection RELIRE..."
+          }
+        ]
+      }
+    ]
+  }
+}
