@@ -1,55 +1,65 @@
 # Ciel — Changelog
 
+## v1.2.0 — 2026-04-04
+
+**Déclenché par** : Intégration de la recherche 2026 (SWE-Bench Pro, SICA, MAST taxonomy, SWE-EVO, State of AI Agent Memory 2026, AWS Agent Plugins).
+
+**Problèmes adressés que Ciel ne savait pas gérer :**
+1. **Mauvaise décomposition de tâches** (SWE-Bench Pro 2026 : planning = root cause de 80% des échecs multi-fichiers) — Ciel n'avait pas de gate sur la décomposition avant RECHERCHE.
+2. **Ambiguité inter-agents** (MAST 2026 : 37% des échecs = messages free-form entre agents) — dispatches non structurés.
+3. **Assumptions invalidées silencieusement** (SWE-EVO 2026 : agents échouent quand le codebase change sous eux) — aucun mécanisme d'inventaire d'assumptions.
+4. **Auto-amélioration sans validateur** (SICA 2025 : sans validateur indépendant → Goodhart's Law) — Guards ajoutés sans vérification de régression sur les corrections précédentes.
+5. **Mémoire plate** (State of AI Agent Memory 2026) — overlay + lessons = tout dans un seul format → dérive sémantique.
+6. **Auto-update impossible** — plugin sans mécanisme de mise à jour depuis GitHub.
+
+**Changements v1.2.0 :**
+1. **QUOI — Task decomposition gate** : 3+ fichiers → décomposer en sub-tasks atomiques AVANT RECHERCHE. + Assumption inventory (top 3 hypothèses, vérifiées à RELIRE).
+2. **Typed agent dispatch schema** (MAST) : TYPE + AGENT + TASK + EXPECTED_OUTPUT sur tous les dispatches researcher/explorer/critic.
+3. **RELIRE — Assumption verification** : vérifie que chaque assumption de QUOI tient encore après FAIRE (SWE-EVO).
+4. **ÉVOLUER — 4-type memory model** : Procedural (SKILL.md) / Semantic (overlay) / Episodic (CHANGELOG) / Working (in-context). Routage explicite.
+5. **ÉVOLUER — SICA validator** : avant de persister un Guard/step change, valider contre les 3 dernières corrections CEO. Prévient Goodhart.
+6. **ÉVOLUER — Self-cleaning cycle** : suivi de fréquence par Guard. 0 triggers sur 10+ sessions → candidat à la suppression. Vérification avant suppression.
+7. **Nouveau Guard** : assumption invalidation, agent coordination failure, poor task decomposition, self-improvement regression.
+8. **`scripts/self-update.sh`** — auto-update via gh CLI : compare SHA local vs GitHub, hot-swap si différent.
+9. **`commands/ciel-update.md`** — commande `/ciel-update`.
+
+**Métriques** : baseline = 62.8% fix/revert. Cible v1.2.0 → < 25%.
+**Guards ajoutés** : assumption invalidation, agent coordination failure, poor task decomposition, self-improvement regression
+**Guards supprimés** : aucun
+
+---
+
 ## v1.1.0 — 2026-04-04
 
 **Déclenché par** : Audit CRITIQUER complet par dev-reasoning v18.3 comparant Ciel v1.0 point par point. 3 BLOCKING + 4 IMPORTANT + 2 nouvelles additions issues de la recherche 2025-2026.
 
 **Changements** :
+1. RELIRE-A/B format restauré inline (Trivial sans agent)
+2. Removal gate ajoutée dans FAIRE (incident 2026-03-26)
+3. Guards table : 22 guards, colonne "How it manifests"
+4. Depth Gauge : colonne CRITIQUER ajoutée
+5. PROUVER : attacker perspective test, same-source rule, post-merge closure
+6. CODEBASE : mini repo-map 3-grep recipe inline
+7. SÉCURITÉ : checklist hygiene + multi-PR delegation
+8. Nouveaux guards : context overflow, over-engineering/counterfactual
 
-BLOCKING résolus :
-1. **RELIRE-A/B format restauré inline** — Le format Reflexion (`RISQUE: X parce que Y — IMPACT: Z`) est maintenant dans SKILL.md pour les tâches Trivial (sans agent). Avant : RELIRE n'avait aucun format structuré pour Trivial.
-2. **Removal gate ajoutée dans FAIRE** — 3 questions obligatoires avant toute suppression : Who uses it? What replaces it? What degrades? Portée depuis dev-reasoning (incident 2026-03-26 : suppression SW image-cache sans vérification).
-3. **Guards table restaurée** — 22 guards avec colonne "How it manifests" (contre 13 et 2 colonnes en v1.0). 9 guards manquants restaurés : false confidence, prior AI pattern, context overflow (NOUVEAU), removing without understanding, proposing without calculating, debugging wrong layer, coding without mental model, fixation after failure, coverage theater.
-
-IMPORTANT résolus :
-4. **Depth Gauge enrichi** — Colonne CRITIQUER ajoutée (Trivial → COMPRENDRE+SIGNALER, Standard → Full, Critical → Full+multi-pass).
-5. **PROUVER complété** — 3 éléments manquants : attacker perspective test (security), same-source rule (complète), post-merge issue closure (evidence obligatoire).
-6. **CODEBASE** — Mini repo-map 3-grep recipe documentée inline (pour Trivial sans explorer agent).
-7. **SÉCURITÉ** — Checklist hygiene + multi-PR delegation ajoutés.
-
-Nouveaux guards issus de la recherche 2025-2026 :
-- **Context overflow silencieux** (Partnership on AI, 2025) — Agent report < 200 tokens sur Standard = suspect. Re-dispatcher.
-- **Over-engineering / Counterfactual** (Nightwire pattern, 2025) — "What if we do NOTHING?" ajouté dans ÉVALUER et Guards.
-
-**Métriques** : baseline = 62.8% fix/revert (Neiyomi 2026-04-04). Cible v1.1.0 → < 30%.
-**Guards ajoutés** : context overflow, prior AI pattern, over-engineering, false confidence
-**Guards supprimés** : aucun (tous les guards existants catchent des failure modes réels)
+**Métriques** : baseline 62.8%, cible < 30%.
 
 ---
 
 ## v1.0.0 — 2026-04-04
 
-**Déclenché par** : Audit de 675 commits sur Neiyomi montrant 62.8% de ratio fix/revert avec le workflow dev-reasoning monolithique (skill unique de ~600 lignes).
-
-**Problèmes adressés** :
-- RECHERCHE ne vérifiait pas les imports/API surfaces → imports manquants, colonnes DB inexistantes
-- FLUX absent pour les tests → MSW URL mismatch, mock lifecycle errors, timeout CI
-- RELIRE dans le même contexte que FAIRE → degeneration of thought (MAR, 2025)
-- Agents optionnels → systématiquement skippés sur les "simple fixes"
-- Pas de métriques par version → amélioration à l'aveugle
-- Architecture monolithique → process debt, friction = skipping
+**Déclenché par** : Audit de 675 commits sur Neiyomi montrant 62.8% de ratio fix/revert avec dev-reasoning monolithique.
 
 **Changements vs dev-reasoning v18.3** :
-1. Architecture 5-layer : hooks déterministes + skill + agents isolés + overlay + métriques
-2. Agents researcher/explorer/critic rendus OBLIGATOIRES sur Standard/Critical
-3. RECHERCHE : output gate avec 3 items API surface (imports, colonnes DB, format)
-4. FLUX : 3 items test-spécifiques (URL routing, mock lifecycle, timing)
-5. RELIRE : 3 items ajoutés (imports réels, colonnes DB réelles, mocks alignés)
-6. Portabilité : overlay pattern — tout ce qui est projet-spécifique hors du plugin
-7. Guards : pruning des guards redondants, ajout degeneration of thought + stale overlay
+1. Architecture 5-layer : hooks + skill + agents isolés + overlay + métriques
+2. Agents OBLIGATOIRES sur Standard/Critical
+3. RECHERCHE output gate (6 items)
+4. FLUX : 3 items test-spécifiques
+5. RELIRE : 3 items ajoutés
+6. Overlay pattern — portabilité totale
 
-**Métriques de départ** : fix/revert ratio = 62.8% (baseline Neiyomi, 2026-03-25 → 2026-04-04)
-**Cible v1.1.0** : < 30%
+**Métriques** : fix/revert ratio baseline = 62.8%.
 
 ---
 
@@ -58,8 +68,9 @@ Nouveaux guards issus de la recherche 2025-2026 :
 ```markdown
 ## vX.Y.Z — [date]
 **Déclenché par** : [incident ou audit]
+**Problèmes adressés** : [ce que Ciel ne savait pas faire avant]
 **Changements** : [description]
-**Métriques observées** : fix/revert avant = X%, après = Y%
+**Métriques** : fix/revert avant = X%, cible = Y%
 **Guards ajoutés** : [liste]
-**Guards supprimés** : [liste — ne catchaient plus rien]
+**Guards supprimés** : [liste + raison]
 ```
