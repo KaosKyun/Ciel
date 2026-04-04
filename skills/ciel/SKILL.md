@@ -57,6 +57,12 @@ OVERLAY: [ciel-overlay.md content if available]
 
 "I already know this" = the red flag that you NEED to research. Zero output = step not done.
 
+**Domain skill boost** (before or in parallel with researcher agent):
+- Detect: is a domain skill available for this technology? (frontend, backend, security, database, etc.)
+- If yes → invoke it IN PARALLEL with the researcher agent. Domain skills = verified patterns. Researcher = current docs. Both needed.
+- Domain skill findings complement WebSearch — use both, cross-reference conflicts (stale skill vs fresh docs → trust docs).
+- If no domain skill exists → WebSearch only, no change.
+
 **GitHub Issues search** (when external lib involved):
 - `site:github.com/[lib]/issues [symptom]` — open? closed with workaround?
 
