@@ -30,11 +30,23 @@ Layer 5 — CHANGELOG.md       Fix/revert metrics per version — closed feedbac
 ## Install
 
 ```bash
+# Official (recommended)
 claude plugin install github:KaosKyun/Ciel
 
-# Create your project overlay
+# Via marketplace (when listed)
+/plugin marketplace add KaosKyun/Ciel
+/plugin install ciel@KaosKyun/Ciel
+
+# Manual bootstrap (local only)
+bash scripts/install.sh [project-root]
+```
+
+After installing, bootstrap your project overlay:
+
+```bash
 cp .claude/plugins/ciel/overlay-template.md ./ciel-overlay.md
 # Edit ciel-overlay.md: your stack, versions, CI, critical file patterns
+# Stack detection is automatic if you ran install.sh from the project root
 ```
 
 ## Usage
