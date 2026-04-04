@@ -2,7 +2,15 @@
 
 > Ce fichier est l'overlay projet pour le plugin Ciel.
 > Il contient tout ce qui est spécifique à CE projet et override les defaults de Ciel.
-> Placer à la racine du projet ou dans `.claude/` sous le nom `ciel-overlay.md`.
+> Généré automatiquement par `bash scripts/install.sh` — compléter les sections marquées [specify].
+
+## Domain Skills (auto-detected)
+
+Ciel invoque ces skills IN PARALLEL avec le researcher agent à l'étape RECHERCHE.
+Supprimer ceux qui ne s'appliquent pas. Ajouter les autres si besoin.
+
+<!-- install.sh injecte ici les skills détectés selon le stack -->
+<!-- Disponibles: frontend-mastery, backend-mastery, database-mastery, security-hardening, api-architecture, observability, performance-engineering, refactoring-patterns -->
 
 ## Stack
 
