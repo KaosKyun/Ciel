@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "KaosKyun/Ciel",
+  "version": "1.5.0",
+  "description": "Ciel — Universal deep-reasoning workflow plugin",
+  "owner": {
+    "name": "KaosKyun",
+    "email": "kaos_kyun@outlook.com"
+  },
+  "plugins": [
+    {
+      "name": "ciel",
+      "description": "Universal deep-reasoning workflow for LLM-assisted development. CRÉER/CRITIQUER pipeline with isolated agents, deterministic hooks, TDD gates, and auto-update.",
+      "source": "./",
+      "version": "1.5.0",
+      "category": "development",
+      "author": {
+        "name": "KaosKyun",
+        "url": "https://github.com/KaosKyun"
+      },
+      "keywords": ["reasoning", "workflow", "tdd", "security", "agents", "deep-reasoning", "ciel"]
+    }
+  ]
+}
