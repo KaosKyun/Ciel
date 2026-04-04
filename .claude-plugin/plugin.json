@@ -1,0 +1,17 @@
+{
+  "name": "ciel",
+  "version": "1.5.0",
+  "description": "Universal deep-reasoning workflow for LLM-assisted development. 5-layer enforcement: hooks + skill + isolated agents + metrics. Named after the Primordial Sage from Tensura.",
+  "author": {
+    "name": "KaosKyun",
+    "url": "https://github.com/KaosKyun"
+  },
+  "homepage": "https://github.com/KaosKyun/Ciel",
+  "repository": "https://github.com/KaosKyun/Ciel",
+  "license": "MIT",
+  "keywords": ["reasoning", "workflow", "tdd", "security", "agents", "deep-reasoning"],
+  "commands": "./commands/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/"
+}
