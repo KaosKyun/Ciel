@@ -118,6 +118,7 @@ Prior AI-generated patterns: treat as suggestions, not laws. If they contradict 
 
 - **Sizing**: back-of-envelope — does it fit? (memory, connections, throughput)
 - **Pre-mortem**: 2 ways this could fail in production
+- **Recent-churn check**: `git log --oneline --since="7 days" -- <impacted files>` — if 2+ commits on the same module → read those commits before proposing a fix. Same subsystem fixed twice this week = incomplete mental model.
 - **Alternative**: "I chose X over Y because [reason]." No Y named → think harder.
 - **Counterfactual**: "What if we do NOTHING?" If 'nothing' solves 80% with 0 risk → reconsider scope.
 
@@ -157,6 +158,8 @@ Any "I don't know" → investigate before acting. "It'll probably work" is NOT a
 
 **Alignment checkpoint** (3+ files): re-read QUOI — scope grew? Approach still best?
 
+**Volume gate**: Creating 3+ PRs in the same session → PAUSE. Verify labels + `Closes #XXX` + staging evidence on each PR before opening the next.
+
 **Test gate** (before writing implementation code — no exception):
 - `□` Test written BEFORE implementation? (RED first — "I'll add tests after" is not an answer)
 - `□` Test verifies observable behavior, not just code execution?
@@ -194,6 +197,7 @@ RELIRE-B — Resolve each critique:
 - `□` Test mocks on same host:port as actual requests?
 - `□` Tests written BEFORE implementation (not after)?
 - `□` Duplicated logic with existing code?
+- `□` Linter clean? (0 new violations vs base branch — Detekt / ESLint)
 - `□` Would a staff engineer approve this?
 
 Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer with issue ref.
@@ -215,6 +219,11 @@ Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer
 **Same-source rule**: bug found in logs → verify in logs. Bug in screenshot → verify by screenshot. A curl result is NOT a substitute for the original observation source.
 
 **Attacker perspective test** (security fixes): "If I were an attacker, what test proves my fix blocks me?" Write THAT test. Can't write it → fix isn't proven.
+
+**PR body gate** (before `gh pr create`):
+- `□` PR body contains `Closes #XXX` for every linked issue?
+- `□` PR title has no WIP marker (`WIP`, `[WIP]`, `wip`)? WIP = not done = don't open PR.
+- `□` PR closed after merge? (`gh pr view` — status: merged, not open)
 
 **Post-merge issue closure**: close ALL linked issues with evidence comment: (1) what was fixed (1 line), (2) concrete observed evidence from staging (log excerpts, curl responses, DOM values — NOT code diffs), (3) PR/SHA reference. Closure without evidence = not closed.
 
@@ -241,6 +250,7 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 1. **Depth match?** Over-processed trivial = waste. Under-processed critical = risk.
 2. **New failure mode?** → add Guard NOW.
 3. **User correction?** → update overlay + lessons.
+4. **Stale branches?** `git branch -r | grep worktree-agent | wc -l` — if > 5 → cleanup with `/clean_gone`.
 
 ---
 

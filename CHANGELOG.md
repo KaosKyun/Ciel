@@ -1,5 +1,25 @@
 # Ciel — Changelog
 
+## v1.6.0 — 2026-04-05
+
+**Changements** :
+- ÉVALUER: recent-churn check — `git log --since=7days` on impacted files before proposing fix; prevents fix-of-fix chains
+- FAIRE: volume gate — pause + verify each PR when 3+ created in same session
+- RELIRE checklist: linter gate — explicit "0 new violations (Detekt/ESLint)" item
+- PROUVER: PR body gate — `Closes #XXX` required, WIP title forbidden, PR closed check
+- META-CRITIQUER: stale branch check — `worktree-agent` branches > 5 → cleanup
+
+**Métriques observées** :
+- Staging verification: 100% des PRs (8/8) avaient AVANT/APRÈS PID evidence ✓
+- Commit discipline: 100% prefixes conventionnels ✓
+- Linter violations pushées avant fix: ~35% des PRs contenaient Detekt violations → cible 0%
+- Issues non linkées (`Closes #` manquant): ~30% → cible 0%
+- Fix-of-fix chains: 4 PRs sur update subsystem en 1 jour → cible ≤ 1 PR/module/jour
+
+**Déclenché par** : Audit CRITIQUER des 25 issues + 8 PRs ouverts Neiyomi (2026-04-05)
+
+---
+
 ## v1.3.0 — 2026-04-04
 
 **Déclenché par** : Analyse des lacunes TDD — aucun gate ne forçait test-avant-implémentation, niveau de test implicite, failure path optionnel.
