@@ -262,15 +262,59 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 
 ## CRITIQUER — When reviewing or auditing
 
-1. **APPRENDRE** — Docs + anti-pattern checklist BEFORE reading code. Without this: "grep + gut feeling."
-   - WebSearch: "[framework] [version] anti-patterns common mistakes"
-   - Build checklist of bypass signals BEFORE scanning code.
-2. **COMPRENDRE** — WHY before judging. Git blame. Surface 3 assumptions, verify each.
+**Entry: read the diff/PR first.** Before any step — open the changed files, read every line changed. Without this, all subsequent steps operate on assumptions.
+
+1. **APPRENDRE** — Build expected behavior model BEFORE judging the code.
+   - From issue/spec/PR description: "what was this SUPPOSED to do?"
+   - Build a checklist of bypass signals for this change type BEFORE scanning code.
+   - If external lib involved: WebSearch `[lib] [version] anti-patterns common mistakes` — otherwise skip WebSearch.
+   - `□` Expected behavior model written in 1-2 sentences?
+   - `□` Bypass signal checklist built (min 3 signals to look for)?
+
+2. **COMPRENDRE** — WHY before judging. Surface 3 assumptions, verify each.
+   - Git blame: why was the original code written this way?
+   - `□` 3 assumptions surfaced?
+   - `□` Each assumption verified against actual code (grep / git blame / read)?
+
 3. **QUESTIONNER** — Does the original reason still hold? Could we do less?
-4. **COMPARER** — Code vs docs, idiomatic gate, STRIDE (6 categories), OPS lens. Re-read for Critical.
-5. **COHÉRENCE** — Same problem solved same way? Layers clean? Health thresholds met?
-6. **SIGNALER** — `RISQUE: X parce que Y — IMPACT: Z` · BLOCKING/IMPORTANT/MINOR/VALIDATED · include NOT-X.
-7. **CAPITALISER** — Update overlay or memory.
+   - `□` "What if we do nothing?" considered?
+   - `□` Scope of change proportional to the problem?
+
+4. **COMPARER** — Code vs expected model, idiomatic gate, STRIDE, OPS lens.
+   - Code vs expected behavior model: does it actually do what step 1 described?
+   - Idiomatic gate: any framework bypass signals from the checklist?
+   - STRIDE — check all 6 explicitly (Critical/Important):
+     - **S**poofing: can I impersonate someone?
+     - **T**ampering: can input be modified in transit?
+     - **R**epudiation: can a user deny this action?
+     - **I**nfo Disclosure: what leaks (errors, logs, responses)?
+     - **D**oS: can this be flooded/exhausted?
+     - **E**levation: can I access what I shouldn't?
+   - OPS lens: unclosed connections, memory leaks, behavior at 100x volume
+   - `□` Code matches expected behavior model?
+   - `□` All bypass signals from step 1 checklist checked?
+   - `□` STRIDE run (all 6 — mark N/A if not applicable, never skip silently)?
+
+5. **COHÉRENCE** — Same problem solved same way? Layers clean?
+   - `□` Grep: is this pattern used consistently elsewhere in the codebase?
+   - `□` Layer boundaries respected (no business logic in routes, no DB calls in controllers)?
+   - `□` Health thresholds from overlay met (complexity, coverage, etc.)?
+
+6. **SIGNALER** — Report findings with severity.
+   - Format: `RISQUE: X parce que Y — IMPACT: Z`
+   - **BLOCKING**: must fix before merge — correctness, security, data loss
+   - **IMPORTANT**: should fix — degraded behavior, tech debt with near-term risk
+   - **MINOR**: nice to fix — style, naming, low-risk improvement
+   - **VALIDATED**: explicitly checked and confirmed correct — document what was verified
+   - `□` Every finding has RISQUE format?
+   - `□` Every BLOCKING has a specific FIX suggested?
+   - `□` include NOT-X (what the solution must NOT do)?
+
+7. **CAPITALISER** — Close the loop.
+   - New anti-pattern found → add to Guards or overlay.
+   - New failure mode → add Guard immediately.
+   - `□` Any new Guard to add?
+   - `□` Overlay updated if project-specific rule emerged?
 
 ---
 
