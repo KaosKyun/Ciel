@@ -1,5 +1,24 @@
 # Ciel — Changelog
 
+## v1.7.0 — 2026-04-05
+
+**Changements** :
+- RECHERCHE output gate: version changelog check (breaking changes/deprecations for installed version)
+- RECHERCHE output gate: framework philosophy now requires "HOW does this framework want me to solve this?" — not just API docs
+- SÉCURITÉ PASSE 4: security regression check — grep diff for new inputs/trust boundaries/removed auth blocks
+- PROUVER: CI gate — `gh run list --branch $BRANCH` mandatory before presenting report
+- PROUVER: issue comment gate — staging PID + AVANT/APRÈS on linked issue BEFORE creating PR (not post-merge only)
+- PROUVER: open PR hygiene — draft + CI green → convert to ready; PR > 2 days CI green → flag
+- Guards: 6 new entries (security surface, CI ignored, draft PR left open, issue comment missing, version changelog missed)
+
+**Métriques observées** :
+- Baseline (pre-Ciel): 62.8% fix/revert
+- Issues observées ayant déclenché cette version: draft PRs non mergés, commentaires manquants sur issues, security fixes sans vérification de régression, CI non vérifié avant rapport
+
+**Déclenché par** : 3 retours CEO sur security rigor, PR/issue tracking, et profondeur de recherche (2026-04-05)
+
+---
+
 ## v1.6.0 — 2026-04-05
 
 **Changements** :

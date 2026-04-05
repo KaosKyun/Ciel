@@ -50,8 +50,9 @@ OVERLAY: [ciel-overlay.md content if available]
 **Output gate — ALL required before continuing:**
 - `□` 1 WebSearch result + 1 documented finding produced
 - `□` 1 anti-pattern documented
-- `□` Framework philosophy stated
-- `□` Imports/signatures of every called file read?
+- `□` Framework philosophy stated — HOW does this framework want me to solve this? Not just what the API does.
+- `□` Installed version changelog checked? (breaking changes, deprecations since last major — `[lib] [version] changelog breaking changes`)
+- `□` Imports/signatures of every called file read? (read actual file — not memory)
 - `□` If DB query: real columns verified (migration file or `pg_attribute`)?
 - `□` If parsing/scraping: format tested on a real response example?
 
@@ -85,6 +86,11 @@ OVERLAY: [ciel-overlay.md content if available]
 - `□` Identity fields resolved server-side, never client-supplied?
 - `□` SQL parameterized, never interpolated?
 - `□` PII touched = anonymization covered?
+
+**PASSE 4 — SECURITY REGRESSION CHECK** (Critical — after FAIRE, before PROUVER):
+- Does this fix introduce NEW inputs, NEW trust boundaries, or NEW code paths that weren't there before?
+- grep the diff for: new `val`/`var` from request params, new `authenticate { }` blocks removed, new external calls added
+- "I fixed A without touching B" is NOT a check — read the diff with attacker eyes.
 
 Checklist hygiene: rotate items after incidents. If an item catches nothing in 10+ reviews → replace it.
 Anti-theater rule: show EVIDENCE for each item (file:line or grep output). "Checked" without evidence = not checked.
@@ -220,10 +226,23 @@ Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer
 
 **Attacker perspective test** (security fixes): "If I were an attacker, what test proves my fix blocks me?" Write THAT test. Can't write it → fix isn't proven.
 
+**CI gate** (mandatory — before presenting any report):
+- `gh run list --branch $BRANCH --limit 1` → status must be `completed/success` or `in_progress`
+- If failed: read failing job (`gh run view --job=ID`), identify root cause, fix before PR
+- "CI is running" ≠ done — wait for completion or acknowledge status explicitly
+
 **PR body gate** (before `gh pr create`):
 - `□` PR body contains `Closes #XXX` for every linked issue?
 - `□` PR title has no WIP marker (`WIP`, `[WIP]`, `wip`)? WIP = not done = don't open PR.
 - `□` PR closed after merge? (`gh pr view` — status: merged, not open)
+
+**Issue comment gate** (after staging verify, before PR):
+- Add a comment on every linked issue with: staging PID + AVANT/APRÈS evidence. Do NOT wait for post-merge.
+
+**Open PR hygiene** (check at session start and end):
+- `gh pr list --state open` — any draft with CI green? → convert to ready (`gh pr ready`)
+- Any PR open > 2 days with CI green + no review? → flag to CEO
+- Missing comments on linked issues? → add them now
 
 **Post-merge issue closure**: close ALL linked issues with evidence comment: (1) what was fixed (1 line), (2) concrete observed evidence from staging (log excerpts, curl responses, DOM values — NOT code diffs), (3) PR/SHA reference. Closure without evidence = not closed.
 
@@ -283,6 +302,11 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 | Over-engineering | Change solves the problem but adds complexity that wasn't needed | Counterfactual: "What if we do NOTHING?" 80% solved with 0 risk → reconsider. |
 | Process bloat | SKILL.md grows to 500 lines, steps take longer than the task | Anti-entropy: every addition must simplify OR catch a real failure. |
 | Stale overlay | Overlay says React 18, project is on React 19 — RECHERCHE fetches wrong docs | Per-month: check overlay versions vs real installed versions. |
+| Security fix adds surface | Fix closes vuln A but opens new endpoint/input/trust boundary unguarded | PASSE 4: grep diff for new params, removed auth blocks, new external calls — attacker eyes on the diff |
+| CI ignored | "Staging works" declared while CI is red or running | CI gate in PROUVER: `gh run list --branch $BRANCH --limit 1` — must be success before report |
+| Draft PR left open | CI green but PR stays draft — CEO can't review, never merges | META-CRITIQUER: `gh pr list --draft` — CI green + draft → convert to ready immediately |
+| Issue comment missing | Fix deployed but no evidence on the issue — CEO sees open issue with no update | Issue comment gate: add staging PID + AVANT/APRÈS on linked issue BEFORE creating PR |
+| Version changelog missed | Using Ktor 3.x but researching Ktor 2.x docs — breaking changes missed | RECHERCHE output gate: `□` installed version changelog checked for breaking changes |
 
 ---
 
