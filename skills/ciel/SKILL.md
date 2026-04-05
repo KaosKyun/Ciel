@@ -48,11 +48,11 @@ OVERLAY: [ciel-overlay.md content if available]
 ```
 
 **Output gate — ALL required before continuing:**
+*(RECHERCHE = external: docs, anti-patterns, versions. Internal file checks belong in CODEBASE.)*
 - `□` 1 WebSearch result + 1 documented finding produced
 - `□` 1 anti-pattern documented
 - `□` Framework philosophy stated — HOW does this framework want me to solve this? Not just what the API does.
 - `□` Installed version changelog checked? (breaking changes, deprecations since last major — `[lib] [version] changelog breaking changes`)
-- `□` Imports/signatures of every called file read? (read actual file — not memory)
 - `□` If DB query: real columns verified (migration file or `pg_attribute`)?
 - `□` If parsing/scraping: format tested on a real response example?
 
@@ -87,11 +87,6 @@ OVERLAY: [ciel-overlay.md content if available]
 - `□` SQL parameterized, never interpolated?
 - `□` PII touched = anonymization covered?
 
-**PASSE 4 — SECURITY REGRESSION CHECK** (Critical — after FAIRE, before PROUVER):
-- Does this fix introduce NEW inputs, NEW trust boundaries, or NEW code paths that weren't there before?
-- grep the diff for: new `val`/`var` from request params, new `authenticate { }` blocks removed, new external calls added
-- "I fixed A without touching B" is NOT a check — read the diff with attacker eyes.
-
 Checklist hygiene: rotate items after incidents. If an item catches nothing in 10+ reviews → replace it.
 Anti-theater rule: show EVIDENCE for each item (file:line or grep output). "Checked" without evidence = not checked.
 
@@ -104,6 +99,9 @@ FIND: [patterns/functions to locate]
 TRACE: [user action to narrate end-to-end]
 PROJECT_ROOT: [absolute path]
 ```
+
+**API surface check** (internal — before writing any call):
+- `□` Imports/signatures of every called file read? (read actual file — not memory)
 
 **Mini repo-map** (explorer does this for Standard/Critical — do manually for Trivial):
 1. `grep -n "^fun \|^class \|^interface \|^object " <file>` — list key signatures in impacted files
@@ -171,7 +169,17 @@ Any "I don't know" → investigate before acting. "It'll probably work" is NOT a
 - `□` Test verifies observable behavior, not just code execution?
 - `□` Failure path tested (negative scenario) at same priority as happy path?
 
+**Before-state capture** (bug fix only — do this NOW, before writing any code):
+Capture the broken behavior immediately: log excerpt, curl output, or screenshot showing the failure. Without this, PROUVER's AVANT obligation cannot be satisfied.
+
 **Chunked validation**: after each file — compile? types OK? 2 consecutive fails → STOP.
+
+### 8b. SECURITY REGRESSION CHECK *(Critical only — after FAIRE, before RELIRE)*
+
+- Does this fix introduce NEW inputs, NEW trust boundaries, or NEW code paths that weren't there before?
+- grep the diff for: new `val`/`var` from request params, `authenticate { }` blocks removed, new external calls added
+- "I fixed A without touching B" is NOT a check — read the diff with attacker eyes.
+→ Any new surface found → treat as Critical finding in RELIRE.
 
 ### 9. RELIRE *(dispatch `general-purpose` Agent with `agents/critic.md` on Standard/Critical — inline format for Trivial)*
 
@@ -201,7 +209,7 @@ RELIRE-B — Resolve each critique:
 - `□` All new imports exist at stated paths?
 - `□` All DB columns referenced exist in real schema?
 - `□` Test mocks on same host:port as actual requests?
-- `□` Tests written BEFORE implementation (not after)?
+- `□` Tests could fail independently of implementation? (mentally remove the impl — does the test still make sense and could it still fail?)
 - `□` Duplicated logic with existing code?
 - `□` Linter clean? (0 new violations vs base branch — Detekt / ESLint)
 - `□` Would a staff engineer approve this?
@@ -210,7 +218,9 @@ Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer
 
 ### 10. PROUVER
 
-**Staging verification is MANDATORY.** Push → deploy → trigger → capture evidence → PR.
+**Trivial — PROUVER allégé:** compile OK + push + verify no regression (no CI gate, no staging mandatory).
+
+**Standard/Critical — Staging verification is MANDATORY.** Push → deploy → trigger → capture evidence → PR.
 
 **AVANT/APRÈS obligation** (any bug fix):
 - AVANT: failing test (RED) OR log showing broken behavior — code diff ≠ proof
@@ -269,7 +279,7 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 1. **Depth match?** Over-processed trivial = waste. Under-processed critical = risk.
 2. **New failure mode?** → add Guard NOW.
 3. **User correction?** → update overlay + lessons.
-4. **Stale branches?** `git branch -r | grep worktree-agent | wc -l` — if > 5 → cleanup with `/clean_gone`.
+4. **Stale branches?** `git branch -r | wc -l` — excessive remote branches? Cleanup stale ones. (Project-specific cleanup commands go in overlay.)
 
 ---
 
