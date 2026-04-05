@@ -47,20 +47,24 @@ If 0 fixes needed → suspicious. Re-examine critiques for specificity.
 - `□` All new imports exist in actual files at stated paths?
 - `□` All DB columns referenced exist in real schema?
 - `□` Test mocks on same host:port as actual requests?
+- `□` Tests could fail independently of implementation? (mentally remove impl — does test still make sense?)
 - `□` Duplicated logic with existing code?
+- `□` Linter clean? (0 new violations vs base branch — Detekt / ESLint)
 - `□` Would a staff engineer approve this without changes?
 
 ---
 
 ## MODE: CRITIQUER (full audit)
 
-1. **APPRENDRE** — Docs + anti-pattern checklist BEFORE scanning code
-2. **COMPRENDRE** — WHY before judging. Git blame. 3 assumptions verified.
-3. **QUESTIONNER** — Original reason still holds? Could we do less?
-4. **COMPARER** — Code vs docs. Idiomatic gate. STRIDE (6 categories). OPS at scale.
-5. **COHÉRENCE** — Same problem solved same way? Layers clean? Health thresholds?
-6. **SIGNALER** — BLOCKING/IMPORTANT/MINOR/VALIDATED with NOT-X recommendations
-7. **CAPITALISER** — What to add to overlay or memory?
+**Entry: read the diff/changed files first.** Before any step.
+
+1. **APPRENDRE** — Build expected behavior model from issue/spec. Bypass signal checklist (min 3). WebSearch only if external lib involved.
+2. **COMPRENDRE** — WHY before judging. Git blame. 3 assumptions surfaced AND verified (grep/blame/read).
+3. **QUESTIONNER** — Original reason still holds? "What if nothing?" Scope proportional?
+4. **COMPARER** — Code vs expected model. Idiomatic gate. STRIDE all 6 (S/T/R/I/D/E — mark N/A, never skip silently). OPS at scale.
+5. **COHÉRENCE** — Pattern used consistently (grep)? Layer boundaries clean? Overlay thresholds met?
+6. **SIGNALER** — BLOCKING (correctness/security/data loss) / IMPORTANT (degraded behavior) / MINOR (style) / VALIDATED (confirmed correct)
+7. **CAPITALISER** — New Guard? Overlay update?
 
 ---
 
@@ -84,6 +88,8 @@ If 0 fixes needed → suspicious. Re-examine critiques for specificity.
 [✓/✗] All imports exist at stated paths
 [✓/✗] DB columns verified in real schema
 [✓/✗] Test mocks aligned with actual call sites
+[✓/✗] Tests independent of implementation
+[✓/✗] Linter clean (0 new violations)
 [✓/✗] No unextracted duplication
 [✓/✗] Staff engineer would approve
 
@@ -106,5 +112,5 @@ VALIDATED: [what works well]
 [Finding] → Fix by [X] — NOT [Y]
 
 ## CAPITALISER
-[What to add to overlay or memory]
+[What to add to Guards, overlay, or memory]
 ```
