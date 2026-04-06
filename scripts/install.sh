@@ -40,21 +40,60 @@ _install_overlay() {
 # ─── Platform installers ──────────────────────────────────────────────────────
 install_claude() {
   info "Claude Code..."
-  if command -v claude &>/dev/null; then
-    claude plugin install "$CIEL_DIR" 2>/dev/null \
-      && ok "Installed via claude plugin install" \
-      || { mkdir -p "$HOME/.claude/skills"; cp -r "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/" && ok "Copied to ~/.claude/skills/ciel"; }
-  else
-    mkdir -p "$HOME/.claude/skills"
-    cp -r "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/"
-    ok "Copied to ~/.claude/skills/ciel"
+
+  # Try official plugin install first
+  if command -v claude &>/dev/null && claude plugin install "$CIEL_DIR" 2>/dev/null; then
+    ok "Installed via claude plugin install (full plugin)"
+    _claude_hooks
+    _install_overlay
+    return
   fi
-  # Hooks
-  if [ -d "$PLUGIN_DIR/hooks" ]; then
-    chmod +x "$PLUGIN_DIR/hooks/"*.sh 2>/dev/null || true
-    ok "Hooks executable"
-  fi
+
+  # Manual fallback — install ALL layers
+  info "Falling back to manual install..."
+
+  # Layer 3: skill
+  mkdir -p "$HOME/.claude/skills"
+  cp -r "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/"
+  ok "skills/ciel → ~/.claude/skills/ciel/"
+
+  # Layer 4: agents
+  mkdir -p "$HOME/.claude/agents"
+  cp "$CIEL_DIR/agents/"*.md "$HOME/.claude/agents/" 2>/dev/null && ok "agents/ → ~/.claude/agents/"
+
+  # Commands
+  mkdir -p "$HOME/.claude/commands"
+  cp "$CIEL_DIR/commands/"*.md "$HOME/.claude/commands/" 2>/dev/null && ok "commands/ → ~/.claude/commands/"
+
+  # Layer 2: hooks — copy to plugin dir + wire into settings.json
+  MANUAL_PLUGIN_DIR="$HOME/.claude/plugins/ciel"
+  mkdir -p "$MANUAL_PLUGIN_DIR/hooks"
+  cp -r "$CIEL_DIR/hooks" "$MANUAL_PLUGIN_DIR/"
+  cp "$CIEL_DIR/overlay-template.md" "$MANUAL_PLUGIN_DIR/"
+  ok "hooks/ → ~/.claude/plugins/ciel/hooks/"
+  _claude_hooks
   _install_overlay
+}
+
+_claude_hooks() {
+  # Make hooks executable
+  local hooks_dir="$HOME/.claude/plugins/ciel/hooks"
+  [ -d "$hooks_dir" ] && chmod +x "$hooks_dir/"*.sh 2>/dev/null && ok "Hooks set executable"
+
+  # Merge hooks into ~/.claude/settings.json
+  local settings="$HOME/.claude/settings.json"
+  if [ ! -f "$settings" ]; then
+    cp "$CIEL_DIR/settings.json" "$settings"
+    ok "settings.json created with Ciel hooks"
+  else
+    # Check if hooks already present
+    if grep -q "pre-write-gate" "$settings" 2>/dev/null; then
+      ok "Hooks already in settings.json"
+    else
+      warn "settings.json exists — add hooks manually from $CIEL_DIR/settings.json"
+      warn "Or run: cat $CIEL_DIR/settings.json (merge PreToolUse/PostToolUse into your settings)"
+    fi
+  fi
 }
 
 install_cursor() {
