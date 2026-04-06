@@ -14,8 +14,7 @@ function isDir($p)  { Test-Path $p -PathType Container }
 function isFile($p) { Test-Path $p -PathType Leaf }
 
 # ─── Pipe/irm|iex detection ───────────────────────────────────────────────────
-# When run via irm ... | iex, $PSScriptRoot is empty — Resolve-Path would fail.
-# Detect by checking if settings.json exists relative to the script root.
+# When run via irm ... | iex, $PSScriptRoot is empty.
 $CIEL_DIR = ""
 if ($PSScriptRoot -and (isFile "$PSScriptRoot/../settings.json")) {
     $CIEL_DIR = (Resolve-Path "$PSScriptRoot/..").Path
@@ -31,7 +30,6 @@ if (-not $CIEL_DIR) {
         exit 1
     }
     $CIEL_DIR = $TEMP_DIR
-    # Cleanup temp dir on process exit
     $script:_CielTempDir = $TEMP_DIR
     Register-EngineEvent PowerShell.Exiting -Action {
         if ($script:_CielTempDir) { Remove-Item $script:_CielTempDir -Recurse -Force -ErrorAction SilentlyContinue }
@@ -78,11 +76,46 @@ function Install-Overlay {
     }
 }
 
+# ─── Purge any existing manual install ───────────────────────────────────────
+# Prevents duplicate /ciel entries when reinstalling or upgrading.
+# Does NOT touch settings.json (hooks stay in place).
+function Invoke-PurgeManualInstall {
+    info "Purging existing Ciel install..."
+
+    # Skill
+    if (isDir "$HOME/.claude/skills/ciel") {
+        Remove-Item "$HOME/.claude/skills/ciel" -Recurse -Force
+        ok "Removed ~/.claude/skills/ciel/"
+    }
+
+    # Commands (ciel*.md)
+    if (isDir "$HOME/.claude/commands") {
+        Get-ChildItem "$HOME/.claude/commands" -Filter "ciel*.md" -ErrorAction SilentlyContinue |
+            ForEach-Object { Remove-Item $_.FullName -Force }
+        ok "Removed ciel commands"
+    }
+
+    # Agents (researcher, explorer, critic — Ciel-specific)
+    foreach ($agent in @("researcher.md", "explorer.md", "critic.md")) {
+        $p = "$HOME/.claude/agents/$agent"
+        if (isFile $p) { Remove-Item $p -Force }
+    }
+    ok "Removed ciel agents"
+
+    # Plugin hooks dir — will be re-created
+    if (isDir "$HOME/.claude/plugins/ciel") {
+        Remove-Item "$HOME/.claude/plugins/ciel" -Recurse -Force
+        ok "Removed ~/.claude/plugins/ciel/"
+    }
+}
+
 # ─── Platform installers ──────────────────────────────────────────────────────
 function Install-Claude {
     info "Claude Code..."
 
-    # Try official plugin install first
+    # Always purge first to avoid duplicate skill/command entries
+    Invoke-PurgeManualInstall
+
     if (has "claude") {
         $result = & claude plugin install $CIEL_DIR 2>&1
         if ($LASTEXITCODE -eq 0) {
@@ -95,26 +128,22 @@ function Install-Claude {
 
     info "Falling back to manual install..."
 
-    # Layer 3: skill
     New-Item -ItemType Directory -Force "$HOME/.claude/skills" | Out-Null
     Copy-Item "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/" -Recurse -Force
     ok "skills/ciel -> ~/.claude/skills/ciel/"
 
-    # Layer 4: agents
     New-Item -ItemType Directory -Force "$HOME/.claude/agents" | Out-Null
     Get-ChildItem "$CIEL_DIR/agents" -Filter "*.md" | ForEach-Object {
         Copy-Item $_.FullName "$HOME/.claude/agents/"
     }
     ok "agents/ -> ~/.claude/agents/"
 
-    # Commands
     New-Item -ItemType Directory -Force "$HOME/.claude/commands" | Out-Null
     Get-ChildItem "$CIEL_DIR/commands" -Filter "*.md" -ErrorAction SilentlyContinue | ForEach-Object {
         Copy-Item $_.FullName "$HOME/.claude/commands/"
     }
     ok "commands/ -> ~/.claude/commands/"
 
-    # Layer 2: hooks
     $manualPluginDir = "$HOME/.claude/plugins/ciel"
     New-Item -ItemType Directory -Force "$manualPluginDir/hooks" | Out-Null
     Copy-Item "$CIEL_DIR/hooks" "$manualPluginDir/" -Recurse -Force
@@ -128,8 +157,6 @@ function Set-ClaudeHooks {
     $settings = "$HOME/.claude/settings.json"
     if (-not (isFile $settings)) {
         Copy-Item "$CIEL_DIR/settings.json" $settings
-
-        # On Windows: patch command to use pwsh instead of bash
         $content = Get-Content $settings -Raw
         $content = $content -replace 'bash (.+pre-write-gate)\.sh',   'pwsh -File $1.ps1'
         $content = $content -replace 'bash (.+post-write-relire)\.sh', 'pwsh -File $1.ps1'
@@ -139,7 +166,7 @@ function Set-ClaudeHooks {
         if (Select-String -Path $settings -Pattern "pre-write-gate" -Quiet) {
             ok "Hooks already in settings.json"
         } else {
-            warn "settings.json exists — add hooks manually from $CIEL_DIR/settings.json"
+            warn "settings.json exists — merge hooks manually from $CIEL_DIR/settings.json"
             warn "Use pwsh -File ... commands instead of bash for Windows"
         }
     }
