@@ -58,9 +58,43 @@ _install_overlay() {
   fi
 }
 
+# ─── Purge any existing manual install ───────────────────────────────────────
+# Prevents duplicate /ciel entries when reinstalling or upgrading.
+# Does NOT touch settings.json (hooks stay in place).
+_purge_manual_install() {
+  info "Purging existing Ciel install..."
+
+  # Skill
+  if [ -d "$HOME/.claude/skills/ciel" ]; then
+    rm -rf "$HOME/.claude/skills/ciel"
+    ok "Removed ~/.claude/skills/ciel/"
+  fi
+
+  # Commands (ciel.md, ciel-update.md, ciel-recommend.md, ...)
+  if [ -d "$HOME/.claude/commands" ]; then
+    find "$HOME/.claude/commands" -name "ciel*.md" -delete 2>/dev/null
+    ok "Removed ciel commands"
+  fi
+
+  # Agents (researcher, explorer, critic — Ciel-specific)
+  for agent in researcher explorer critic; do
+    rm -f "$HOME/.claude/agents/$agent.md" 2>/dev/null || true
+  done
+  ok "Removed ciel agents"
+
+  # Plugin hooks dir — will be re-created
+  if [ -d "$HOME/.claude/plugins/ciel" ]; then
+    rm -rf "$HOME/.claude/plugins/ciel"
+    ok "Removed ~/.claude/plugins/ciel/"
+  fi
+}
+
 # ─── Platform installers ──────────────────────────────────────────────────────
 install_claude() {
   info "Claude Code..."
+
+  # Always purge first to avoid duplicate skill/command entries
+  _purge_manual_install
 
   if command -v claude &>/dev/null && claude plugin install "$CIEL_DIR" 2>/dev/null; then
     ok "Installed via claude plugin install (full plugin)"
