@@ -2,13 +2,9 @@
 # Ciel Universal Installer v2 (PowerShell / Windows)
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: pwsh scripts/install.ps1 [project-root]
+#        irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
-
-$CIEL_DIR      = (Resolve-Path "$PSScriptRoot/..").Path
-$PROJECT_ROOT  = if ($args[0]) { $args[0] } else { (Get-Location).Path }
-$PLATFORMS_DIR = "$CIEL_DIR/platforms"
-$PLUGIN_DIR    = if ($env:CIEL_PLUGIN_DIR) { $env:CIEL_PLUGIN_DIR } else { "$HOME/.claude/plugins/ciel" }
 
 function ok($msg)   { Write-Host "  v $msg" -ForegroundColor Green }
 function info($msg) { Write-Host "  > $msg" -ForegroundColor Cyan }
@@ -16,6 +12,35 @@ function warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
 function has($cmd)  { $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue) }
 function isDir($p)  { Test-Path $p -PathType Container }
 function isFile($p) { Test-Path $p -PathType Leaf }
+
+# ─── Pipe/irm|iex detection ───────────────────────────────────────────────────
+# When run via irm ... | iex, $PSScriptRoot is empty — Resolve-Path would fail.
+# Detect by checking if settings.json exists relative to the script root.
+$CIEL_DIR = ""
+if ($PSScriptRoot -and (isFile "$PSScriptRoot/../settings.json")) {
+    $CIEL_DIR = (Resolve-Path "$PSScriptRoot/..").Path
+}
+
+if (-not $CIEL_DIR) {
+    $TEMP_DIR = Join-Path ([System.IO.Path]::GetTempPath()) "ciel-install-$([System.IO.Path]::GetRandomFileName())"
+    New-Item -ItemType Directory -Force $TEMP_DIR | Out-Null
+    Write-Host "> Detected pipe execution — cloning KaosKyun/Ciel to $TEMP_DIR ..." -ForegroundColor Cyan
+    git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git $TEMP_DIR 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "ERROR: git clone failed. Try: git clone https://github.com/KaosKyun/Ciel.git ~/.ciel; pwsh ~/.ciel/scripts/install.ps1"
+        exit 1
+    }
+    $CIEL_DIR = $TEMP_DIR
+    # Cleanup temp dir on process exit
+    $script:_CielTempDir = $TEMP_DIR
+    Register-EngineEvent PowerShell.Exiting -Action {
+        if ($script:_CielTempDir) { Remove-Item $script:_CielTempDir -Recurse -Force -ErrorAction SilentlyContinue }
+    } | Out-Null
+}
+
+$PROJECT_ROOT  = if ($args[0]) { $args[0] } else { (Get-Location).Path }
+$PLATFORMS_DIR = "$CIEL_DIR/platforms"
+$PLUGIN_DIR    = if ($env:CIEL_PLUGIN_DIR) { $env:CIEL_PLUGIN_DIR } else { "$HOME/.claude/plugins/ciel" }
 
 Write-Host ""
 Write-Host "Ciel Universal Installer v2" -ForegroundColor White
@@ -106,8 +131,8 @@ function Set-ClaudeHooks {
 
         # On Windows: patch command to use pwsh instead of bash
         $content = Get-Content $settings -Raw
-        $content = $content -replace 'bash (.+pre-write-gate)\.sh',  'pwsh -File $1.ps1'
-        $content = $content -replace 'bash (.+post-write-relire)\.sh','pwsh -File $1.ps1'
+        $content = $content -replace 'bash (.+pre-write-gate)\.sh',   'pwsh -File $1.ps1'
+        $content = $content -replace 'bash (.+post-write-relire)\.sh', 'pwsh -File $1.ps1'
         Set-Content $settings $content
         ok "settings.json created with Ciel hooks (PowerShell commands)"
     } else {
