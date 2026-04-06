@@ -2,10 +2,11 @@
 # Ciel Universal Installer v2
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root]
+#        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
 
 set -euo pipefail
 
-CIEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CIEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/..\" && pwd)"
 PROJECT_ROOT="${1:-$(pwd)}"
 PLATFORMS_DIR="$CIEL_DIR/platforms"
 PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
@@ -14,6 +15,20 @@ BOLD='\033[1m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; RESE
 ok()   { echo -e "  ${GREEN}✓${RESET} $1"; }
 info() { echo -e "  ${CYAN}→${RESET} $1"; }
 warn() { echo -e "  ${YELLOW}!${RESET} $1"; }
+
+# ─── Pipe/process-substitution detection ─────────────────────────────────────
+# bash <(curl ...) sets BASH_SOURCE[0] to /dev/fd/N → dirname gives /dev/fd → .. gives /dev
+# Detect by checking if expected files are missing, and clone to a tempdir instead.
+if [ ! -f "$CIEL_DIR/settings.json" ]; then
+  TEMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TEMP_DIR"' EXIT
+  echo -e "${CYAN}→${RESET} Detected pipe execution — cloning KaosKyun/Ciel to $TEMP_DIR ..."
+  git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git "$TEMP_DIR" 2>/dev/null \
+    || { echo "ERROR: git clone failed. Try: git clone https://github.com/KaosKyun/Ciel.git ~/.ciel && bash ~/.ciel/scripts/install.sh"; exit 1; }
+  CIEL_DIR="$TEMP_DIR"
+  PLATFORMS_DIR="$CIEL_DIR/platforms"
+  PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
+fi
 
 echo -e "\n${BOLD}Ciel Universal Installer v2${RESET}"
 echo -e "Plugin : $CIEL_DIR"
@@ -86,7 +101,6 @@ _claude_hooks() {
     cp "$CIEL_DIR/settings.json" "$settings"
     ok "settings.json created with Ciel hooks"
   else
-    # Check if hooks already present
     if grep -q "pre-write-gate" "$settings" 2>/dev/null; then
       ok "Hooks already in settings.json"
     else
