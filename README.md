@@ -27,35 +27,69 @@ Layer 4 — agents/            researcher + explorer + critic — isolated conte
 Layer 5 — CHANGELOG.md       Fix/revert metrics per version — closed feedback loop
 ```
 
+## Platform Support
+
+| Platform | File installed | Size | Notes |
+|----------|---------------|------|-------|
+| **Claude Code** | `~/.claude/skills/ciel/SKILL.md` | 27KB | Full workflow + hooks + agents |
+| **Cursor** | `.cursor/rules/ciel.mdc` | 4KB | MDC format, compressed, under 6KB limit |
+| **Windsurf** | `.windsurf/rules/ciel.md` | 3.8KB | Plain MD, under 6KB limit |
+| **Codex CLI** | `AGENTS.md` | 27KB | Full workflow, under 32KB limit |
+| **OpenCode** | `AGENTS.md` + `opencode.json` | 27KB | Full workflow |
+| **Kilo Code** | `.kilocode/rules/ciel.md` | 27KB | Full workflow |
+| **Ollama** | `Modelfile` (baked SYSTEM) | — | `ollama create ciel -f Modelfile` |
+| **LM Studio** | `system-prompt.md` (copy-paste) | — | Paste into Settings → System Prompt |
+
+**Cursor/Windsurf note**: due to the 6KB per-file limit, these platforms receive a compressed version covering all key principles, the 10-step pipeline, top guards, and context budget. Full docs remain at this repo.
+
 ## Install
 
 ```bash
-# Official (recommended)
+# Universal installer — auto-detects your tools
+bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
+
+# Claude Code (official plugin)
 claude plugin install github:KaosKyun/Ciel
 
-# Via marketplace (when listed)
-/plugin marketplace add KaosKyun/Ciel
-/plugin install ciel@KaosKyun/Ciel
+# Manual — clone and run installer
+git clone https://github.com/KaosKyun/Ciel.git ~/.ciel
+bash ~/.ciel/scripts/install.sh [project-root]
+```
 
-# Manual bootstrap (local only)
-bash scripts/install.sh [project-root]
+The installer detects which AI tools are present and copies the right files for each. It also creates `ciel-overlay.md` in your project root (fill in your stack versions and CI config).
+
+### Per-platform quick install
+
+```bash
+# Cursor only
+mkdir -p .cursor/rules && curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/cursor/.cursor/rules/ciel.mdc -o .cursor/rules/ciel.mdc
+
+# Windsurf only
+mkdir -p .windsurf/rules && curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/windsurf/.windsurf/rules/ciel.md -o .windsurf/rules/ciel.md
+
+# Codex / OpenCode / Kilo — AGENTS.md
+curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/codex/AGENTS.md -o AGENTS.md
+
+# Ollama
+curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/ollama/Modelfile -o Modelfile
+# Edit FROM line, then: ollama create ciel -f Modelfile
 ```
 
 After installing, bootstrap your project overlay:
 
 ```bash
-cp .claude/plugins/ciel/overlay-template.md ./ciel-overlay.md
-# Edit ciel-overlay.md: your stack, versions, CI, critical file patterns
-# Stack detection is automatic if you ran install.sh from the project root
+cp ciel-overlay-template.md ciel-overlay.md   # or let install.sh create it
+# Fill in: stack versions, CI URL, deploy commands, critical file patterns
 ```
 
 ## Usage
 
 ```
-/ciel <task description>
+/ciel <task description>          # Claude Code
+# Other platforms: Ciel is always-active via rules files
 ```
 
-Ciel classifies the task depth, dispatches researcher + explorer in parallel, enforces RELIRE via critic agent, and requires staging evidence before done.
+Ciel classifies the task depth (Trivial/Standard/Critical), dispatches researcher + explorer in parallel, enforces RELIRE via an isolated critic session, and requires staging evidence before done.
 
 ## Portability
 

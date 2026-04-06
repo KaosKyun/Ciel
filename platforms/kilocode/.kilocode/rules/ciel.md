@@ -37,7 +37,7 @@ If unsure → Standard. If touching user data or auth → Critical.
 - Load `ciel-overlay.md` if present — project-specific versions and rules
 - State assumptions explicitly: "I'm assuming X because Y."
 
-### 3. RECHERCHE *(MANDATORY — dispatch `researcher` agent on Standard/Critical)*
+### 3. RECHERCHE *(MANDATORY — use an isolated AI session (new chat/agent) for research on Standard/Critical)*
 
 **Dispatch researcher agent:**
 ```
@@ -62,7 +62,7 @@ OVERLAY: [ciel-overlay.md content if available]
 - Detect: is a domain skill available for this technology? (frontend, backend, security, database, etc.)
 - If yes → invoke it IN PARALLEL with the researcher agent. Domain skills = verified patterns. Researcher = current docs. Both needed.
 - Domain skill findings complement WebSearch — use both, cross-reference conflicts (stale skill vs fresh docs → trust docs).
-- If no domain skill exists → WebSearch only. Run `/ciel-recommend` to discover and install community plugins for this stack.
+- If no domain skill exists → WebSearch only. See https://github.com/KaosKyun/Ciel for community plugins to discover and install community plugins for this stack.
 
 **GitHub Issues search** (when external lib involved):
 - `site:github.com/[lib]/issues [symptom]` — open? closed with workaround?
@@ -90,7 +90,7 @@ OVERLAY: [ciel-overlay.md content if available]
 Checklist hygiene: rotate items after incidents. If an item catches nothing in 10+ reviews → replace it.
 Anti-theater rule: show EVIDENCE for each item (file:line or grep output). "Checked" without evidence = not checked.
 
-### 5. CODEBASE *(dispatch `explorer` agent on Standard/Critical)*
+### 5. CODEBASE *(use an isolated AI session for codebase exploration on Standard/Critical)*
 
 **Dispatch explorer agent:**
 ```
@@ -183,14 +183,14 @@ Capture the broken behavior immediately: log excerpt, curl output, or screenshot
 
 ### 9. RELIRE *(dispatch `general-purpose` Agent with `agents/critic.md` on Standard/Critical — inline format for Trivial)*
 
-**Standard/Critical — dispatch a `general-purpose` Agent using `agents/critic.md` as its prompt:**
+**Standard/Critical — use an isolated AI session with the critic prompt from https://github.com/KaosKyun/Ciel/blob/main/agents/critic.md:**
 ```
 MODE: RELIRE
 CHANGED_FILES: [list of all modified files]
 QUOI_GOAL: [original objective]
 IMPLEMENTATION: [what was done — 3-5 sentences]
 ```
-Important: use a `general-purpose` subagent (not `superpowers:code-reviewer` or any other named agent) — load `agents/critic.md` as the agent prompt to preserve Ciel's critique format.
+Important: use an isolated AI session with the critic prompt from the Ciel repo (agents/critic.md).
 
 Fresh context = different blind spots (CriticBench 2024: self-critique is the hardest critique mode for LLMs — isolated critic reduces degeneration of thought).
 
@@ -237,25 +237,25 @@ Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer
 **Attacker perspective test** (security fixes): "If I were an attacker, what test proves my fix blocks me?" Write THAT test. Can't write it → fix isn't proven.
 
 **CI gate** (mandatory — before presenting any report):
-- `gh run list --branch $BRANCH --limit 1` → status must be `completed/success` or `in_progress`
+- check your CI status (e.g. `gh run list --branch $BRANCH --limit 1` for GitHub) → status must be `completed/success` or `in_progress`
 - If failed: read failing job (`gh run view --job=ID`), identify root cause, fix before PR
 - "CI is running" ≠ done — wait for completion or acknowledge status explicitly
 
-**PR body gate** (before `gh pr create`):
+**PR body gate** (before create a pull request):
 - `□` PR body contains `Closes #XXX` for every linked issue?
 - `□` PR title has no WIP marker (`WIP`, `[WIP]`, `wip`)? WIP = not done = don't open PR.
-- `□` PR closed after merge? (`gh pr view` — status: merged, not open)
+- `□` PR closed after merge? (view PR status — status: merged, not open)
 
 **Issue comment gate** (after staging verify, before PR):
 - Add a comment on every linked issue with: staging PID + AVANT/APRÈS evidence. Do NOT wait for post-merge.
 
 **Open PR hygiene** (check at session start and end):
-- `gh pr list --state open` — any draft with CI green? → convert to ready (`gh pr ready`)
+- list open PRs (`gh pr list` for GitHub) — any draft with CI green? → convert to ready (mark PR as ready for review)
 - Any PR open > 2 days with CI green + no review? → flag to CEO
 - Missing comments on linked issues? → add them now
 
 **Closure gate** (before any issue is closed — including auto-close via PR merge):
-- `gh issue view <N> --comments` — does a comment with staging PID + AVANT/APRÈS exist?
+- view issue comments — does a comment with staging PID + AVANT/APRÈS exist?
 - No comment → add it NOW before the PR is merged (auto-close will not add it)
 - Batch PRs closing multiple issues → each issue gets its own comment individually
 
@@ -329,9 +329,9 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 2. **New failure mode?** → add Guard NOW.
 3. **User correction?** → update overlay + lessons.
 4. **Stale branches?** `git branch -r | wc -l` — excessive remote branches? Cleanup stale ones. (Project-specific cleanup commands go in overlay.)
-5. **Uncovered issues?** `gh issue list --state closed --limit 10 --json number,comments` — any issue with 0 comments? → add evidence comment now before next task.
-6. **Context health?** After a Critical task or 3+ agent dispatches: run `/compact` or open a new session before starting the next task. Stacking Critical tasks in one context window degrades output quality.
-7. **Session progress file** (Anthropic Engineering recommendation) — at each session boundary (task done, context > 70%, or before `/compact`): write `.claude/session-progress.md` with: current status, completed tasks, **failed approaches + why they failed**, known limitations, next steps. Next session reads this instead of replaying history. Failed approaches are the critical field — prevents re-attempting dead ends.
+5. **Uncovered issues?** list recently closed issues and check comment counts — any issue with 0 comments? → add evidence comment now before next task.
+6. **Context health?** After a Critical task or 3+ agent dispatches: summarize your context or start a new session or open a new session before starting the next task. Stacking Critical tasks in one context window degrades output quality.
+7. **Session progress file** (Anthropic Engineering recommendation) — at each session boundary (task done, context > 70%, or before summarize + new session): write `.claude/session-progress.md` with: current status, completed tasks, **failed approaches + why they failed**, known limitations, next steps. Next session reads this instead of replaying history. Failed approaches are the critical field — prevents re-attempting dead ends.
 
 ---
 
@@ -365,7 +365,7 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 | Process bloat | SKILL.md grows to 500 lines, steps take longer than the task | Anti-entropy: every addition must simplify OR catch a real failure. |
 | Stale overlay | Overlay says React 18, project is on React 19 — RECHERCHE fetches wrong docs | Per-month: check overlay versions vs real installed versions. |
 | Security fix adds surface | Fix closes vuln A but opens new endpoint/input/trust boundary unguarded | PASSE 4: grep diff for new params, removed auth blocks, new external calls — attacker eyes on the diff |
-| CI ignored | "Staging works" declared while CI is red or running | CI gate in PROUVER: `gh run list --branch $BRANCH --limit 1` — must be success before report |
+| CI ignored | "Staging works" declared while CI is red or running | CI gate in PROUVER: check your CI status (e.g. `gh run list --branch $BRANCH --limit 1` for GitHub) — must be success before report |
 | Draft PR left open | CI green but PR stays draft — CEO can't review, never merges | META-CRITIQUER: `gh pr list --draft` — CI green + draft → convert to ready immediately |
 | Issue comment missing | Fix deployed but no evidence on the issue — CEO sees open issue with no update | Issue comment gate: add staging PID + AVANT/APRÈS on linked issue BEFORE creating PR |
 | Version changelog missed | Using Ktor 3.x but researching Ktor 2.x docs — breaking changes missed | RECHERCHE output gate: `□` installed version changelog checked for breaking changes |
