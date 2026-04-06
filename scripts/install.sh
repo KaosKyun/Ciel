@@ -6,29 +6,35 @@
 
 set -euo pipefail
 
-CIEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/..\" && pwd)"
-PROJECT_ROOT="${1:-$(pwd)}"
-PLATFORMS_DIR="$CIEL_DIR/platforms"
-PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
-
 BOLD='\033[1m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; RESET='\033[0m'
-ok()   { echo -e "  ${GREEN}✓${RESET} $1"; }
-info() { echo -e "  ${CYAN}→${RESET} $1"; }
+ok()   { echo -e "  ${GREEN}v${RESET} $1"; }
+info() { echo -e "  ${CYAN}>${RESET} $1"; }
 warn() { echo -e "  ${YELLOW}!${RESET} $1"; }
 
 # ─── Pipe/process-substitution detection ─────────────────────────────────────
-# bash <(curl ...) sets BASH_SOURCE[0] to /dev/fd/N → dirname gives /dev/fd → .. gives /dev
-# Detect by checking if expected files are missing, and clone to a tempdir instead.
-if [ ! -f "$CIEL_DIR/settings.json" ]; then
+# bash <(curl ...) sets BASH_SOURCE[0] to /dev/fd/N.
+# Detect this BEFORE computing CIEL_DIR to avoid the broken path.
+CIEL_DIR=""
+if [[ "${BASH_SOURCE[0]}" != /dev/fd/* ]] && [[ "${BASH_SOURCE[0]}" != /proc/self/* ]]; then
+  _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  CIEL_DIR="$(cd "$_SCRIPT_DIR/.." && pwd)"
+fi
+
+if [ -z "$CIEL_DIR" ] || [ ! -f "$CIEL_DIR/settings.json" ]; then
   TEMP_DIR=$(mktemp -d)
   trap 'rm -rf "$TEMP_DIR"' EXIT
-  echo -e "${CYAN}→${RESET} Detected pipe execution — cloning KaosKyun/Ciel to $TEMP_DIR ..."
-  git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git "$TEMP_DIR" 2>/dev/null \
-    || { echo "ERROR: git clone failed. Try: git clone https://github.com/KaosKyun/Ciel.git ~/.ciel && bash ~/.ciel/scripts/install.sh"; exit 1; }
+  info "Pipe execution detected — cloning KaosKyun/Ciel to $TEMP_DIR ..."
+  if ! git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git "$TEMP_DIR" 2>/dev/null; then
+    echo "ERROR: git clone failed."
+    echo "Run manually: git clone https://github.com/KaosKyun/Ciel.git ~/.ciel && bash ~/.ciel/scripts/install.sh"
+    exit 1
+  fi
   CIEL_DIR="$TEMP_DIR"
-  PLATFORMS_DIR="$CIEL_DIR/platforms"
-  PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
 fi
+
+PROJECT_ROOT="${1:-$(pwd)}"
+PLATFORMS_DIR="$CIEL_DIR/platforms"
+PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
 
 echo -e "\n${BOLD}Ciel Universal Installer v2${RESET}"
 echo -e "Plugin : $CIEL_DIR"
@@ -56,7 +62,6 @@ _install_overlay() {
 install_claude() {
   info "Claude Code..."
 
-  # Try official plugin install first
   if command -v claude &>/dev/null && claude plugin install "$CIEL_DIR" 2>/dev/null; then
     ok "Installed via claude plugin install (full plugin)"
     _claude_hooks
@@ -64,38 +69,31 @@ install_claude() {
     return
   fi
 
-  # Manual fallback — install ALL layers
   info "Falling back to manual install..."
 
-  # Layer 3: skill
   mkdir -p "$HOME/.claude/skills"
   cp -r "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/"
-  ok "skills/ciel → ~/.claude/skills/ciel/"
+  ok "skills/ciel -> ~/.claude/skills/ciel/"
 
-  # Layer 4: agents
   mkdir -p "$HOME/.claude/agents"
-  cp "$CIEL_DIR/agents/"*.md "$HOME/.claude/agents/" 2>/dev/null && ok "agents/ → ~/.claude/agents/"
+  cp "$CIEL_DIR/agents/"*.md "$HOME/.claude/agents/" 2>/dev/null && ok "agents/ -> ~/.claude/agents/"
 
-  # Commands
   mkdir -p "$HOME/.claude/commands"
-  cp "$CIEL_DIR/commands/"*.md "$HOME/.claude/commands/" 2>/dev/null && ok "commands/ → ~/.claude/commands/"
+  cp "$CIEL_DIR/commands/"*.md "$HOME/.claude/commands/" 2>/dev/null && ok "commands/ -> ~/.claude/commands/"
 
-  # Layer 2: hooks — copy to plugin dir + wire into settings.json
-  MANUAL_PLUGIN_DIR="$HOME/.claude/plugins/ciel"
+  local MANUAL_PLUGIN_DIR="$HOME/.claude/plugins/ciel"
   mkdir -p "$MANUAL_PLUGIN_DIR/hooks"
   cp -r "$CIEL_DIR/hooks" "$MANUAL_PLUGIN_DIR/"
   cp "$CIEL_DIR/overlay-template.md" "$MANUAL_PLUGIN_DIR/"
-  ok "hooks/ → ~/.claude/plugins/ciel/hooks/"
+  ok "hooks/ -> ~/.claude/plugins/ciel/hooks/"
   _claude_hooks
   _install_overlay
 }
 
 _claude_hooks() {
-  # Make hooks executable
   local hooks_dir="$HOME/.claude/plugins/ciel/hooks"
   [ -d "$hooks_dir" ] && chmod +x "$hooks_dir/"*.sh 2>/dev/null && ok "Hooks set executable"
 
-  # Merge hooks into ~/.claude/settings.json
   local settings="$HOME/.claude/settings.json"
   if [ ! -f "$settings" ]; then
     cp "$CIEL_DIR/settings.json" "$settings"
@@ -104,8 +102,7 @@ _claude_hooks() {
     if grep -q "pre-write-gate" "$settings" 2>/dev/null; then
       ok "Hooks already in settings.json"
     else
-      warn "settings.json exists — add hooks manually from $CIEL_DIR/settings.json"
-      warn "Or run: cat $CIEL_DIR/settings.json (merge PreToolUse/PostToolUse into your settings)"
+      warn "settings.json exists — merge hooks manually from $CIEL_DIR/settings.json"
     fi
   fi
 }
@@ -156,7 +153,7 @@ install_kilocode() {
 
 install_ollama() {
   info "Ollama..."
-  TARGET="$HOME/.ciel/ollama"
+  local TARGET="$HOME/.ciel/ollama"
   mkdir -p "$TARGET"
   cp "$PLATFORMS_DIR/ollama/Modelfile" "$TARGET/Modelfile"
   ok "Copied Modelfile to $TARGET/"
@@ -169,26 +166,27 @@ install_ollama() {
 
 install_lmstudio() {
   info "LM Studio..."
-  TARGET="$HOME/.ciel/lmstudio"
+  local TARGET="$HOME/.ciel/lmstudio"
   mkdir -p "$TARGET"
   cp "$PLATFORMS_DIR/lmstudio/system-prompt.md" "$TARGET/system-prompt.md"
   ok "Copied system-prompt.md to $TARGET/"
   echo ""
   echo "    Next step: copy the prompt from $TARGET/system-prompt.md"
-  echo "    into LM Studio → Settings → System Prompt → Save preset 'Ciel'"
+  echo "    into LM Studio -> Settings -> System Prompt -> Save preset 'Ciel'"
 }
 
 # ─── Platform detection ───────────────────────────────────────────────────────
 declare -A DETECTED=()
-command -v claude &>/dev/null                                                                              && DETECTED[claude]="Claude Code CLI"
-{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; }                                      && DETECTED[cursor]="Cursor IDE"
-{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; }                                  && DETECTED[windsurf]="Windsurf IDE"
-command -v codex &>/dev/null                                                                               && DETECTED[codex]="Codex CLI"
-command -v opencode &>/dev/null                                                                            && DETECTED[opencode]="OpenCode CLI"
-{ [ -d "$PROJECT_ROOT/.kilocode" ] || (command -v code &>/dev/null && code --list-extensions 2>/dev/null | grep -qi "kilocode"); } \
-                                                                                                           && DETECTED[kilocode]="Kilo Code"
-command -v ollama &>/dev/null                                                                              && DETECTED[ollama]="Ollama"
-{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; }                                               && DETECTED[lmstudio]="LM Studio"
+command -v claude &>/dev/null && DETECTED[claude]="Claude Code CLI"
+{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; } && DETECTED[cursor]="Cursor IDE"
+{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; } && DETECTED[windsurf]="Windsurf IDE"
+command -v codex &>/dev/null && DETECTED[codex]="Codex CLI"
+command -v opencode &>/dev/null && DETECTED[opencode]="OpenCode CLI"
+{ [ -d "$PROJECT_ROOT/.kilocode" ] || \
+  (command -v code &>/dev/null && code --list-extensions 2>/dev/null | grep -qi "kilocode"); } \
+  && DETECTED[kilocode]="Kilo Code"
+command -v ollama &>/dev/null && DETECTED[ollama]="Ollama"
+{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; } && DETECTED[lmstudio]="LM Studio"
 
 # ─── User selection ───────────────────────────────────────────────────────────
 if [ ${#DETECTED[@]} -eq 0 ]; then
@@ -199,7 +197,7 @@ if [ ${#DETECTED[@]} -eq 0 ]; then
   IFS=' ' read -ra PLATFORMS <<< "$RAW"
 else
   echo -e "${BOLD}Detected:${RESET}"
-  for k in "${!DETECTED[@]}"; do echo "  • ${DETECTED[$k]} [$k]"; done
+  for k in "${!DETECTED[@]}"; do echo "  * ${DETECTED[$k]} [$k]"; done
   echo ""
   read -rp "  Install all detected? [Y/n/list]: " ANS
   ANS="${ANS:-Y}"
@@ -229,7 +227,7 @@ for p in "${PLATFORMS[@]}"; do
   echo ""
 done
 
-# ─── Legacy Claude Code: overlay + hooks (always run if PLUGIN_DIR exists) ───
+# ─── Stack detection summary ──────────────────────────────────────────────────
 if [ -d "$PLUGIN_DIR" ] && [ -f "$PLUGIN_DIR/overlay-template.md" ]; then
   DETECTED_SKILLS=$(detect_skills "$PROJECT_ROOT")
   if [ -n "$DETECTED_SKILLS" ]; then
