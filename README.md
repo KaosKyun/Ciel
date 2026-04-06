@@ -44,6 +44,8 @@ Layer 5 — CHANGELOG.md       Fix/revert metrics per version — closed feedbac
 
 ## Install
 
+### Linux / macOS
+
 ```bash
 # Universal installer — auto-detects your tools
 bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
@@ -56,9 +58,25 @@ git clone https://github.com/KaosKyun/Ciel.git ~/.ciel
 bash ~/.ciel/scripts/install.sh [project-root]
 ```
 
-The installer detects which AI tools are present and copies the right files for each. It also creates `ciel-overlay.md` in your project root (fill in your stack versions and CI config).
+### Windows (PowerShell)
+
+```powershell
+# Universal installer — auto-detects your tools
+irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.ps1 | iex
+
+# Claude Code (official plugin)
+claude plugin install github:KaosKyun/Ciel
+
+# Manual — clone and run installer
+git clone https://github.com/KaosKyun/Ciel.git ~/.ciel
+pwsh ~/.ciel/scripts/install.ps1 [project-root]
+```
+
+The installer detects which AI tools are present and copies the right files for each. It also creates `ciel-overlay.md` in your project root (fill in your stack versions and CI config). On Windows, `settings.json` hooks are automatically wired with `pwsh -File` commands instead of `bash`.
 
 ### Per-platform quick install
+
+**Linux / macOS:**
 
 ```bash
 # Cursor only
@@ -75,10 +93,29 @@ curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/ollama
 # Edit FROM line, then: ollama create ciel -f Modelfile
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+# Cursor only
+New-Item -ItemType Directory -Force .cursor/rules | Out-Null
+irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/cursor/.cursor/rules/ciel.mdc -OutFile .cursor/rules/ciel.mdc
+
+# Windsurf only
+New-Item -ItemType Directory -Force .windsurf/rules | Out-Null
+irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/windsurf/.windsurf/rules/ciel.md -OutFile .windsurf/rules/ciel.md
+
+# Codex / OpenCode / Kilo — AGENTS.md
+irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/codex/AGENTS.md -OutFile AGENTS.md
+
+# Ollama
+irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/ollama/Modelfile -OutFile Modelfile
+# Edit FROM line, then: ollama create ciel -f Modelfile
+```
+
 After installing, bootstrap your project overlay:
 
 ```bash
-cp ciel-overlay-template.md ciel-overlay.md   # or let install.sh create it
+cp ciel-overlay-template.md ciel-overlay.md   # or let the installer create it
 # Fill in: stack versions, CI URL, deploy commands, critical file patterns
 ```
 
@@ -111,10 +148,41 @@ The overlay stays in your project. The plugin stays generic.
 
 ## Hooks behavior
 
-- **`pre-write-gate.sh`** — Before any code file write: injects FLUX checkpoint reminder. Critical files (auth/, Service, Route...) get a stronger STRIDE reminder.
-- **`post-write-relire.sh`** — After any code file write: injects mandatory critic dispatch instruction.
+Each hook has a `.sh` (Linux/macOS) and a `.ps1` (Windows) variant — same logic, same output format.
+
+- **`pre-write-gate`** — Before any code file write: injects FLUX checkpoint reminder. Critical files (auth/, Service, Route...) get a stronger STRIDE reminder.
+- **`post-write-relire`** — After any code file write: injects mandatory critic dispatch instruction.
 
 Hooks inject context — they never block writes.
+
+To wire hooks manually in `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{ "matcher": "Write|Edit", "hooks": [
+      { "type": "command", "command": "bash ~/.claude/plugins/ciel/hooks/pre-write-gate.sh" }
+    ]}],
+    "PostToolUse": [{ "matcher": "Write|Edit", "hooks": [
+      { "type": "command", "command": "bash ~/.claude/plugins/ciel/hooks/post-write-relire.sh" }
+    ]}]
+  }
+}
+```
+
+On Windows, replace `bash ... .sh` with `pwsh -File ... .ps1`.
+
+## Self-update
+
+```bash
+# Linux / macOS
+bash ~/.claude/plugins/ciel/scripts/self-update.sh
+
+# Windows
+pwsh ~/.claude/plugins/ciel/scripts/self-update.ps1
+```
+
+Requires `gh` CLI authenticated (`gh auth login`). Compares local SHA with remote — downloads only if a new version is available.
 
 ## Versions & metrics
 
