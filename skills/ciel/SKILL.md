@@ -222,6 +222,22 @@ Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer
 
 **Standard/Critical — Staging verification is MANDATORY.** Push → deploy → trigger → capture evidence → PR.
 
+**Log observation tools** — three modes, use the right one:
+| Need | Tool | Example |
+|------|------|---------|
+| Snapshot (last N lines) | `Bash` | `journalctl -u neiyomi-staging -n 50 --no-pager` |
+| Stream (watch for events) | `Monitor` | `journalctl -u neiyomi-staging -f \| grep --line-buffered "keyword"` |
+| One-shot wait (deploy done?) | `Bash` with `run_in_background: true` | `deploy-staging.sh` |
+
+**NEVER** use `sleep N && tail` or `sleep N && journalctl` — the harness blocks it. Use Monitor for streaming, Bash `run_in_background` for one-shot waits.
+
+Monitor example for staging verification:
+```
+Monitor(description: "staging logs after deploy", persistent: false, timeout_ms: 60000,
+  command: "journalctl -u neiyomi-staging -f --since now | grep --line-buffered 'keyword'")
+```
+Always use `grep --line-buffered` in pipes — without it, pipe buffering delays events by minutes.
+
 **AVANT/APRÈS obligation** (any bug fix):
 - AVANT: failing test (RED) OR log showing broken behavior — code diff ≠ proof
 - APRÈS: staging log, curl, or HTTP status AFTER deploying AND triggering
@@ -377,6 +393,7 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 | File re-read | Same file read 3 times in a session — each read costs tokens and dilutes context | After first read: note pointer (path + 1-line summary). Re-read only if editing. Memory pointer rule in CONTEXTE. |
 | Dead-end loop | Same broken approach attempted in new session — no record of why it failed | Session progress file: write `.claude/session-progress.md` with failed approaches + rationale before closing context. |
 | Dead code accumulation | Unused imports, unreachable functions, orphaned variables pile up across sessions | META-CRITIQUER #8: run `ruff check --select F401,F811,F841` + `vulture . --min-confidence 80` (Python), `npx knip` (TS), Detekt unused rules (Kotlin). Fix before session end. |
+| sleep + tail anti-pattern | `sleep 2 && tail -5 logs/file.log` blocked by harness — wastes tokens, unreliable timing | Use Monitor for streaming events, Bash `run_in_background` for one-shot waits. Never `sleep N && tail/journalctl`. |
 
 ---
 
@@ -422,6 +439,8 @@ Full file read only when signatures are insufficient. Never read the same file t
 **Observation masking** (OpenHands / JetBrains 2025) — tool outputs from >3 turns ago that weren't referenced in subsequent turns: don't re-paste them. Replace with `[MASKED: result from step X — referenced in step Y]`. Zero LLM cost, as effective as summarization for most tasks.
 
 **Anti-silent-consumption** — background cron/loop agents are the #2 token killer after subagents. Before using `/loop` or `/schedule`: estimate daily token cost (runs × ~50K tokens per invocation). A 5-min loop = 288 runs/day = ~14M tokens/day. Prefer event-driven checks (run manually when needed) over polling.
+
+**Monitor budget** — every Monitor stdout line becomes a conversation message. Always filter with `grep --line-buffered` — never pipe raw logs. Use `persistent: false` with a tight `timeout_ms` for verification (60s typical). Reserve `persistent: true` for session-long watches (debugging live traffic). Monitors producing too many events are auto-killed by the harness.
 
 **Memory pointers** (ACON 2025, -40-60% tokens on file-heavy tasks) — after reading a file, note its pointer: `ref: packages/server/…/Foo.kt — SSRF validation, read step 3`. Evict the full content. Re-read only if editing that file again. Never keep full file content in context once it's been acted on.
 
