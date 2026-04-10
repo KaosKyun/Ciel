@@ -332,6 +332,11 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 5. **Uncovered issues?** `gh issue list --state closed --limit 10 --json number,comments` — any issue with 0 comments? → add evidence comment now before next task.
 6. **Context health?** After a Critical task or 3+ agent dispatches: run `/compact` or open a new session before starting the next task. Stacking Critical tasks in one context window degrades output quality.
 7. **Session progress file** (Anthropic Engineering recommendation) — at each session boundary (task done, context > 70%, or before `/compact`): write `.claude/session-progress.md` with: current status, completed tasks, **failed approaches + why they failed**, known limitations, next steps. Next session reads this instead of replaying history. Failed approaches are the critical field — prevents re-attempting dead ends.
+8. **Dead code sweep?** Vibe coding creates dead code fast. Run often:
+   - Python: `ruff check --select F401,F811,F841 .` (unused imports/vars) + `vulture . --min-confidence 80`
+   - TypeScript: `npx knip` or manual grep for unused exports
+   - Kotlin: Detekt `UnusedPrivateMember` + `UnusedImport` rules
+   Fix or remove findings before closing the session.
 
 ---
 
@@ -371,6 +376,7 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 | Version changelog missed | Using Ktor 3.x but researching Ktor 2.x docs — breaking changes missed | RECHERCHE output gate: `□` installed version changelog checked for breaking changes |
 | File re-read | Same file read 3 times in a session — each read costs tokens and dilutes context | After first read: note pointer (path + 1-line summary). Re-read only if editing. Memory pointer rule in CONTEXTE. |
 | Dead-end loop | Same broken approach attempted in new session — no record of why it failed | Session progress file: write `.claude/session-progress.md` with failed approaches + rationale before closing context. |
+| Dead code accumulation | Unused imports, unreachable functions, orphaned variables pile up across sessions | META-CRITIQUER #8: run `ruff check --select F401,F811,F841` + `vulture . --min-confidence 80` (Python), `npx knip` (TS), Detekt unused rules (Kotlin). Fix before session end. |
 
 ---
 
@@ -380,11 +386,13 @@ If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHER
 |-------|------|---------|----------|
 | `researcher` | RECHERCHE | Isolated — no session bias | Standard + Critical |
 | `explorer` | CODEBASE + FLUX | Isolated — reads codebase fresh | Standard + Critical |
-| `critic` | RELIRE | Isolated — different blind spots (CriticBench: fresh context catches what self-review misses) | Standard + Critical |
+| `critic` | RELIRE | Isolated — different blind spots (CriticBench: fresh context catches what self-review misses) | Critical always; Standard if 3+ files changed |
 
 Dispatch researcher + explorer **IN PARALLEL** before FAIRE.
-Dispatch critic after FAIRE.
+Dispatch critic after FAIRE — **but only when justified** (see token budget below).
 Do NOT re-read files agents already read — use their reports.
+
+**Token budget rule**: each agent dispatch costs ~850K tokens on average. On Standard tasks with < 3 changed files, use inline RELIRE (no critic agent) to save ~850K tokens. Reserve critic agent for: Critical tasks, Standard tasks touching 3+ files, or any auth/security change.
 
 **Agent report quality check**: if a report is < 200 tokens on a Standard task → suspect truncation. Re-dispatch with narrower scope before proceeding.
 
@@ -412,6 +420,8 @@ Full file read only when signatures are insufficient. Never read the same file t
 **Anti-flooding** — each piece of information is injected once per session. When re-dispatching a second agent for the same area: pass the first agent's summary, not the raw context.
 
 **Observation masking** (OpenHands / JetBrains 2025) — tool outputs from >3 turns ago that weren't referenced in subsequent turns: don't re-paste them. Replace with `[MASKED: result from step X — referenced in step Y]`. Zero LLM cost, as effective as summarization for most tasks.
+
+**Anti-silent-consumption** — background cron/loop agents are the #2 token killer after subagents. Before using `/loop` or `/schedule`: estimate daily token cost (runs × ~50K tokens per invocation). A 5-min loop = 288 runs/day = ~14M tokens/day. Prefer event-driven checks (run manually when needed) over polling.
 
 **Memory pointers** (ACON 2025, -40-60% tokens on file-heavy tasks) — after reading a file, note its pointer: `ref: packages/server/…/Foo.kt — SSRF validation, read step 3`. Evict the full content. Re-read only if editing that file again. Never keep full file content in context once it's been acted on.
 
