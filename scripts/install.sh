@@ -174,14 +174,23 @@ install_opencode() {
   else
     warn "opencode.json exists — add AGENTS.md to the instructions array manually"
   fi
+  # Install Ciel agents (auto-discovered by OpenCode from .opencode/agents/)
+  mkdir -p "$PROJECT_ROOT/.opencode/agents"
+  cp "$PLATFORMS_DIR/opencode/.opencode/agents/"*.md "$PROJECT_ROOT/.opencode/agents/"
+  ok "Copied .opencode/agents/ciel-{researcher,explorer,critic}.md"
   _install_overlay
 }
 
 install_kilocode() {
   info "Kilo Code..."
+  # Workflow rules (legacy path — auto-loaded without kilo.jsonc)
   mkdir -p "$PROJECT_ROOT/.kilocode/rules"
   cp "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
   ok "Copied .kilocode/rules/ciel.md"
+  # Install Ciel agents (auto-discovered by Kilo Code from .kilo/agents/)
+  mkdir -p "$PROJECT_ROOT/.kilo/agents"
+  cp "$PLATFORMS_DIR/kilocode/.kilo/agents/"*.md "$PROJECT_ROOT/.kilo/agents/"
+  ok "Copied .kilo/agents/ciel-{researcher,explorer,critic}.md"
   _install_overlay
 }
 

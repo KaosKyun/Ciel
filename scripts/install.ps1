@@ -205,14 +205,27 @@ function Install-OpenCode {
     } else {
         warn "opencode.json exists — add AGENTS.md to the instructions array manually"
     }
+    # Install Ciel agents (auto-discovered by OpenCode from .opencode/agents/)
+    New-Item -ItemType Directory -Force "$PROJECT_ROOT/.opencode/agents" | Out-Null
+    Get-ChildItem "$PLATFORMS_DIR/opencode/.opencode/agents" -Filter "*.md" | ForEach-Object {
+        Copy-Item $_.FullName "$PROJECT_ROOT/.opencode/agents/"
+    }
+    ok "Copied .opencode/agents/ciel-{researcher,explorer,critic}.md"
     Install-Overlay
 }
 
 function Install-KiloCode {
     info "Kilo Code..."
+    # Workflow rules (legacy path — auto-loaded without kilo.jsonc)
     New-Item -ItemType Directory -Force "$PROJECT_ROOT/.kilocode/rules" | Out-Null
     Copy-Item "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
     ok "Copied .kilocode/rules/ciel.md"
+    # Install Ciel agents (auto-discovered by Kilo Code from .kilo/agents/)
+    New-Item -ItemType Directory -Force "$PROJECT_ROOT/.kilo/agents" | Out-Null
+    Get-ChildItem "$PLATFORMS_DIR/kilocode/.kilo/agents" -Filter "*.md" | ForEach-Object {
+        Copy-Item $_.FullName "$PROJECT_ROOT/.kilo/agents/"
+    }
+    ok "Copied .kilo/agents/ciel-{researcher,explorer,critic}.md"
     Install-Overlay
 }
 

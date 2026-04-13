@@ -39,7 +39,7 @@ If unsure → Standard. If touching user data or auth → Critical.
 
 ### 3. RECHERCHE *(MANDATORY — use an isolated AI session (new chat/agent) for research on Standard/Critical)*
 
-**Dispatch researcher agent:**
+**Dispatch `ciel-researcher` agent** (installed locally by the Ciel installer):
 ```
 TASK: [1-sentence description]
 TECHNOLOGIES: [stack + exact installed versions]
@@ -62,7 +62,7 @@ OVERLAY: [ciel-overlay.md content if available]
 - Detect: is a domain skill available for this technology? (frontend, backend, security, database, etc.)
 - If yes → invoke it IN PARALLEL with the researcher agent. Domain skills = verified patterns. Researcher = current docs. Both needed.
 - Domain skill findings complement WebSearch — use both, cross-reference conflicts (stale skill vs fresh docs → trust docs).
-- If no domain skill exists → WebSearch only. See https://github.com/KaosKyun/Ciel for community plugins to discover and install community plugins for this stack.
+- If no domain skill exists → WebSearch only. See https://github.com/KaosKyun/Ciel for community plugins.
 
 **GitHub Issues search** (when external lib involved):
 - `site:github.com/[lib]/issues [symptom]` — open? closed with workaround?
@@ -92,7 +92,7 @@ Anti-theater rule: show EVIDENCE for each item (file:line or grep output). "Chec
 
 ### 5. CODEBASE *(use an isolated AI session for codebase exploration on Standard/Critical)*
 
-**Dispatch explorer agent:**
+**Dispatch `ciel-explorer` agent** (installed locally by the Ciel installer):
 ```
 TASK: [description]
 FIND: [patterns/functions to locate]
@@ -181,16 +181,16 @@ Capture the broken behavior immediately: log excerpt, curl output, or screenshot
 - "I fixed A without touching B" is NOT a check — read the diff with attacker eyes.
 → Any new surface found → treat as Critical finding in RELIRE.
 
-### 9. RELIRE *(dispatch `general-purpose` Agent with `agents/critic.md` on Standard/Critical — inline format for Trivial)*
+### 9. RELIRE *(dispatch `ciel-critic` agent on Standard/Critical — inline format for Trivial)*
 
-**Standard/Critical — use an isolated AI session with the critic prompt from https://github.com/KaosKyun/Ciel/blob/main/agents/critic.md:**
+**Standard/Critical — dispatch the `ciel-critic` agent** (installed locally by the Ciel installer):
 ```
 MODE: RELIRE
 CHANGED_FILES: [list of all modified files]
 QUOI_GOAL: [original objective]
 IMPLEMENTATION: [what was done — 3-5 sentences]
 ```
-Important: use an isolated AI session with the critic prompt from the Ciel repo (agents/critic.md).
+Important: use the `ciel-critic` agent in an isolated session — fresh context = different blind spots.
 
 Fresh context = different blind spots (CriticBench 2024: self-critique is the hardest critique mode for LLMs — isolated critic reduces degeneration of thought).
 

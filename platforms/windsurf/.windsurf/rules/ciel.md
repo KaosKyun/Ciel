@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Ciel — Deep-Reasoning Workflow
 > Understand before generating. Verify before claiming done.
 
