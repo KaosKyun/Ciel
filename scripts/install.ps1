@@ -214,6 +214,7 @@ function Install-Codex {
 function Install-OpenCode {
     info "OpenCode..."
     Invoke-PurgeCielFiles "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
+    Invoke-PurgeCielFiles "$PROJECT_ROOT/.opencode/commands" "ciel*.md"
     Copy-Item "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
     ok "Copied AGENTS.md"
     if (-not (isFile "$PROJECT_ROOT/opencode.json")) {
@@ -228,6 +229,12 @@ function Install-OpenCode {
         Copy-Item $_.FullName "$PROJECT_ROOT/.opencode/agents/"
     }
     ok "Copied .opencode/agents/ciel-{researcher,explorer,critic}.md"
+    # Install /ciel and /ciel-update commands (markdown format -- fallback for opencode.json)
+    New-Item -ItemType Directory -Force "$PROJECT_ROOT/.opencode/commands" | Out-Null
+    Get-ChildItem "$PLATFORMS_DIR/opencode/.opencode/commands" -Filter "*.md" | ForEach-Object {
+        Copy-Item $_.FullName "$PROJECT_ROOT/.opencode/commands/"
+    }
+    ok "Copied .opencode/commands/ciel.md, ciel-update.md"
     Install-Overlay
 }
 

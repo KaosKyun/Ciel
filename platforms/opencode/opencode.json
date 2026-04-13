@@ -6,12 +6,12 @@
   ],
   "command": {
     "ciel": {
-      "description": "Invoke Ciel deep-reasoning workflow explicitly on a task",
-      "prompt": "Follow the Ciel CRÉER pipeline from AGENTS.md for the task described below. Start with QUOI (classify depth: Trivial/Standard/Critical), then proceed through each step in order. For Standard/Critical: dispatch @ciel-researcher and @ciel-explorer agents in parallel before FAIRE, then @ciel-critic after FAIRE.\n\nTask: $ARGUMENTS"
+      "description": "Invoke Ciel deep-reasoning workflow on a task",
+      "template": "Follow the Ciel CRÉER pipeline from AGENTS.md for the task described below. Start with QUOI (classify depth: Trivial/Standard/Critical), then proceed through each step in order. For Standard/Critical: dispatch @ciel-researcher and @ciel-explorer agents in parallel before FAIRE, then @ciel-critic after FAIRE.\n\nTask: $ARGUMENTS"
     },
     "ciel-update": {
       "description": "Update Ciel to the latest version from GitHub",
-      "prompt": "Run `bash -c \"$(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)\"` to update Ciel. This will re-download and overwrite all Ciel files while preserving ciel-overlay.md."
+      "template": "Run `bash -c \"$(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)\"` to update Ciel. This will re-download and overwrite all Ciel files while preserving ciel-overlay.md."
     }
   }
 }

@@ -82,13 +82,16 @@ Download-File "hooks/post-write-relire.ps1" "$LOCAL_HOOKS_DIR/post-write-relire.
 # ─── Platform-specific updates (detect from project root) ───────────────────
 $projRoot = if ($args[0]) { $args[0] } else { (Get-Location).Path }
 
-# OpenCode agents
+# OpenCode agents + commands
 if (isDir "$projRoot/.opencode/agents") {
-    Write-Host "  Detected OpenCode install — updating agents..."
+    Write-Host "  Detected OpenCode install — updating agents + commands..."
     Download-File "platforms/opencode/.opencode/agents/ciel-researcher.md" "$projRoot/.opencode/agents/ciel-researcher.md"
     Download-File "platforms/opencode/.opencode/agents/ciel-explorer.md"   "$projRoot/.opencode/agents/ciel-explorer.md"
     Download-File "platforms/opencode/.opencode/agents/ciel-critic.md"     "$projRoot/.opencode/agents/ciel-critic.md"
     Download-File "platforms/opencode/AGENTS.md"                           "$projRoot/AGENTS.md"
+    New-Item -ItemType Directory -Force "$projRoot/.opencode/commands" | Out-Null
+    Download-File "platforms/opencode/.opencode/commands/ciel.md"          "$projRoot/.opencode/commands/ciel.md"
+    Download-File "platforms/opencode/.opencode/commands/ciel-update.md"   "$projRoot/.opencode/commands/ciel-update.md"
 }
 
 # Kilo Code agents + rules

@@ -2,9 +2,10 @@
 description: "Ciel Researcher -- isolated research agent for the RECHERCHE step. Dispatched automatically when the main agent needs external docs, anti-patterns, or version-specific behavior for a Standard/Critical task."
 mode: subagent
 temperature: 0.3
-tools:
-  edit: false
-  write: false
+permission:
+  edit: deny
+  bash: allow
+  webfetch: allow
 ---
 
 # Ciel Researcher

@@ -2,9 +2,10 @@
 description: "Ciel Critic -- isolated code review agent for the RELIRE step. Dispatched after implementation to provide hostile self-critique from a fresh context, free from the author's blind spots."
 mode: subagent
 temperature: 0.2
-tools:
-  edit: false
-  write: false
+permission:
+  edit: deny
+  bash: allow
+  webfetch: deny
 ---
 
 # Ciel Critic

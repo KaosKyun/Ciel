@@ -2,9 +2,10 @@
 description: "Ciel Explorer -- isolated codebase exploration agent for the CODEBASE and FLUX steps. Dispatched automatically when the main agent needs to trace data flows, find patterns, or map dependencies for a Standard/Critical task."
 mode: subagent
 temperature: 0.1
-tools:
-  edit: false
-  write: false
+permission:
+  edit: deny
+  bash: allow
+  webfetch: deny
 ---
 
 # Ciel Explorer

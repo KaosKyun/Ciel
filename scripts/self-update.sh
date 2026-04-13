@@ -89,13 +89,16 @@ _dl() {
   echo "  Updated: $dst"
 }
 
-# OpenCode agents
+# OpenCode agents + commands
 if [ -d "$PROJECT_ROOT/.opencode/agents" ]; then
-  echo "  Detected OpenCode install — updating agents..."
+  echo "  Detected OpenCode install — updating agents + commands..."
   _dl "platforms/opencode/.opencode/agents/ciel-researcher.md" "$PROJECT_ROOT/.opencode/agents/ciel-researcher.md"
   _dl "platforms/opencode/.opencode/agents/ciel-explorer.md"   "$PROJECT_ROOT/.opencode/agents/ciel-explorer.md"
   _dl "platforms/opencode/.opencode/agents/ciel-critic.md"     "$PROJECT_ROOT/.opencode/agents/ciel-critic.md"
   _dl "platforms/opencode/AGENTS.md"                           "$PROJECT_ROOT/AGENTS.md"
+  mkdir -p "$PROJECT_ROOT/.opencode/commands"
+  _dl "platforms/opencode/.opencode/commands/ciel.md"          "$PROJECT_ROOT/.opencode/commands/ciel.md"
+  _dl "platforms/opencode/.opencode/commands/ciel-update.md"   "$PROJECT_ROOT/.opencode/commands/ciel-update.md"
 fi
 
 # Kilo Code agents + rules
