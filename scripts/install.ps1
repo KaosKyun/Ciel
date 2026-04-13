@@ -77,6 +77,14 @@ function Detect-Skills($root) {
     return $skills | Sort-Object -Unique
 }
 
+# Remove old Ciel files from a directory (only ciel* prefixed, safe for user's own files)
+function Invoke-PurgeCielFiles($dir, $pattern = "ciel*") {
+    if (isDir $dir) {
+        Get-ChildItem $dir -Filter $pattern -File -ErrorAction SilentlyContinue |
+            ForEach-Object { Remove-Item $_.FullName -Force }
+    }
+}
+
 function Install-Overlay {
     if (-not (isFile "$PROJECT_ROOT/ciel-overlay.md")) {
         Copy-Item "$CIEL_DIR/overlay-template.md" "$PROJECT_ROOT/ciel-overlay.md"
@@ -205,13 +213,14 @@ function Install-Codex {
 
 function Install-OpenCode {
     info "OpenCode..."
+    Invoke-PurgeCielFiles "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
     Copy-Item "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
     ok "Copied AGENTS.md"
     if (-not (isFile "$PROJECT_ROOT/opencode.json")) {
         Copy-Item "$PLATFORMS_DIR/opencode/opencode.json" "$PROJECT_ROOT/opencode.json"
         ok "Copied opencode.json"
     } else {
-        warn "opencode.json exists — add AGENTS.md to the instructions array manually"
+        warn "opencode.json exists — merge /ciel command manually if needed"
     }
     # Install Ciel agents (auto-discovered by OpenCode from .opencode/agents/)
     New-Item -ItemType Directory -Force "$PROJECT_ROOT/.opencode/agents" | Out-Null
@@ -224,6 +233,8 @@ function Install-OpenCode {
 
 function Install-KiloCode {
     info "Kilo Code..."
+    Invoke-PurgeCielFiles "$PROJECT_ROOT/.kilocode/rules" "ciel*.md"
+    Invoke-PurgeCielFiles "$PROJECT_ROOT/.kilo/agents" "ciel-*.md"
     # Workflow rules (legacy path — auto-loaded without kilo.jsonc)
     New-Item -ItemType Directory -Force "$PROJECT_ROOT/.kilocode/rules" | Out-Null
     Copy-Item "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"

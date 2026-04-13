@@ -59,6 +59,14 @@ detect_skills() {
   printf '%s\n' "${skills[@]}" | sort -u
 }
 
+# Remove old Ciel files from a directory (only ciel-* prefixed files, safe for user's own files)
+_purge_ciel_files() {
+  local dir="$1" pattern="${2:-ciel*}"
+  if [ -d "$dir" ]; then
+    find "$dir" -maxdepth 1 -name "$pattern" -type f -delete 2>/dev/null
+  fi
+}
+
 _install_overlay() {
   if [ ! -f "$PROJECT_ROOT/ciel-overlay.md" ]; then
     cp "$CIEL_DIR/overlay-template.md" "$PROJECT_ROOT/ciel-overlay.md"
@@ -174,13 +182,14 @@ install_codex() {
 
 install_opencode() {
   info "OpenCode..."
+  _purge_ciel_files "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
   cp "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
   ok "Copied AGENTS.md"
   if [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
     cp "$PLATFORMS_DIR/opencode/opencode.json" "$PROJECT_ROOT/opencode.json"
     ok "Copied opencode.json"
   else
-    warn "opencode.json exists — add AGENTS.md to the instructions array manually"
+    warn "opencode.json exists — merge /ciel command manually if needed"
   fi
   # Install Ciel agents (auto-discovered by OpenCode from .opencode/agents/)
   mkdir -p "$PROJECT_ROOT/.opencode/agents"
@@ -191,6 +200,8 @@ install_opencode() {
 
 install_kilocode() {
   info "Kilo Code..."
+  _purge_ciel_files "$PROJECT_ROOT/.kilocode/rules" "ciel*.md"
+  _purge_ciel_files "$PROJECT_ROOT/.kilo/agents" "ciel-*.md"
   # Workflow rules (legacy path — auto-loaded without kilo.jsonc)
   mkdir -p "$PROJECT_ROOT/.kilocode/rules"
   cp "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
