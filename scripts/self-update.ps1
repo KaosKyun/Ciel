@@ -92,6 +92,8 @@ if (isDir "$projRoot/.opencode/agents") {
     New-Item -ItemType Directory -Force "$projRoot/.opencode/commands" | Out-Null
     Download-File "platforms/opencode/.opencode/commands/ciel.md"          "$projRoot/.opencode/commands/ciel.md"
     Download-File "platforms/opencode/.opencode/commands/ciel-update.md"   "$projRoot/.opencode/commands/ciel-update.md"
+    New-Item -ItemType Directory -Force "$projRoot/.opencode/plugins" | Out-Null
+    Download-File "platforms/opencode/.opencode/plugins/ciel.ts"           "$projRoot/.opencode/plugins/ciel.ts"
 }
 
 # Kilo Code agents + rules

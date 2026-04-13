@@ -215,6 +215,7 @@ function Install-OpenCode {
     info "OpenCode..."
     Invoke-PurgeCielFiles "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
     Invoke-PurgeCielFiles "$PROJECT_ROOT/.opencode/commands" "ciel*.md"
+    Invoke-PurgeCielFiles "$PROJECT_ROOT/.opencode/plugins" "ciel.*"
     Copy-Item "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
     ok "Copied AGENTS.md"
     if (-not (isFile "$PROJECT_ROOT/opencode.json")) {
@@ -235,6 +236,10 @@ function Install-OpenCode {
         Copy-Item $_.FullName "$PROJECT_ROOT/.opencode/commands/"
     }
     ok "Copied .opencode/commands/ciel.md, ciel-update.md"
+    # Install Ciel plugin (pre-write-gate + post-write-relire hooks)
+    New-Item -ItemType Directory -Force "$PROJECT_ROOT/.opencode/plugins" | Out-Null
+    Copy-Item "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
+    ok "Copied .opencode/plugins/ciel.ts (pre-write + post-write hooks)"
     Install-Overlay
 }
 

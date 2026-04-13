@@ -99,6 +99,8 @@ if [ -d "$PROJECT_ROOT/.opencode/agents" ]; then
   mkdir -p "$PROJECT_ROOT/.opencode/commands"
   _dl "platforms/opencode/.opencode/commands/ciel.md"          "$PROJECT_ROOT/.opencode/commands/ciel.md"
   _dl "platforms/opencode/.opencode/commands/ciel-update.md"   "$PROJECT_ROOT/.opencode/commands/ciel-update.md"
+  mkdir -p "$PROJECT_ROOT/.opencode/plugins"
+  _dl "platforms/opencode/.opencode/plugins/ciel.ts"           "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
 fi
 
 # Kilo Code agents + rules

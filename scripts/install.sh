@@ -184,6 +184,7 @@ install_opencode() {
   info "OpenCode..."
   _purge_ciel_files "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
   _purge_ciel_files "$PROJECT_ROOT/.opencode/commands" "ciel*.md"
+  _purge_ciel_files "$PROJECT_ROOT/.opencode/plugins" "ciel.*"
   cp "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
   ok "Copied AGENTS.md"
   if [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
@@ -200,6 +201,10 @@ install_opencode() {
   mkdir -p "$PROJECT_ROOT/.opencode/commands"
   cp "$PLATFORMS_DIR/opencode/.opencode/commands/"*.md "$PROJECT_ROOT/.opencode/commands/"
   ok "Copied .opencode/commands/ciel.md, ciel-update.md"
+  # Install Ciel plugin (pre-write-gate + post-write-relire hooks)
+  mkdir -p "$PROJECT_ROOT/.opencode/plugins"
+  cp "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
+  ok "Copied .opencode/plugins/ciel.ts (pre-write + post-write hooks)"
   _install_overlay
 }
 
