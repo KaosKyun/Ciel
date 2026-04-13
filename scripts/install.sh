@@ -169,7 +169,15 @@ install_windsurf() {
   info "Windsurf..."
   mkdir -p "$PROJECT_ROOT/.windsurf/rules"
   cp "$PLATFORMS_DIR/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
-  ok "Copied .windsurf/rules/ciel.md (under 6KB limit)"
+  ok "Copied .windsurf/rules/ciel.md (always_on rule)"
+  # Workflow: /ciel slash command
+  mkdir -p "$PROJECT_ROOT/.windsurf/workflows"
+  cp "$PLATFORMS_DIR/windsurf/.windsurf/workflows/ciel.md" "$PROJECT_ROOT/.windsurf/workflows/ciel.md"
+  ok "Copied .windsurf/workflows/ciel.md (/ciel command)"
+  # Skill: auto-invoked by Cascade on code tasks
+  mkdir -p "$PROJECT_ROOT/.windsurf/skills/ciel"
+  cp "$PLATFORMS_DIR/windsurf/.windsurf/skills/ciel/SKILL.md" "$PROJECT_ROOT/.windsurf/skills/ciel/SKILL.md"
+  ok "Copied .windsurf/skills/ciel/SKILL.md (auto-invoked skill)"
   _install_overlay
 }
 

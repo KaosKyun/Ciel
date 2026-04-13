@@ -200,7 +200,15 @@ function Install-Windsurf {
     info "Windsurf..."
     New-Item -ItemType Directory -Force "$PROJECT_ROOT/.windsurf/rules" | Out-Null
     Copy-Item "$PLATFORMS_DIR/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
-    ok "Copied .windsurf/rules/ciel.md"
+    ok "Copied .windsurf/rules/ciel.md (always_on rule)"
+    # Workflow: /ciel slash command
+    New-Item -ItemType Directory -Force "$PROJECT_ROOT/.windsurf/workflows" | Out-Null
+    Copy-Item "$PLATFORMS_DIR/windsurf/.windsurf/workflows/ciel.md" "$PROJECT_ROOT/.windsurf/workflows/ciel.md"
+    ok "Copied .windsurf/workflows/ciel.md (/ciel command)"
+    # Skill: auto-invoked by Cascade on code tasks
+    New-Item -ItemType Directory -Force "$PROJECT_ROOT/.windsurf/skills/ciel" | Out-Null
+    Copy-Item "$PLATFORMS_DIR/windsurf/.windsurf/skills/ciel/SKILL.md" "$PROJECT_ROOT/.windsurf/skills/ciel/SKILL.md"
+    ok "Copied .windsurf/skills/ciel/SKILL.md (auto-invoked skill)"
     Install-Overlay
 }
 

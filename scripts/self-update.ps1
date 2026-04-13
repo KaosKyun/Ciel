@@ -107,10 +107,14 @@ if (isFile "$projRoot/.kilocode/rules/ciel.md") {
     Download-File "platforms/kilocode/.kilocode/rules/ciel.md" "$projRoot/.kilocode/rules/ciel.md"
 }
 
-# Windsurf rules
+# Windsurf rules + workflows + skills
 if (isFile "$projRoot/.windsurf/rules/ciel.md") {
-    Write-Host "  Detected Windsurf install — updating rule..."
+    Write-Host "  Detected Windsurf install — updating rule + workflow + skill..."
     Download-File "platforms/windsurf/.windsurf/rules/ciel.md" "$projRoot/.windsurf/rules/ciel.md"
+    New-Item -ItemType Directory -Force "$projRoot/.windsurf/workflows" | Out-Null
+    Download-File "platforms/windsurf/.windsurf/workflows/ciel.md" "$projRoot/.windsurf/workflows/ciel.md"
+    New-Item -ItemType Directory -Force "$projRoot/.windsurf/skills/ciel" | Out-Null
+    Download-File "platforms/windsurf/.windsurf/skills/ciel/SKILL.md" "$projRoot/.windsurf/skills/ciel/SKILL.md"
 }
 
 # Cursor rules

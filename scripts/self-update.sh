@@ -114,10 +114,14 @@ if [ -f "$PROJECT_ROOT/.kilocode/rules/ciel.md" ]; then
   _dl "platforms/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
 fi
 
-# Windsurf rules
+# Windsurf rules + workflows + skills
 if [ -f "$PROJECT_ROOT/.windsurf/rules/ciel.md" ]; then
-  echo "  Detected Windsurf install — updating rule..."
+  echo "  Detected Windsurf install — updating rule + workflow + skill..."
   _dl "platforms/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
+  mkdir -p "$PROJECT_ROOT/.windsurf/workflows"
+  _dl "platforms/windsurf/.windsurf/workflows/ciel.md" "$PROJECT_ROOT/.windsurf/workflows/ciel.md"
+  mkdir -p "$PROJECT_ROOT/.windsurf/skills/ciel"
+  _dl "platforms/windsurf/.windsurf/skills/ciel/SKILL.md" "$PROJECT_ROOT/.windsurf/skills/ciel/SKILL.md"
 fi
 
 # Cursor rules
