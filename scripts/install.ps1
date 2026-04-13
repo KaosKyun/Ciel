@@ -263,15 +263,46 @@ if ($detected.Count -eq 0) {
     if ($raw -eq "all") { $raw = "claude cursor windsurf codex opencode kilocode ollama lmstudio" }
     $platforms = $raw -split " "
 } else {
+    # Build indexed list for selection
+    $detectedKeys = @($detected.Keys)
+    $detectedCount = $detectedKeys.Count
+
     Write-Host "Detected:" -ForegroundColor White
-    foreach ($k in $detected.Keys) { Write-Host "  * $($detected[$k]) [$k]" }
+    for ($i = 0; $i -lt $detectedCount; $i++) {
+        $k = $detectedKeys[$i]
+        Write-Host "  " -NoNewline
+        Write-Host "[$($i+1)]" -ForegroundColor Cyan -NoNewline
+        Write-Host " $($detected[$k]) " -NoNewline
+        Write-Host "[$k]" -ForegroundColor Yellow
+    }
     Write-Host ""
-    $ans = Read-Host "  Install all detected? [Y/n/list]"
-    if (-not $ans) { $ans = "Y" }
-    if ($ans -match "^[Yy]$") {
-        $platforms = $detected.Keys
+    $ans = Read-Host "  Install? [A]ll / numbers (e.g. 1,3) / [L]ist keys / [Q]uit"
+    if (-not $ans) { $ans = "A" }
+
+    if ($ans -match "^[AaYy]$") {
+        $platforms = $detectedKeys
+    } elseif ($ans -match "^[Qq]$") {
+        Write-Host "`nAborted." -ForegroundColor White
+        exit 0
+    } elseif ($ans -match "^[Ll]") {
+        Write-Host "  Keys: $($detectedKeys -join ', ')"
+        $raw = Read-Host "  Platforms to install (space/comma-separated)"
+        $platforms = $raw -split "[, ]+" | Where-Object { $_ }
+    } elseif ($ans -match "^[\d,\s]+$") {
+        # Number selection: "1,3" or "1 3" or "2"
+        $nums = $ans -split "[, ]+" | Where-Object { $_ }
+        $platforms = @()
+        foreach ($n in $nums) {
+            $idx = [int]$n - 1
+            if ($idx -ge 0 -and $idx -lt $detectedCount) {
+                $platforms += $detectedKeys[$idx]
+            } else {
+                warn "Invalid number: $n (expected 1-$detectedCount)"
+            }
+        }
     } else {
-        $platforms = $ans -split " "
+        # Treat as space/comma-separated platform keys
+        $platforms = $ans -split "[, ]+" | Where-Object { $_ }
     }
 }
 

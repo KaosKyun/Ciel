@@ -230,15 +230,43 @@ if [ ${#DETECTED[@]} -eq 0 ]; then
   [ "$RAW" = "all" ] && RAW="claude cursor windsurf codex opencode kilocode ollama lmstudio"
   IFS=' ' read -ra PLATFORMS <<< "$RAW"
 else
+  # Build indexed array for selection
+  DETECTED_KEYS=("${!DETECTED[@]}")
+  DETECTED_COUNT=${#DETECTED_KEYS[@]}
+
   echo -e "${BOLD}Detected:${RESET}"
-  for k in "${!DETECTED[@]}"; do echo "  * ${DETECTED[$k]} [$k]"; done
+  for i in "${!DETECTED_KEYS[@]}"; do
+    local_key="${DETECTED_KEYS[$i]}"
+    echo -e "  ${CYAN}[$((i+1))]${RESET} ${DETECTED[$local_key]} ${YELLOW}[$local_key]${RESET}"
+  done
   echo ""
-  read -rp "  Install all detected? [Y/n/list]: " ANS
-  ANS="${ANS:-Y}"
-  if [[ "$ANS" =~ ^[Yy]$ ]]; then
-    PLATFORMS=("${!DETECTED[@]}")
+  read -rp "  Install? [A]ll / numbers (e.g. 1,3) / [L]ist keys / [Q]uit: " ANS
+  ANS="${ANS:-A}"
+
+  if [[ "$ANS" =~ ^[AaYy]$ ]]; then
+    PLATFORMS=("${DETECTED_KEYS[@]}")
+  elif [[ "$ANS" =~ ^[Qq]$ ]]; then
+    echo -e "\n${BOLD}Aborted.${RESET}"
+    exit 0
+  elif [[ "$ANS" =~ ^[Ll] ]]; then
+    echo "  Keys: ${DETECTED_KEYS[*]}"
+    read -rp "  Platforms to install (space/comma-separated): " RAW
+    IFS=' ,' read -ra PLATFORMS <<< "$RAW"
+  elif [[ "$ANS" =~ ^[0-9,\ ]+$ ]]; then
+    # Number selection: "1,3" or "1 3" or "2"
+    IFS=', ' read -ra NUMS <<< "$ANS"
+    PLATFORMS=()
+    for n in "${NUMS[@]}"; do
+      idx=$((n - 1))
+      if [ "$idx" -ge 0 ] && [ "$idx" -lt "$DETECTED_COUNT" ]; then
+        PLATFORMS+=("${DETECTED_KEYS[$idx]}")
+      else
+        warn "Invalid number: $n (expected 1-$DETECTED_COUNT)"
+      fi
+    done
   else
-    IFS=' ' read -ra PLATFORMS <<< "$ANS"
+    # Treat as space/comma-separated platform keys
+    IFS=' ,' read -ra PLATFORMS <<< "$ANS"
   fi
 fi
 
