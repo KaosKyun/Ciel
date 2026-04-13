@@ -36,7 +36,15 @@ PROJECT_ROOT="${1:-$(pwd)}"
 PLATFORMS_DIR="$CIEL_DIR/platforms"
 PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
 
-echo -e "\n${BOLD}Ciel Universal Installer v2${RESET}"
+# ─── Detect existing install ─────────────────────────────────────────────────
+IS_UPDATE=false
+[ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
+
+if $IS_UPDATE; then
+  echo -e "\n${BOLD}Ciel Universal Installer v2${RESET} (${YELLOW}update detected${RESET})"
+else
+  echo -e "\n${BOLD}Ciel Universal Installer v2${RESET}"
+fi
 echo -e "Plugin : $CIEL_DIR"
 echo -e "Project: $PROJECT_ROOT\n"
 

@@ -77,9 +77,53 @@ gh api "repos/$REPO/contents/hooks/post-write-relire.sh" --jq '.content' \
 chmod +x "$LOCAL_HOOKS_DIR/pre-write-gate.sh" "$LOCAL_HOOKS_DIR/post-write-relire.sh"
 echo "  Updated: hooks"
 
+# ─── Platform-specific updates (detect from project root) ───────────────────
+PROJECT_ROOT="${1:-$(pwd)}"
+
+_dl() {
+  local src="$1" dst="$2"
+  local content
+  content=$(gh api "repos/$REPO/contents/$src" --jq '.content' 2>/dev/null) || return 1
+  mkdir -p "$(dirname "$dst")"
+  echo "$content" | base64 -d > "$dst"
+  echo "  Updated: $dst"
+}
+
+# OpenCode agents
+if [ -d "$PROJECT_ROOT/.opencode/agents" ]; then
+  echo "  Detected OpenCode install — updating agents..."
+  _dl "platforms/opencode/.opencode/agents/ciel-researcher.md" "$PROJECT_ROOT/.opencode/agents/ciel-researcher.md"
+  _dl "platforms/opencode/.opencode/agents/ciel-explorer.md"   "$PROJECT_ROOT/.opencode/agents/ciel-explorer.md"
+  _dl "platforms/opencode/.opencode/agents/ciel-critic.md"     "$PROJECT_ROOT/.opencode/agents/ciel-critic.md"
+  _dl "platforms/opencode/AGENTS.md"                           "$PROJECT_ROOT/AGENTS.md"
+fi
+
+# Kilo Code agents + rules
+if [ -d "$PROJECT_ROOT/.kilo/agents" ]; then
+  echo "  Detected Kilo Code install — updating agents..."
+  _dl "platforms/kilocode/.kilo/agents/ciel-researcher.md" "$PROJECT_ROOT/.kilo/agents/ciel-researcher.md"
+  _dl "platforms/kilocode/.kilo/agents/ciel-explorer.md"   "$PROJECT_ROOT/.kilo/agents/ciel-explorer.md"
+  _dl "platforms/kilocode/.kilo/agents/ciel-critic.md"     "$PROJECT_ROOT/.kilo/agents/ciel-critic.md"
+fi
+if [ -f "$PROJECT_ROOT/.kilocode/rules/ciel.md" ]; then
+  _dl "platforms/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
+fi
+
+# Windsurf rules
+if [ -f "$PROJECT_ROOT/.windsurf/rules/ciel.md" ]; then
+  echo "  Detected Windsurf install — updating rule..."
+  _dl "platforms/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
+fi
+
+# Cursor rules
+if [ -f "$PROJECT_ROOT/.cursor/rules/ciel.mdc" ]; then
+  echo "  Detected Cursor install — updating rule..."
+  _dl "platforms/cursor/.cursor/rules/ciel.mdc" "$PROJECT_ROOT/.cursor/rules/ciel.mdc"
+fi
+
 # Store new SHA
 echo "$REMOTE_SHA" > "$VERSION_FILE"
 
 echo ""
 echo "Ciel updated successfully (SHA: ${REMOTE_SHA:0:8})."
-echo "Restart Claude Code to apply changes (/restart or reopen session)."
+echo "Restart your IDE / AI tool to apply changes."

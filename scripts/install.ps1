@@ -40,8 +40,16 @@ $PROJECT_ROOT  = if ($args[0]) { $args[0] } else { (Get-Location).Path }
 $PLATFORMS_DIR = "$CIEL_DIR/platforms"
 $PLUGIN_DIR    = if ($env:CIEL_PLUGIN_DIR) { $env:CIEL_PLUGIN_DIR } else { "$HOME/.claude/plugins/ciel" }
 
+# ─── Detect existing install ─────────────────────────────────────────────────
+$isUpdate = isFile "$PROJECT_ROOT/ciel-overlay.md"
+
 Write-Host ""
-Write-Host "Ciel Universal Installer v2" -ForegroundColor White
+if ($isUpdate) {
+    Write-Host "Ciel Universal Installer v2 " -ForegroundColor White -NoNewline
+    Write-Host "(update detected)" -ForegroundColor Yellow
+} else {
+    Write-Host "Ciel Universal Installer v2" -ForegroundColor White
+}
 Write-Host "Plugin : $CIEL_DIR"
 Write-Host "Project: $PROJECT_ROOT"
 Write-Host ""

@@ -79,9 +79,44 @@ Download-File "hooks/post-write-relire.sh" "$LOCAL_HOOKS_DIR/post-write-relire.s
 Download-File "hooks/pre-write-gate.ps1"   "$LOCAL_HOOKS_DIR/pre-write-gate.ps1"
 Download-File "hooks/post-write-relire.ps1" "$LOCAL_HOOKS_DIR/post-write-relire.ps1"
 
+# ─── Platform-specific updates (detect from project root) ───────────────────
+$projRoot = if ($args[0]) { $args[0] } else { (Get-Location).Path }
+
+# OpenCode agents
+if (isDir "$projRoot/.opencode/agents") {
+    Write-Host "  Detected OpenCode install — updating agents..."
+    Download-File "platforms/opencode/.opencode/agents/ciel-researcher.md" "$projRoot/.opencode/agents/ciel-researcher.md"
+    Download-File "platforms/opencode/.opencode/agents/ciel-explorer.md"   "$projRoot/.opencode/agents/ciel-explorer.md"
+    Download-File "platforms/opencode/.opencode/agents/ciel-critic.md"     "$projRoot/.opencode/agents/ciel-critic.md"
+    Download-File "platforms/opencode/AGENTS.md"                           "$projRoot/AGENTS.md"
+}
+
+# Kilo Code agents + rules
+if (isDir "$projRoot/.kilo/agents") {
+    Write-Host "  Detected Kilo Code install — updating agents..."
+    Download-File "platforms/kilocode/.kilo/agents/ciel-researcher.md" "$projRoot/.kilo/agents/ciel-researcher.md"
+    Download-File "platforms/kilocode/.kilo/agents/ciel-explorer.md"   "$projRoot/.kilo/agents/ciel-explorer.md"
+    Download-File "platforms/kilocode/.kilo/agents/ciel-critic.md"     "$projRoot/.kilo/agents/ciel-critic.md"
+}
+if (isFile "$projRoot/.kilocode/rules/ciel.md") {
+    Download-File "platforms/kilocode/.kilocode/rules/ciel.md" "$projRoot/.kilocode/rules/ciel.md"
+}
+
+# Windsurf rules
+if (isFile "$projRoot/.windsurf/rules/ciel.md") {
+    Write-Host "  Detected Windsurf install — updating rule..."
+    Download-File "platforms/windsurf/.windsurf/rules/ciel.md" "$projRoot/.windsurf/rules/ciel.md"
+}
+
+# Cursor rules
+if (isFile "$projRoot/.cursor/rules/ciel.mdc") {
+    Write-Host "  Detected Cursor install — updating rule..."
+    Download-File "platforms/cursor/.cursor/rules/ciel.mdc" "$projRoot/.cursor/rules/ciel.mdc"
+}
+
 # Store new SHA
 Set-Content $VERSION_FILE $remoteSha
 
 Write-Host ""
 Write-Host "Ciel updated successfully (SHA: $($remoteSha.Substring(0, 8)))."
-Write-Host "Restart Claude Code to apply changes (/restart or reopen session)."
+Write-Host "Restart your IDE / AI tool to apply changes."
