@@ -3,25 +3,69 @@
   "instructions": ["AGENTS.md"],
   "plugin": ["./.opencode/plugins/ciel.ts"],
   "agent": {
-    "ciel-critic": {
-      "name": "ciel-critic",
-      "mode": "subagent",
-      "model": "anthropic/claude-sonnet-4-6"
-    },
     "ciel-explorer": {
-      "name": "ciel-explorer",
+      "description": "Isolated-context explorer for CODEBASE + FLUX steps. Dispatch for pattern-fitness-check, flux-narrator, domain mastery.",
       "mode": "subagent",
-      "model": "anthropic/claude-sonnet-4-6"
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "{file:./.opencode/agents/ciel-explorer.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    },
+    "ciel-critic": {
+      "description": "Isolated-context critic for RELIRE, CRITIQUER, or RCA. Dispatch with MODE=RELIRE after writes, MODE=CRITIQUER for audits, MODE=RCA for debugging.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "{file:./.opencode/agents/ciel-critic.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
     },
     "ciel-researcher": {
-      "name": "ciel-researcher",
+      "description": "Isolated-context researcher for RECHERCHE step. Dispatch for official docs, anti-patterns, version changelog.",
       "mode": "subagent",
-      "model": "anthropic/claude-haiku-4-5-20251001"
+      "model": "anthropic/claude-haiku-4-5-20251001",
+      "prompt": "{file:./.opencode/agents/ciel-researcher.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": false,
+        "grep": false,
+        "webfetch": true,
+        "websearch": true,
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
     },
     "ciel-improver": {
-      "name": "ciel-improver",
+      "description": "Long-running meta-agent for Ciel self-improvement. Dispatch on /ciel-improve, /ciel-eval, /ciel-create-skill.",
       "mode": "subagent",
-      "model": "anthropic/claude-sonnet-4-6"
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "{file:./.opencode/agents/ciel-improver.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "bash": true,
+        "webfetch": true,
+        "websearch": true,
+        "write": false,
+        "edit": false
+      }
     }
   }
 }
