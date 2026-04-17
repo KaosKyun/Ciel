@@ -91,6 +91,7 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 | Changes to `skills/**/SKILL.md`, skill review | **`skills-first-design-auditor`** | `@ciel-improver` |
 | "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`issue-closer`** | inline (all utility skills) |
 | "mcp server", "mcp config", ".mcp.json", "claude mcp", "serveurs mcp" | **`debug-reasoning-rca`** (config drift + failures) + `stride-analyzer` if secrets found | `@ciel-explorer` for config read → `@ciel-critic` MODE=RCA |
+| "are skills outdated", "refresh skills", "audit skill freshness", "check library versions in skills", stale URLs/citations | **`skill-freshness-auditor`** | `@ciel-improver` (via `/ciel-refresh`) |
 
 **Multiple intents can match** (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical). Queue every matching skill after `quoi-framer`.
 
@@ -326,7 +327,8 @@ Observation masking: tool outputs from > 3 turns ago that weren't referenced →
 
 Ciel can create and improve its own skills through the `meta/` subsystem:
 
-- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite)
+- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite) — **transcript-driven** (catches failures Ciel experienced)
+- `/ciel-refresh [scope]` → invokes `improver` agent → `skill-freshness-auditor` skill → scans every SKILL.md for stale URLs, outdated library pins, superseded citations → freshness patch-set for user approval — **outside-world-driven** (catches drift Ciel has not yet tripped over)
 - `/ciel-eval [skill-name]` → `skill-variant-evaluator` runs binary evals on 2-3 variants, winner = highest aggregate score (tiebreak: lowest token usage)
 - `/ciel-create-skill <name> <purpose>` → `skill-creator` generates a valid SKILL.md scaffold
 - Session-end hooks (`Stop`, `PreCompact`) → `learnings-capture` appends user corrections to `.claude/learnings.md` or `ciel-overlay.md`

@@ -1,5 +1,55 @@
 # Ciel — Changelog
 
+## v2.4.5 — 2026-04-17 — `skill-freshness-auditor` + `/ciel-refresh`
+
+**Context** — User feedback: Ciel's self-improvement subsystem only catches what Ciel *experienced* (via `/ciel-improve` on session transcripts). It does not catch what *changed outside* — a library pin that became two majors outdated, a docs URL that 404s, a research paper that was superseded. Skills silently age against external reality until a failure finally triggers them. This release adds the missing outside-world-driven audit pass.
+
+### Added — `skills/meta/skill-freshness-auditor/SKILL.md`
+
+New meta-skill that scans every `SKILL.md` and `reference.md` under `$CIEL_DIR/skills/`, extracts three categories of external references, and checks each for freshness:
+
+| Category | Check | Severity triggers |
+|---|---|---|
+| URLs | `WebFetch` → 200 OK + Last-Modified | 404 = HIGH, redirect elsewhere = MEDIUM, >18mo = MEDIUM |
+| Library + version pins | `WebSearch` for latest stable | 1+ major behind = MEDIUM, removed-from-registry = HIGH |
+| Research citations | `WebSearch` for a named superseder | Newer named version exists = LOW-MEDIUM |
+
+Produces a `freshness patch-set` one entry per stale ref (same approval-gated format as `ciel-improve`). Logs to `.freshness-log.jsonl` so repeated runs cache-hit and skip recently-checked refs. Max 5 patches per run (same cap as `ciel-improve`). Never autonomous rewrite.
+
+**Complements, does not replace**:
+- `ciel-improve` = transcript-driven (inside signal).
+- `skills-first-design-auditor` = structure-driven (frontmatter, length, form).
+- `skill-freshness-auditor` = currency-driven (content vs external reality). Orthogonal axis.
+
+### Added — `commands/ciel-refresh.md`
+
+Slash trigger for `skill-freshness-auditor`. Usage: `/ciel-refresh [scope] [--force]`. Scope defaults to `all`; can narrow to `workflow|research|domain|utility|meta|ciel` or `skill=<name>`. `--force` bypasses the 18-month URL cache.
+
+Auto-routed via `skills/ciel/SKILL.md` intent routing — prompts like "are skills outdated?", "check library versions in skills", "refresh skills" trigger dispatch to `@ciel-improver` running `skill-freshness-auditor`.
+
+### Changed — `skills/ciel/SKILL.md`
+
+- Intent routing table: new row for `skill-freshness-auditor` → `@ciel-improver` via `/ciel-refresh`.
+- Self-improvement section: new `/ciel-refresh` line, with explicit contrast to `/ciel-improve` (transcript-driven vs outside-world-driven).
+
+### Regenerated
+
+`platforms/opencode/.opencode/commands/ciel-refresh.md` — loop in `build_opencode` picks up new command source automatically. OpenCode users get `/ciel-refresh` without extra work.
+
+### Cost notes
+
+- Per-skill scan: ~1-3K tokens (depends on how many refs + how many WebFetch/WebSearch each triggers).
+- Full scan (~50 skills): 100-300K tokens on first run, much cheaper after (cache hits dominate).
+- Projected cost displayed before the network phase — abortable.
+
+### Recommended cadence
+
+- Monthly routine.
+- Before any major release bump (so the release ships without stale pins).
+- After an observed upstream major release (Anthropic API, Claude Code, OpenCode, Playwright, etc.).
+
+---
+
 ## v2.4.4 — 2026-04-17 — Hygiene + visible dispatch counter
 
 **Context** — After v2.4.3 landed the semantic fixes, the @ciel-improver report flagged two form-level issues: duplication of the dispatch-gate block (budget rule stated twice, once at line 152, once at 154, plus a 3rd in reference.md's guard), and the mid-session routing rule sitting below the routing table as a post-script readers often miss. Also: `(added vX.Y.Z)` meta-tags were leaking from the skill body (they belong in `CHANGELOG.md`, not in the source-of-truth skill files — they age into archaeology). This release cleans all three, plus introduces a visible-counter discipline rule to address the v2.4.3 "not-addressed" item on Fix 1 (DISPATCH GATE mechanical counter).
