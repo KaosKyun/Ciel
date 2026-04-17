@@ -72,9 +72,11 @@ For a PR/diff review specifically, dispatch the **critic agent** with MODE=CRITI
 
 ---
 
-## Intent routing (v2.1.0 skills) — ALWAYS prefer Ciel skills over Claude Code natives
+## Intent routing — ALWAYS prefer Ciel skills over Claude Code natives
 
 When the user's request matches any of these intents, invoke the **Ciel skill** named here explicitly — do NOT fall back to Claude Code built-in skills (`systematic-debugging`, etc). Ciel's discipline (evidence, alternatives, semver guards) is deliberately stricter.
+
+**Scan this table (a) at `/ciel <task>` invocation against the prompt text, AND (b) on every tool call that mutates a file (native `Edit`/`Write`/`MultiEdit`/`NotebookEdit`, `Bash` with output redirect/heredoc/`sed -i`/`tee`/`cp`/`mv`/`install`/`patch`/`git apply`/`git checkout -- <path>`, any MCP tool that writes) against the target file path.** A task that starts as "review PRs" can drift into "CI hardening" mid-session — re-scan on every file-targeting tool call so the routing table catches drift regardless of which tool the agent reached for.
 
 | Intent signal in user prompt | Ciel skill | Dispatcher |
 |---|---|---|
@@ -90,22 +92,14 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 | "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`issue-closer`** | inline (all utility skills) |
 | "mcp server", "mcp config", ".mcp.json", "claude mcp", "serveurs mcp" | **`debug-reasoning-rca`** (config drift + failures) + `stride-analyzer` if secrets found | `@ciel-explorer` for config read → `@ciel-critic` MODE=RCA |
 
-**Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
+**Multiple intents can match** (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical). Queue every matching skill after `quoi-framer`.
 
 **Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
 
-**Mid-session re-routing rule**: the routing table above is **not one-shot at invocation**. Re-scan it on every tool call that **mutates a file** — ANY of these counts as a mutation trigger:
-
-- Native edit tools: `Edit`, `Write`, `MultiEdit`, `NotebookEdit`
-- `Bash` with any file-mutating operator: output redirect (`>`, `>>`), heredoc (`<<`), `sed -i`, `tee`, `cp`, `mv`, `install`, `patch`, `git apply`, `git checkout -- <path>`
-- Any MCP tool whose contract writes to disk
-
-Use the **target file path** as the signal (in addition to the prompt-text scan done at invocation). Examples:
+**Concrete mid-session examples**:
 
 - First write (via `Edit` OR `Bash(cat > .github/workflows/ci.yml)`) targets `.github/workflows/` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing**, even if the original prompt was "review open PRs".
 - First write targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
-
-A task that **starts** as "PR review" can drift into "CI hardening" mid-session — the routing table must catch that drift regardless of which tool the agent reached for. Tool-list bypasses (using `Bash` heredoc to dodge the `Edit|Write` matcher) are the failure mode corrected in v2.4.3.
 
 ---
 
@@ -155,15 +149,15 @@ When asking, ask ONE specific question with 2-3 concrete options. Never ask open
 
 **Hard rule**: gather ONLY the inputs the target skill declares in its INPUTS section. As soon as all declared fields are filled (with `[ASSUMED]` or `[UNKNOWN]` markers where auto-inference failed), **IMMEDIATELY dispatch via the Task tool**. Further investigation belongs INSIDE the fork, not in the main session.
 
-**Budget**: max 5 Bash/Read/Grep calls OR 2 minutes of gathering — whichever comes first. Past that threshold, dispatch with whatever you have and let the fork drill down.
-
-**[DISPATCH GATE] hard-stop** (added v2.4.1 after PR-review audit): on the **5th** inline Bash/Read/Grep call of a Standard+ task, emit a visible checkpoint to the user:
+**Budget**: max 5 Bash/Read/Grep calls OR 2 minutes of gathering — whichever comes first. On the 5th call, emit this block verbatim before any further tool call:
 
 ```
 [DISPATCH GATE] Budget exhausted (5 inline calls). Dispatching @ciel-researcher + @ciel-explorer now with [ASSUMED] markers for unresolved inputs. Further investigation continues inside the forks.
 ```
 
-Then **immediately** issue the Task() dispatches on the same turn. No "one more check first", no "let me just verify X" — those belong in the fork. Skipping this checkpoint on a Standard+ task is a dispatch-discipline failure and triggers the `Dispatch gate bypass` guard in `reference.md`.
+Then **immediately** issue the Task() dispatch on the same turn — no "one more check first", no "let me just verify X". Skipping this checkpoint on a Standard+ task is a dispatch-discipline failure and triggers the `Dispatch gate bypass` guard in `reference.md`.
+
+**Visible counter** — to prevent silent drift past 5, prefix every inline `Bash` / `Read` / `Grep` / `Glob` tool call's **`description`** field with `[CIEL N/5]` on any Standard+ task. The counter appears in the tool-call history so the model (on its next turn) can see how many calls it has already made without needing a separate running log. Example: `description="[CIEL 3/5] gh pr checks 1014"`. Does not apply to Task() calls themselves, to tool calls emitted during read-the-user's-question phases, or to any hooks' output. A mechanical hook-based counter is planned for a later release.
 
 **Anti-pattern (observed in v2.1.5)**:
 ```

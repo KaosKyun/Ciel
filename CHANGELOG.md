@@ -1,5 +1,53 @@
 # Ciel — Changelog
 
+## v2.4.4 — 2026-04-17 — Hygiene + visible dispatch counter
+
+**Context** — After v2.4.3 landed the semantic fixes, the @ciel-improver report flagged two form-level issues: duplication of the dispatch-gate block (budget rule stated twice, once at line 152, once at 154, plus a 3rd in reference.md's guard), and the mid-session routing rule sitting below the routing table as a post-script readers often miss. Also: `(added vX.Y.Z)` meta-tags were leaking from the skill body (they belong in `CHANGELOG.md`, not in the source-of-truth skill files — they age into archaeology). This release cleans all three, plus introduces a visible-counter discipline rule to address the v2.4.3 "not-addressed" item on Fix 1 (DISPATCH GATE mechanical counter).
+
+### Changed — `skills/ciel/SKILL.md`
+
+- **Intent routing section** — re-scan directive hoisted to a bold one-liner right above the table: "Scan (a) at invocation against prompt text, AND (b) on every file-mutation tool call against target path." The long tool-list prose that was sitting 25 lines below the table is now one line above it. Concrete examples kept.
+- **Dispatch-gate block** — consolidated. The "Budget: max 5 … whichever comes first" line merges into the `[DISPATCH GATE]` emit instruction. No more two separate paragraphs saying the same budget.
+- **Visible counter rule (new)** — on any Standard+ task, every inline `Bash`/`Read`/`Grep`/`Glob` tool call's `description` field must be prefixed with `[CIEL N/5]`. Example: `description="[CIEL 3/5] gh pr checks 1014"`. The counter appears in the tool-call history so the model on its next turn can see the count without maintaining a separate running log. A hook-based mechanical counter (PostToolUse on `Bash|Read|Grep` injecting a systemMessage with the real count, HARD-STOP at N=5) is planned for v2.5.0 — needs settings.json template changes + /ciel-init update.
+- **Meta-tag strip** — removed the `(added v2.4.1 after PR-review audit)` annotation from the DISPATCH GATE paragraph. Discipline rules stand on their own; the why-it-was-added history belongs in this CHANGELOG.
+
+### Changed — `skills/workflow/depth-classifier/SKILL.md`
+
+- Stripped `(added v2.4.3 per 2026-04-17 audit — previously mis-classified as Trivial)` and `(added v2.4.3)` meta-tags from the PR-review signals block and the floor rule. Content unchanged.
+
+### Changed — `skills/utility/pr-opener/SKILL.md`
+
+- Stripped `(v2.4.3, mirror of ciel/SKILL.md line 54)` meta-tag from the merge-precondition guardrail. Replaced with a stable cross-reference "mirror of `skills/ciel/SKILL.md`" (no line number, since those shift).
+
+### Verified
+
+- `reference.md` line 87 claims "37 failure modes" — actual table row count is 37. ✅ Coherent, no change needed.
+
+### Changed — OpenCode parity restored for `/ciel` and `/ciel-improve`
+
+v2.4.2 deleted `commands/ciel.md` and `commands/ciel-improve.md` because Claude Code auto-routes `/<name>` → skill of the same name. OpenCode's slash-router behavior is not confirmed to do the same, so on OpenCode those two slash triggers would fail as "unknown command". `build-platforms.sh` now emits two OpenCode-only thin wrappers in `platforms/opencode/.opencode/commands/`:
+
+- `ciel.md` (523 bytes) — invokes the `ciel` skill via the Skill tool with `$ARGUMENTS`.
+- `ciel-improve.md` (534 bytes) — invokes the `ciel-improve` skill the same way.
+
+The Claude side stays without these files (no duplicate entry in the skill picker — that was the v2.4.2 fix). OpenCode users get the full 8-command set: `ciel`, `ciel-improve`, `ciel-audit`, `ciel-create-skill`, `ciel-eval`, `ciel-init`, `ciel-recommend`, `ciel-update`.
+
+New helper: `scripts/build-platforms.sh emit_opencode_skill_wrapper` — used for both files. Future same-name collisions can reuse it.
+
+### Changed — `platforms/opencode/AGENTS.md` header now carries the version
+
+`CIEL_VERSION` is injected into the title line: `# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v${VERSION})`. OpenCode users can verify the installed version at a glance without opening `opencode.json` or running `bash install.sh --check-update`. `emit_opencode_agents_md` refactored to echo the title first (variable-interpolated) and append the body via a literal heredoc (preserves backticks).
+
+### Regenerated
+
+`platforms/opencode/` — `AGENTS.md` (with version), `.opencode/plugins/ciel.ts` (version string), 2 new thin-wrapper command files.
+
+### Known deferred to v2.5.0
+
+- Hook-based mechanical counter for the dispatch gate (requires a new `hooks/post-tool-count.sh`, a settings.json matcher `Bash|Read|Grep`, per-session state file, and a `/ciel-init` update to wire all three).
+
+---
+
 ## v2.4.3 — 2026-04-17 — Deepen v2.4.1 audit fixes (REWORK + STRENGTHEN)
 
 **Context** — Two agents (`@ciel-improver` + `@ciel-critic`) re-audited v2.4.1's discipline fixes. Verdict: Fix 3 was **cosmetic** (flagged REWORK by critic), Fixes 2 and 4 were correct but **underspecified** (STRENGTHEN). Root cause of all three weaknesses: rules stated only in `ciel/SKILL.md` do not propagate to downstream skills that enforce them (depth-classifier, pr-opener, etc.) — the "single-site enforcement" meta-failure. v2.4.3 patches the enforcement sites themselves, not just the orchestrator table.

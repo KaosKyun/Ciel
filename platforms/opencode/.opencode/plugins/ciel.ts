@@ -1,4 +1,4 @@
-// Ciel — OpenCode plugin (v2.4.3)
+// Ciel — OpenCode plugin (v2.4.4)
 // Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):

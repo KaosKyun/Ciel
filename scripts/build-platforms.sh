@@ -209,13 +209,29 @@ build_opencode() {
   emit_opencode_agent "$ROOT/agents/critic.md"     "$out/.opencode/agents/ciel-critic.md"     critic
   emit_opencode_agent "$ROOT/agents/improver.md"   "$out/.opencode/agents/ciel-improver.md"   improver
 
-  # 6 slash commands
+  # 6 slash commands (source commands/*.md — currently 6 after v2.4.2 deleted
+  # ciel.md + ciel-improve.md on the Claude side)
   for cmd_md in "$ROOT/commands"/*.md; do
     [[ -f "$cmd_md" ]] || continue
     local name
     name=$(basename "$cmd_md")
     emit_opencode_command "$cmd_md" "$out/.opencode/commands/$name"
   done
+
+  # OpenCode-specific /ciel and /ciel-improve slash wrappers.
+  # Claude Code auto-routes /<name> → skill of same name, so the command files
+  # were deleted in v2.4.2 to remove the duplicate entry. OpenCode's slash
+  # routing is not confirmed to do the same — to guarantee /ciel and
+  # /ciel-improve remain typeable in OpenCode, emit thin wrappers that
+  # explicitly invoke the skill via the Skill tool.
+  emit_opencode_skill_wrapper \
+    "$out/.opencode/commands/ciel.md" \
+    "ciel" \
+    "Slash trigger for the Ciel orchestrator skill on OpenCode."
+  emit_opencode_skill_wrapper \
+    "$out/.opencode/commands/ciel-improve.md" \
+    "ciel-improve" \
+    "Slash trigger for the ciel-improve skill on OpenCode."
 
   # Size checks
   check_size "$out/AGENTS.md"                 "$(limit_for opencode_agents_md)" "opencode-agents-md"
@@ -602,12 +618,40 @@ emit_opencode_command() {
   } > "$out"
 }
 
+# Emit a thin slash-command wrapper that invokes a same-named skill via the
+# Skill tool. Used for /ciel and /ciel-improve on OpenCode (on Claude Code,
+# the command file is intentionally absent — Claude Code auto-routes
+# /<name> → skill of the same name).
+# Usage: emit_opencode_skill_wrapper <out_path> <skill_name> <description>
+emit_opencode_skill_wrapper() {
+  local out="$1"
+  local skill_name="$2"
+  local desc="$3"
+  {
+    echo "---"
+    echo "description: $desc"
+    echo "---"
+    echo ""
+    echo "Invoke the \`$skill_name\` skill via the Skill tool with the user's arguments:"
+    echo ""
+    echo '```'
+    echo '$ARGUMENTS'
+    echo '```'
+    echo ""
+    echo "If \`\$ARGUMENTS\` is empty, invoke the skill with no argument — it will classify the current context and prompt for a task if needed."
+    echo ""
+    echo "The full logic (depth classifier, intent routing, pipeline selection, agent dispatch rules) lives in the \`$skill_name\` skill itself. This command file is a thin trigger; modify the skill, not this file, to change behavior."
+  } > "$out"
+}
+
 # Emit a compact AGENTS.md for OpenCode (≤6KB) referencing the agents/commands
-# that are installed as native OpenCode primitives.
+# that are installed as native OpenCode primitives. $CIEL_VERSION is injected into
+# the title via a first-line echo so users can verify installed version at a glance;
+# the rest of the file uses a literal heredoc to preserve backticks.
 emit_opencode_agents_md() {
   local out="$1"
-  cat > "$out" <<'EOF'
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode)
+  echo "# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v${CIEL_VERSION})" > "$out"
+  cat >> "$out" <<'EOF'
 
 Source: https://github.com/KaosKyun/Ciel
 
@@ -617,7 +661,7 @@ Ciel is installed as OpenCode-native primitives:
 
 - **Plugin** (`.opencode/plugins/ciel.ts`) — pre/post-write hooks + depth classification on user prompts.
 - **Subagents** (`.opencode/agents/ciel-*.md`) — dispatch with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
-- **Commands** (`.opencode/commands/ciel-*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
+- **Commands** (`.opencode/commands/ciel*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-audit`, `/ciel-init`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
 
 ---
 

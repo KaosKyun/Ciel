@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode)
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v2.4.4)
 
 Source: https://github.com/KaosKyun/Ciel
 
@@ -8,7 +8,7 @@ Ciel is installed as OpenCode-native primitives:
 
 - **Plugin** (`.opencode/plugins/ciel.ts`) — pre/post-write hooks + depth classification on user prompts.
 - **Subagents** (`.opencode/agents/ciel-*.md`) — dispatch with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
-- **Commands** (`.opencode/commands/ciel-*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
+- **Commands** (`.opencode/commands/ciel*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-audit`, `/ciel-init`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
 
 ---
 
