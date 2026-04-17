@@ -51,7 +51,7 @@ Invoke `depth-classifier` if classification is ambiguous (mechanical signals: `a
 6. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
 7. `faire-gatekeeper` during coding → `commit-writer` adds `Refs #<N>` footers
 8. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
-9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before `gh pr merge --auto` — auto-merge is the consequence of this gate passing, not a parallel shortcut. Enabling auto-merge without first running prouver-verifier skips the evidence capture and blurs accountability when CI flakes mid-queue.**
+9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before ANY merge path** — `gh pr merge [--auto|--squash|--merge|--rebase]`, `git push` to the default branch with admin bypass, or clicking "Merge" in the GitHub UI. The evidence gate is the merge precondition, not a parallel shortcut. Mirror enforced in `skills/utility/pr-opener/SKILL.md` guardrails.
 10. `pr-opener` — opens PR with `Closes #<N>`, body composed by `pr-body-generator`
 11. `issue-closer` — post-merge, adds evidence comment + closes issue
 12. `meta-critiquer`
@@ -94,12 +94,18 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 
 **Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
 
-**Mid-session re-routing rule** (added v2.4.1): the routing table above is **not one-shot at invocation**. Re-scan it on every `Edit` / `Write` tool call using the **target file path** as the signal (in addition to the prompt-text scan done at invocation). Examples:
+**Mid-session re-routing rule**: the routing table above is **not one-shot at invocation**. Re-scan it on every tool call that **mutates a file** — ANY of these counts as a mutation trigger:
 
-- First edit targets `.github/workflows/ci.yml` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing the edit**, even if the original prompt was "review open PRs".
-- First edit targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
+- Native edit tools: `Edit`, `Write`, `MultiEdit`, `NotebookEdit`
+- `Bash` with any file-mutating operator: output redirect (`>`, `>>`), heredoc (`<<`), `sed -i`, `tee`, `cp`, `mv`, `install`, `patch`, `git apply`, `git checkout -- <path>`
+- Any MCP tool whose contract writes to disk
 
-A task that **starts** as "PR review" can drift into "CI hardening" mid-session — the routing table must catch that drift. Not re-routing here is the failure mode documented in the 2026-04-17 audit (intent routing miss on `cicd-security-hardener`).
+Use the **target file path** as the signal (in addition to the prompt-text scan done at invocation). Examples:
+
+- First write (via `Edit` OR `Bash(cat > .github/workflows/ci.yml)`) targets `.github/workflows/` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing**, even if the original prompt was "review open PRs".
+- First write targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
+
+A task that **starts** as "PR review" can drift into "CI hardening" mid-session — the routing table must catch that drift regardless of which tool the agent reached for. Tool-list bypasses (using `Bash` heredoc to dodge the `Edit|Write` matcher) are the failure mode corrected in v2.4.3.
 
 ---
 

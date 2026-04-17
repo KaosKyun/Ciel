@@ -138,6 +138,7 @@ CI: <pending|running|passed|failed>
 - **Push before PR** — branch must be on origin. Auto-push if not.
 - **Respect existing PR** — if one is already open for this branch, UPDATE it, don't create a duplicate.
 - **Never auto-merge** — opening the PR is the end of Ciel's automated work. Merge decision is the user's.
+- **`prouver-verifier` MUST have run green before the merge command** (v2.4.3, mirror of `ciel/SKILL.md` line 54) — applies to every merge path: `gh pr merge [--auto|--squash|--merge|--rebase]`, `git push` direct-to-default, GitHub UI "Merge" button. If pr-opener is asked to auto-merge (e.g., user passes a `--merge-when-green` intent), refuse unless `.git/ciel-prouver-verdict` exists with verdict=PASS.
 - **Never `--no-verify`** — pre-push hooks run; if they fail, investigate, don't skip.
 
 ---

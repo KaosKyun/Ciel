@@ -1,5 +1,41 @@
 # Ciel — Changelog
 
+## v2.4.3 — 2026-04-17 — Deepen v2.4.1 audit fixes (REWORK + STRENGTHEN)
+
+**Context** — Two agents (`@ciel-improver` + `@ciel-critic`) re-audited v2.4.1's discipline fixes. Verdict: Fix 3 was **cosmetic** (flagged REWORK by critic), Fixes 2 and 4 were correct but **underspecified** (STRENGTHEN). Root cause of all three weaknesses: rules stated only in `ciel/SKILL.md` do not propagate to downstream skills that enforce them (depth-classifier, pr-opener, etc.) — the "single-site enforcement" meta-failure. v2.4.3 patches the enforcement sites themselves, not just the orchestrator table.
+
+### Changed — `skills/workflow/depth-classifier/SKILL.md` (REWORK of v2.4.1 Fix 3)
+
+Added two Standard-floor signals so PR-review-with-CI-fix can no longer be mis-classified as Trivial:
+
+- **CI/CD file paths** — `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/`, `Dockerfile`, `docker-compose*.yml`, `Jenkinsfile`, `.buildkite/`, `.drone.yml`.
+- **PR-review signals** — prompt contains `#\d+` / "open PR" / "review PR" / "fix PR" / "merge PR", OR planned tool calls include `gh pr list|view|checks|review|merge` (any merge variant).
+
+Added a **floor rule**: if any PR-review or CI/CD signal is present, depth is at minimum Standard — Trivial is disqualified even if the diff is small. v2.4.1's addition to the orchestrator Depth Gauge table was only a narrative example; the classifier itself (the mechanical gate) now has the signals.
+
+### Changed — `skills/ciel/SKILL.md` mid-session re-routing (STRENGTHEN of v2.4.1 Fix 2)
+
+v2.4.1 listed only `Edit` and `Write` as re-routing triggers. A `Bash(cat > .github/workflows/ci.yml)` heredoc would bypass the rule. v2.4.3 broadens to **any tool call that mutates a file** — native edit tools, `Bash` with redirect/heredoc/`sed -i`/`tee`/`cp`/`mv`/`install`/`patch`/`git apply`/`git checkout -- <path>`, and any MCP tool whose contract writes to disk.
+
+### Changed — `skills/ciel/SKILL.md` prouver-verifier description (STRENGTHEN of v2.4.1 Fix 4)
+
+v2.4.1 named only `gh pr merge --auto`. v2.4.3 generalizes to **every merge path** — `gh pr merge [--auto|--squash|--merge|--rebase]`, `git push` direct-to-default with admin bypass, and the GitHub UI "Merge" button. Added a pointer to the mirror in `pr-opener`.
+
+### Changed — `skills/utility/pr-opener/SKILL.md` (mirror enforcement)
+
+Added a guardrail mirroring the merge-precondition rule from `ciel/SKILL.md`. If `pr-opener` is asked to auto-merge (e.g., via a `--merge-when-green` intent), it must refuse unless `.git/ciel-prouver-verdict` exists with `verdict=PASS`. Fixes the "single-site invariant" meta-failure: a rule stated only in the orchestrator is invisible to forks that never read the orchestrator SKILL.md.
+
+### Regenerated
+
+`platforms/opencode/.opencode/plugins/ciel.ts` — version string bumped to v2.4.3.
+
+### Known not-addressed-this-release
+
+- Fix 1 (`[DISPATCH GATE]` hard-stop) — critic flagged MEDIUM "cosmetic-adjacent" because the emit still relies on the agent to self-count. A proper fix needs a mechanical counter (per-turn state) which is out of scope for SKILL.md-only patches. Left for a later release.
+- Design consolidation from the `@ciel-improver` report (dedupe dispatch-gate block, promote mid-session rule into routing-table header, remove `(added vX.Y.Z)` meta-tags) — hygiene polish, not correctness. Left for a later hygiene pass.
+
+---
+
 ## v2.4.2 — 2026-04-17 — Remove `/ciel` and `/ciel-improve` command files
 
 **Context** — v2.4.1's "thin wrapper" fix reduced content duplication but both entries still appeared in the available-skills block (one as skill, one as command with the same name). The user reported "des doubles" — the visual duplicate name remained.

@@ -31,9 +31,16 @@ Gatekeeper skill at the entry of every Ciel workflow. Wrong classification = wro
 ### Standard if ANY match (and not Critical):
 
 - Path patterns: `routes/`, `controllers/`, `services/`, `components/`, `hooks/`
+- **CI/CD & pipeline files**: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/`, `Dockerfile`, `docker-compose*.yml`, `Jenkinsfile`, `.buildkite/`, `.drone.yml`
+- **PR-review signals** (added v2.4.3 per 2026-04-17 audit — previously mis-classified as Trivial):
+  - Prompt contains a PR number (`#\d+`, `PR \d+`, `pull request \d+`) OR phrases "open PR", "review PR", "fix PR", "merge PR"
+  - Planned tool calls include `gh pr list`, `gh pr view`, `gh pr checks`, `gh pr review`, `gh pr merge` (any variant: `--auto`, `--squash`, `--merge`, `--rebase`)
+  - Planned edits touch any CI/CD pipeline file (see row above)
 - Diff scope (estimated): > 1 file OR > 50 lines change
 - Code patterns: `validate`, `sanitize`, `rateLimit`, route handlers, state management
 - Task keywords: "add endpoint", "new component", "refactor", "extract helper", "feature", "integration"
+
+**Floor rule** (added v2.4.3): if ANY PR-review signal OR any CI/CD-file signal is present, depth is **at minimum Standard** — Trivial is disqualified even if the diff is small. PR review plus CI fix is never "just a one-line change".
 
 ### Trivial otherwise:
 
