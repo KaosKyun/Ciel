@@ -84,7 +84,7 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 
 ---
 
-## Guards — 38 failure modes
+## Guards — 39 failure modes
 
 | Failure mode | How it manifests | Guard |
 |---|---|---|
@@ -126,6 +126,7 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 | Dispatch gate bypass | >5 inline Bash/Read/Grep calls without any `Task()` on a Standard+ task | ABORT inline work, emit `Task(subagent_type="ciel-*")` immediately with `[ASSUMED]` markers for any inferred inputs |
 | Hook name drift | Consumer `settings.json` references a hook filename that does not exist in `hooks/` (silent "No such file or directory" on every tool call) | On every hook rename in the repo: grep all published `settings.json` templates and downstream consumer docs for the old name. Version-bump the plugin. |
 | Self-authored rule drift | A rule written in this session (e.g., a new SKILL.md paragraph, a new reference guard) is not reliably followed in subsequent turns; short-term memory decays across tool outputs and compacts. Observed in the v2.4.4→v2.4.7 audit where the `[CIEL N/5]` counter rule was applied exactly once before the agent forgot it. | Mechanical enforcement — hooks, gates, external state files — required for any rule that must hold across >5 turns. Pure SKILL.md text is advisory; without a hook-side counter or settings.json gate, the rule decays within 1-2 turns of its author writing it. v2.5.0 `pre-tool-count.sh` / `post-tool-count.sh` is the canonical example. |
+| Release discipline drift | `feat:`/`fix:` commits accumulate on default branch but VERSION / CHANGELOG / git tag / `gh release` never catch up. Pipeline step 16-17 (`changelog-updater` + `release-publisher`) are opt-in and only triggered on a version-bump PR that no one creates. Observed v2.0 → v2.5.1: 20+ features shipped, zero tags — fixed in the v2.6.0 rattrapage. | Stop-hook `release-gate` (v2.7.0 `hooks/stop.sh`) — when on the default branch AND 3+ conventional `feat:`/`fix:`/`feat!:`/`fix!:` commits exist past the last `git describe --tags --abbrev=0`, prepend a reminder to the meta-critiquer block. Snooze for 60 min: `touch .ciel-release-snooze`. Claude Code only in v2.7.0; OpenCode parity pending `session.idle` `.d.ts` verification. |
 
 ---
 

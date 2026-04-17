@@ -1,5 +1,51 @@
 # Ciel — Changelog
 
+## v2.7.0 — 2026-04-17 — Stop-hook `release-gate` — mechanical release discipline
+
+**Context** — v2.6.0 rattrapage answered the immediate backlog (20+ `feat:` commits since v2.0 with zero tags). v2.7.0 prevents recurrence by adding the mechanical enforcement layer, following the same philosophy as v2.5.0's `pre-tool-count.sh` dispatch-gate counter: rules that must hold across many turns need hook-side enforcement, not SKILL.md text.
+
+### Added — release-gate chained into `hooks/stop.sh`
+
+When the user's Claude Code session ends AND the user's repo is on its default branch (`main`/`master`) AND **3 or more** unreleased conventional commits (`feat:` / `feat(scope):` / `feat!:` / `fix:` / `fix(scope):` / `fix!:`) exist past the last `git describe --tags --abbrev=0`, the Stop hook prepends a `CIEL RELEASE-GATE` reminder to the existing meta-critiquer `decision:"block"` reason — a single block event combines both instructions, preserving the `stop_hook_active` loop guard.
+
+Threshold rationale: 1-2 pending commits is normal work-in-progress; 3+ is when release-discipline drift becomes real. Tuned against v2.x history.
+
+Reminder content — enumerated actions aligned with pipeline steps 16-17: (1) bump VERSION per conventional-commit scope (feat=minor, fix=patch, `feat!`/`fix!`=major), (2) append CHANGELOG.md entry, (3) `git tag -a v<N.N.N>`, (4) `gh release create v<N.N.N> --generate-notes`. Points to `changelog-updater` + `release-publisher` skills.
+
+Snooze escape hatch: `touch .ciel-release-snooze` at repo root disables the gate for 60 minutes (mirrors `session-start.sh`'s `find -mmin +1440` throttle idiom). Auto-expires — no forgot-to-delete footgun.
+
+PowerShell parity: `hooks/stop.ps1` updated with equivalent `Check-ReleaseGate` function. Same semantics, same thresholds, same snooze file.
+
+### Added — `scripts/test-stop-hook.sh` smoke test
+
+8 assertion cases covering: 3+ pending fires, fresh snooze silences, old snooze re-fires, feature-branch skips, `stop_hook_active=true` silent-exits, 2-pending below-threshold skips, non-git CWD silent, zero-tag repo fires on commits-from-HEAD. Run: `bash scripts/test-stop-hook.sh` — exits 0 on all-pass.
+
+No existing hook-eval pattern exists in `evals/datasets/` — that harness is scoped to skill output, not hook stdout JSON. Smoke test sits under `scripts/` until a hook-eval runner is designed (deferred).
+
+### Changed — `skills/ciel/reference.md`
+
+Failure-mode table header `38 failure modes` → `39 failure modes`. New row **Release discipline drift** — documents the v2.0→v2.5.1 pattern and points to `hooks/stop.sh` v2.7.0 as the mechanical guard.
+
+### Known non-goals
+
+- **OpenCode parity deferred** to v2.8.0. `session.idle` handler shape is still `.d.ts`-unverified per v2.5.1 CHANGELOG — shipping release-gate in the OpenCode TS plugin without verification would repeat the deferral pattern. `scripts/build-platforms.sh` unchanged in this release; `LIMIT_opencode_plugin` stays at 12288.
+- **No hook-eval dataset**. The existing `evals/` runner matches grep patterns against model output, not hook stdout JSON. A hook-eval runner is its own design — v2.8.0 target alongside the OpenCode parity work.
+- **No GPG signing**. v2.6.0 tag was annotated, not signed (GPG absent on release host). Future releases can use Sigstore `gitsign` (keyless OIDC) once a CI pipeline ships via `cicd-pipeline-designer`.
+
+### Test plan (executed before ship)
+
+- [x] `bash scripts/test-stop-hook.sh` → 11 pass, 0 fail
+- [x] Case 1: 3 feat/fix past v0.1.0 on main → `HAS_RG=yes HAS_META=yes`
+- [x] Case 2: fresh `.ciel-release-snooze` → `HAS_RG=no HAS_META=yes`
+- [x] Case 3: 60+min old snooze → `HAS_RG=yes`
+- [x] Case 4: feature branch → `HAS_RG=no`
+- [x] Case 5: `stop_hook_active=true` → silent exit
+- [x] Case 6: 2 pending (below threshold) → `HAS_RG=no`
+- [x] Case 7: non-git CWD → `HAS_RG=no HAS_META=yes`
+- [x] Case 8: zero tags + 3 commits → `HAS_RG=yes` (falls back to `HEAD` range)
+
+---
+
 ## v2.6.0 — 2026-04-17 — GitHub workflow + CI/CD skills + install.ps1 parity
 
 **Context** — Release discipline drift caught by user observation: v2.0 → v2.5.1 shipped 20+ `feat:` commits with zero git tags and zero GitHub releases. `release-publisher` + `changelog-updater` skills exist in orchestrator pipeline steps 16-17 but were never triggered because no one created the version-bump commit. v2.6.0 is the rattrapage: one release PR covering three commits on `main` that post-date the v2.5.1 CHANGELOG entry.
