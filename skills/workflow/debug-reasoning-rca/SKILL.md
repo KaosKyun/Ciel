@@ -1,6 +1,6 @@
 ---
 name: debug-reasoning-rca
-description: Structured Root-Cause Analysis for bugs and failures. Generates 3 parallel hypotheses, classifies fault type (model vs context vs orchestration vs environment), performs semantic diff between expected and actual behavior, then proposes a corrective suggestion that addresses the root — not the symptom. Invoked when investigating incidents, flaky tests, regressions, or user-reported bugs. Dispatched via @ciel-critic.
+description: Ciel's systematic debugging and root-cause analysis skill — THE skill to invoke for ANY bug, incident, flaky test, regression, production failure, "why did X not work", or "investigate this error". Generates 3 parallel hypotheses, classifies fault type (model vs context vs orchestration vs environment), performs semantic diff between expected and actual behavior, then proposes a corrective suggestion that addresses the root — not the symptom. 75% MTTR reduction vs ad-hoc debugging (STRATUS paper). Always prefer this over generic debugging approaches. Dispatched via @ciel-critic.
 allowed-tools: Read, Grep, Glob, Bash
 context: fork
 agent: critic

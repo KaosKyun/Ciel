@@ -1,3 +1,7 @@
+---
+description: Checks GitHub for a newer Ciel release and re-installs via install.sh --update (preserves .mcp.json and ciel-overlay.md).
+---
+
 # /ciel-update — Update Ciel to the latest version
 
 Checks GitHub for a newer release and re-installs if available.

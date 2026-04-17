@@ -1,10 +1,14 @@
 ---
-description: Analyzes recent session transcripts, detects repeated failure modes and user corrections, and proposes concrete skill improvements as a patch-set for user approval.
+description: ---
 agent: ciel-improver
 subtask: true
 ---
 
 > **OpenCode note**: This command requires `claude --print` headless mode for full functionality (binary evals, skill scaffold generation). On OpenCode it runs in degraded mode — the improver agent returns proposals only. For the full harness, use Claude Code.
+
+---
+description: Runs the Ciel improver agent on recent session transcripts to detect failure modes and produce a patch-set of skill rewrites for user approval.
+---
 
 # /ciel-improve — Self-improvement pass
 

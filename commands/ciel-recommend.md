@@ -1,3 +1,7 @@
+---
+description: Discovers community and official Claude Code plugins matched to the project's detected stack via ciel-overlay.md.
+---
+
 # /ciel-recommend — Discover & Install Recommended Skills/Plugins
 
 *Discovers community and official Claude Code plugins recommended for your project's stack.*

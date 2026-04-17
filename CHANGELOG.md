@@ -1,5 +1,28 @@
 # Ciel — Changelog
 
+## v2.1.3 — 2026-04-17 — hotfix: orchestrator routes v2.1.0 skills + command frontmatter
+
+**Context** — On a live install, `/ciel debug this production issue` invoked Claude Code's native `systematic-debugging` skill instead of Ciel's `debug-reasoning-rca`. Root cause: the `skills/ciel/SKILL.md` orchestrator was written for v2.0.0 and never updated to reference the 10 new v2.1.0 skills. Claude's skill-matcher fell back to the native skill with the closest description. Separately, `commands/*.md` lacked YAML frontmatter, which on some Claude Code versions caused `Unknown command: /ciel`.
+
+### Fixed
+
+- **`skills/ciel/SKILL.md`** — added "Intent routing (v2.1.0 skills)" section mapping debugging/docs/testing/a11y/CI-CD/UI-critique intents to the correct Ciel skill + dispatcher. Includes an anti-collision rule: "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to native `systematic-debugging`.
+- **`skills/workflow/debug-reasoning-rca/SKILL.md`** — strengthened YAML `description` to include "systematic debugging" / "THE skill to invoke for ANY bug" so semantic matching prefers it over the native.
+- **`commands/*.md`** — added YAML frontmatter (`description:`) to all 6 commands for proper Claude Code slash-command registration.
+- **`commands/ciel.md`** — body updated to document the intent-matching step explicitly.
+
+### Unchanged
+
+Installer, manifest, update flow (v2.1.2's semver guard), hooks — nothing else touched.
+
+### Effect
+
+- `/ciel debug X` now routes to `debug-reasoning-rca` via `@ciel-critic` MODE=RCA (3 hypotheses, fault-type taxonomy) instead of the generic native `systematic-debugging`.
+- `/ciel <task>` no longer triggers "Unknown command" on fresh installs.
+- All 10 v2.1.0 skills are now explicitly reachable via natural-language intent signals.
+
+---
+
 ## v2.1.2 — 2026-04-17 — hotfix: semver guard + CDN staleness
 
 **Context** — A live `--update` run produced a bewildering loop: remote `VERSION` was served stale by the GitHub raw CDN (5 min `max-age`), returning `2.1.0` while the user's local manifest already had `2.1.1`. The v2.1.1 check used string equality (`!=`), so "remote 2.1.0 ≠ local 2.1.1" was flagged as an "update available" — pointing DOWN. `_do_update` ran, executed uninstall, then the re-entry used the ALSO-cached v2.1.0 script from `curl` (the CDN doesn't discriminate per-file), re-triggering the `BASH_SOURCE[0]: unbound variable` that was supposedly fixed in v2.1.1 — because the CDN was serving the pre-fix script.

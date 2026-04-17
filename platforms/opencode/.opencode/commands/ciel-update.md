@@ -1,6 +1,10 @@
 ---
-description: /ciel-update — Update Ciel to the latest version
+description: ---
 subtask: false
+---
+
+---
+description: Checks GitHub for a newer Ciel release and re-installs via install.sh --update (preserves .mcp.json and ciel-overlay.md).
 ---
 
 # /ciel-update — Update Ciel to the latest version

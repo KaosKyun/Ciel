@@ -1,3 +1,7 @@
+---
+description: Runs the binary eval dataset for one or all Ciel skills via claude --print headless, comparing variants.
+---
+
 # /ciel-eval — Run eval harness
 
 *Runs the binary eval dataset for one skill (or all skills) via `claude --print` headless mode, comparing variants and persisting scoreboards.*

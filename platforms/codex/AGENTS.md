@@ -45,31 +45,49 @@ For full philosophy, guards table, and the research basis behind Ciel, see `refe
 - **critic agent** is MANDATORY (no inline fallback)
 
 
-## Agent dispatch rules
+## Intent routing (v2.1.0 skills) — ALWAYS prefer Ciel skills over Claude Code natives
 
-| Agent | Step | Context | Mandatory |
-|-------|------|---------|-----------|
-| `researcher` | RECHERCHE | Isolated fork — no session bias | Standard + Critical |
-| `explorer` | CODEBASE + FLUX | Isolated fork — reads codebase fresh | Standard + Critical |
-| `critic` | RELIRE or CRITIQUER | Isolated fork — different blind spots | Critical always; Standard if 3+ files OR auth/security |
-| `improver` | Self-improvement (long-running) | Isolated fork — extended token budget | On `/ciel-improve` |
+When the user's request matches any of these intents, invoke the **Ciel skill** named here explicitly — do NOT fall back to Claude Code built-in skills (`systematic-debugging`, etc). Ciel's discipline (evidence, alternatives, semver guards) is deliberately stricter.
 
-Dispatch `researcher` + `explorer` **IN PARALLEL** before FAIRE.
-Dispatch `critic` after FAIRE.
-Each agent dispatch costs ~850K tokens on average — reserve accordingly.
+| Intent signal in user prompt | Ciel skill | Dispatcher |
+|---|---|---|
+| "debug", "investigate", "why did X fail", "flaky test", "production bug", "incident", "RCA", "root cause" | **`debug-reasoning-rca`** | `@ciel-critic` MODE=RCA |
+| "use library X", "implement with lib Y", "call API Z", any third-party dep invocation | **`doc-validator-official`** (BEFORE writing code) | `@ciel-researcher` |
+| "review this code", "check for modern patterns", LLM-authored PR, legacy modernization | **`modern-patterns-checker`** + **`ai-failure-modes-detector`** | `@ciel-explorer` |
+| "is this correct?", "verify this implementation", Critical-stakes code | **`self-consistency-verifier`** | `@ciel-critic` |
+| "how should I test this", planning tests for a new feature | **`test-strategy-vitest-playwright`** | `@ciel-explorer` |
+| "review this UI", "critique this page", "visual regression", UI PRs | **`playwright-visual-critic`** (requires `--with-mcp=playwright`) | `@ciel-explorer` |
+| Changes to `.github/workflows/`, `.gitlab-ci.yml`, pipeline review | **`cicd-security-hardener`** | `@ciel-explorer` |
+| "accessibility audit", WCAG, a11y, frontend PRs | **`accessibility-wcag-auditor`** | `@ciel-explorer` |
+| Changes to `skills/**/SKILL.md`, skill review | **`skills-first-design-auditor`** | `@ciel-improver` |
 
-**Report quality check**: agent report < 200 tokens on Standard task → suspect truncation. Re-dispatch with narrower scope before proceeding.
+**Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
+
+**Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
 
 
-## Self-improvement — Ciel modifies Ciel
+## Context budget — throughout all steps
 
-Ciel can create and improve its own skills through the `meta/` subsystem:
+| Usage | Signal | Action |
+|-------|--------|--------|
+| < 50% | Comfortable | Normal depth |
+| 50–70% | Caution | Prefer `grep`/signatures over full file reads |
+| > 70% | Pressure | No new agents; compress agent prompts |
+| > 85% | Critical | Finish current step, commit, open new session |
 
-- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite)
-- `/ciel-eval [skill-name]` → `skill-variant-evaluator` runs binary evals on 2-3 variants, winner = highest aggregate score (tiebreak: lowest token usage)
-- `/ciel-create-skill <name> <purpose>` → `skill-creator` generates a valid SKILL.md scaffold
-- Session-end hooks (`Stop`, `PreCompact`) → `learnings-capture` appends user corrections to `.claude/learnings.md` or `ciel-overlay.md`
+Lazy reading: `grep -n "^fun \|^class \|^interface \|^object " <file>` before full file read.
+Never read the same file twice in a session — note a pointer after first read.
+Observation masking: tool outputs from > 3 turns ago that weren't referenced → replace with `[MASKED: ref step X]`.
 
+
+## ÉVOLUER — closed feedback loop
+
+- Per-task: `meta-critiquer` (30s) → update Guards or overlay
+- Per-session: patterns → new Guards or overlay rules via `learnings-capture`
+- Per-month: prune Guards that never fire; check overlay drift; CHANGELOG fix/revert ratio
+- Anti-entropy rule: every addition must simplify OR catch a real failure. If neither → reject.
+
+Track fix/revert ratio per version in `CHANGELOG.md` — improvement must be measurable. Baseline (v1.x monolithic): 62.8%.
 
 ---
 

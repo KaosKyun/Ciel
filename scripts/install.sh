@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer v2.1.2
+# Ciel Universal Installer v2.1.3
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root] [flags]
 #        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
@@ -385,9 +385,9 @@ IS_UPDATE=false
 [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
 
 if $IS_UPDATE; then
-  echo -e "\n${BOLD}Ciel Universal Installer v2.1.2${RESET} (${YELLOW}update detected${RESET})"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.3${RESET} (${YELLOW}update detected${RESET})"
 else
-  echo -e "\n${BOLD}Ciel Universal Installer v2.1.2${RESET}"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.3${RESET}"
 fi
 echo -e "Plugin : $CIEL_DIR"
 echo -e "Project: $PROJECT_ROOT\n"
