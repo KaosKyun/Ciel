@@ -20,3 +20,8 @@
 
 # Project-level overlay created by install.sh (per-machine, not source of truth)
 ciel-overlay.md
+
+# Project-level Claude Code config created by /ciel-init (per-machine)
+# settings.json contains absolute $CIEL_DIR hook paths specific to this machine
+.claude/settings.json
+.claude/settings.json.bak-*
