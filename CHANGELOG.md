@@ -1,5 +1,31 @@
 # Ciel — Changelog
 
+## v2.1.2 — 2026-04-17 — hotfix: semver guard + CDN staleness
+
+**Context** — A live `--update` run produced a bewildering loop: remote `VERSION` was served stale by the GitHub raw CDN (5 min `max-age`), returning `2.1.0` while the user's local manifest already had `2.1.1`. The v2.1.1 check used string equality (`!=`), so "remote 2.1.0 ≠ local 2.1.1" was flagged as an "update available" — pointing DOWN. `_do_update` ran, executed uninstall, then the re-entry used the ALSO-cached v2.1.0 script from `curl` (the CDN doesn't discriminate per-file), re-triggering the `BASH_SOURCE[0]: unbound variable` that was supposedly fixed in v2.1.1 — because the CDN was serving the pre-fix script.
+
+### Fixed
+
+- **`_check_update`** now parses X.Y.Z semver and only returns "update available" (code `2`) when `remote > local`. When `remote < local` (CDN stale / dev build), it reports "Up to date. (local ahead of remote — CDN stale or dev build; nothing to do.)" and returns `0`.
+- **`_check_update`** also sends `Cache-Control: no-cache` + `Pragma: no-cache` + a cache-busting `?t=<epoch>` query param on the `VERSION` request to reduce staleness (CDN usually honors at least one).
+- Added `_semver_cmp` helper (pure-bash, no external tool required).
+
+### Unchanged
+
+Everything from v2.1.1 (tri-state `_check_update`, `${BASH_SOURCE[0]:-}` guard, `bash <(curl ...)` re-entry) is intact.
+
+### Recovery for users bitten by the loop
+
+If your install was wiped by the v2.1.0 or v2.1.1 `--update` loop, restore fresh:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
+```
+
+Do NOT use `--update` until your `curl https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION` returns `2.1.2` (wait up to 5 min for CDN).
+
+---
+
 ## v2.1.1 — 2026-04-17 — hotfix: `--update` flow
 
 **Context** — v2.1.0's `--update` had two production bugs surfaced on a live install:

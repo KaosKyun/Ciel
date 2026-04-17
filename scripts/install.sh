@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer v2.1.1
+# Ciel Universal Installer v2.1.2
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root] [flags]
 #        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
@@ -196,10 +196,27 @@ PY
   _manifest_append_file "$dest_mcp"
 }
 
+# ─── Semver comparison ───────────────────────────────────────────────────────
+# Echoes: -1 if a<b, 0 if a==b, 1 if a>b. Handles X.Y.Z only (no pre-release).
+_semver_cmp() {
+  local a="$1" b="$2"
+  IFS='.' read -r a1 a2 a3 <<< "$a"
+  IFS='.' read -r b1 b2 b3 <<< "$b"
+  a1=${a1:-0}; a2=${a2:-0}; a3=${a3:-0}
+  b1=${b1:-0}; b2=${b2:-0}; b3=${b3:-0}
+  if [ "$a1" -gt "$b1" ]; then echo 1; return; fi
+  if [ "$a1" -lt "$b1" ]; then echo -1; return; fi
+  if [ "$a2" -gt "$b2" ]; then echo 1; return; fi
+  if [ "$a2" -lt "$b2" ]; then echo -1; return; fi
+  if [ "$a3" -gt "$b3" ]; then echo 1; return; fi
+  if [ "$a3" -lt "$b3" ]; then echo -1; return; fi
+  echo 0
+}
+
 # ─── Update-check (queries GitHub for latest VERSION) ────────────────────────
 # Exit codes:
-#   0 = up-to-date
-#   2 = update available  (distinct from 1 = error so _do_update can branch)
+#   0 = up-to-date or local ahead of remote (CDN staleness guard)
+#   2 = genuine update available (remote > local)
 #   1 = error (no manifest / network failure)
 _check_update() {
   local manifest; manifest="$(_manifest_path)"
@@ -212,9 +229,13 @@ _check_update() {
 
   info "Local version:  $local_version"
   info "Checking GitHub..."
+  # Cache-bust with a query param + no-cache header to reduce CDN staleness
+  # (raw.githubusercontent.com ignores most query strings for caching but
+  # some proxies honor them; the Cache-Control request header is stronger).
   local remote_version
   remote_version="$(curl -fsSL --max-time 5 \
-    https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION 2>/dev/null \
+    -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+    "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION?t=$(date +%s)" 2>/dev/null \
     | tr -d '[:space:]')"
   if [ -z "$remote_version" ]; then
     warn "Could not fetch remote VERSION (network / GitHub unreachable)"
@@ -226,14 +247,25 @@ _check_update() {
   mkdir -p "$HOME/.ciel"
   touch "$HOME/.ciel/.last-update-check"
 
-  if [ "$local_version" = "$remote_version" ]; then
-    ok "Up to date."
-    return 0
-  fi
-  echo ""
-  echo -e "  ${YELLOW}Update available:${RESET} v$local_version → v$remote_version"
-  echo "  Run: bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update"
-  return 2
+  # Semver compare — only "remote > local" is a real update. "remote < local"
+  # means CDN is stale OR the user is on a dev build; in either case, do nothing.
+  local cmp; cmp="$(_semver_cmp "$remote_version" "$local_version")"
+  case "$cmp" in
+    0)
+      ok "Up to date."
+      return 0
+      ;;
+    -1)
+      ok "Up to date. (local ahead of remote — CDN stale or dev build; nothing to do.)"
+      return 0
+      ;;
+    1)
+      echo ""
+      echo -e "  ${YELLOW}Update available:${RESET} v$local_version → v$remote_version"
+      echo "  Run: bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update"
+      return 2
+      ;;
+  esac
 }
 
 # ─── Uninstall (reads manifest, removes tracked files, preserves whitelist) ──
@@ -353,9 +385,9 @@ IS_UPDATE=false
 [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
 
 if $IS_UPDATE; then
-  echo -e "\n${BOLD}Ciel Universal Installer v2.1.1${RESET} (${YELLOW}update detected${RESET})"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.2${RESET} (${YELLOW}update detected${RESET})"
 else
-  echo -e "\n${BOLD}Ciel Universal Installer v2.1.1${RESET}"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.2${RESET}"
 fi
 echo -e "Plugin : $CIEL_DIR"
 echo -e "Project: $PROJECT_ROOT\n"

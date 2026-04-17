@@ -20,7 +20,7 @@ done
 TRACE_ID=$(date -u +%Y%m%dT%H%M%SZ)-$$
 export CIEL_TRACE_ID="$TRACE_ID"
 
-MSG="CIEL v2.1.1 — Skills-first deep-reasoning active. "
+MSG="CIEL v2.1.2 — Skills-first deep-reasoning active. "
 if [[ -n "$OVERLAY" ]]; then
   MSG+="Overlay loaded: $OVERLAY. "
 else
