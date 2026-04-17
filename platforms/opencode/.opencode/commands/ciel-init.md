@@ -37,6 +37,29 @@ If `--platform=<X>` was passed, skip detection and use `X`. Otherwise, run these
 
 If the user passed `--check`, still run the detection and report it — just skip the write at the end.
 
+### Step 0b — Wrong-CWD sanity check (added v2.5.0 after audit violation #1)
+
+Hooks wired into `./.claude/settings.json` only fire when Claude Code is launched with **the current working directory at or above that `.claude/`**. A common failure mode: the user is working from a project root like `/Users/you/Projects/myapp/` where the Ciel repo clone lives at `/Users/you/Projects/myapp/Ciel/`. Running `/ciel-init` with no flag creates `./Ciel/.claude/settings.json` — one level below where the running Claude session actually reads.
+
+Before writing the project-scope file, emit a warning if:
+
+- The resolved target path is `<cwd>/.claude/settings.json` but `<cwd>` is not the parent directory of a sibling `.claude/` of any ancestor directory the user's running Claude Code is rooted at, AND
+- The current directory contains a subdirectory that is a git repo (suggests the user is one level too high), OR
+- The running Claude Code project root (detectable via `$CLAUDE_PROJECT_DIR` or the `cwd` field of a hook stdin) does not match the target directory.
+
+Warning template:
+
+```
+[CIEL-INIT WARN] Creating ./.claude/settings.json at <target-dir>.
+Your running Claude Code session may not read this location if its CWD
+differs. If /ciel-init does not take effect after restart, re-run with
+  /ciel-init --user
+to target $HOME/.claude/settings.json instead (applies to all sessions
+on this machine regardless of CWD).
+```
+
+The warn is non-blocking — proceed with the write but make the fallback option visible.
+
 ### Step 1 — Resolve `$CIEL_DIR` (shared by both branches)
 
 Find the Ciel plugin directory by checking these candidates in order, picking the first that contains `hooks/session-start.sh`:
@@ -79,10 +102,12 @@ Using `$CIEL_DIR`, the canonical Ciel hooks block is:
     { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/user-prompt-submit.sh", "statusMessage": "Ciel: classifying depth..." } ] }
   ],
   "PreToolUse": [
-    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-write.sh", "statusMessage": "Ciel: FLUX check..." } ] }
+    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-write.sh", "statusMessage": "Ciel: FLUX check..." } ] },
+    { "matcher": "Bash|Read|Grep|Glob", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-count.sh", "statusMessage": "Ciel: dispatch gate check..." } ] }
   ],
   "PostToolUse": [
-    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] }
+    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] },
+    { "matcher": "Bash|Read|Grep|Glob|Task", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-count.sh", "statusMessage": "Ciel: counter increment..." } ] }
   ],
   "Stop": [
     { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/stop.sh", "statusMessage": "Ciel: META-CRITIQUER..." } ] }

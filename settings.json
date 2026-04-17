@@ -32,6 +32,16 @@
             "statusMessage": "Ciel: FAIRE gates check..."
           }
         ]
+      },
+      {
+        "matcher": "Bash|Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/pre-tool-count.sh",
+            "statusMessage": "Ciel: dispatch gate check..."
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -42,6 +52,16 @@
             "type": "command",
             "command": "bash .claude/plugins/ciel/hooks/post-tool-write.sh",
             "statusMessage": "Ciel: RELIRE dispatch..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Read|Grep|Glob|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/post-tool-count.sh",
+            "statusMessage": "Ciel: counter increment..."
           }
         ]
       }

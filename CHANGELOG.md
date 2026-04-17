@@ -1,5 +1,69 @@
 # Ciel — Changelog
 
+## v2.5.0 — 2026-04-17 — Mechanical dispatch-gate counter + audit-driven fixes
+
+**Context** — `/ciel-audit` on the v2.4.7 session surfaced 4 violations:
+
+1. **Hooks inactive for entire session** (critical) — `/ciel-init` (no flag) wrote `./Ciel/.claude/settings.json` in a repo subdirectory, but the running Claude Code session's CWD was the PARENT of the repo. The file was never loaded. No Ciel signatures (`CIEL depth hint:`, `CIEL <filepath>`, META-CRITIQUER) appeared in 130+ tool calls.
+2. **Dispatch discipline partial violation** (medium) — 2 Standard tasks (v2.4.5, v2.4.6) went inline through FAIRE without dispatching `@ciel-researcher` / `@ciel-explorer`. The audit traced this to ambiguity between `SKILL.md:42-57` (Standard mandates parallel dispatch) and `SKILL.md:251-266` (Inline-OK list includes `skill-creator`).
+3. **Self-authored rule drift** (medium, meta-failure) — the `[CIEL N/5]` visible counter rule I authored in v2.4.4 was applied exactly once, then forgotten across v2.4.5, v2.4.6, v2.4.7 work. Pure SKILL.md text depending on self-counting decays within 1-2 turns.
+4. **`meta-critiquer` never invoked as a skill** (low) — inlined concept, skill itself bypassed. Fixes itself after violation #1 is resolved (Stop hook auto-fires meta-critiquer).
+
+v2.5.0 applies all 5 audit fixes as one release.
+
+### Added — `hooks/pre-tool-count.sh` + `hooks/post-tool-count.sh` (+ `.ps1` parity)
+
+Mechanical dispatch-gate counter — the missing piece that makes the `[CIEL N/5]` rule actually enforceable. Verified design by `@ciel-explorer` review against existing hooks + Claude Code schema:
+
+- **`pre-tool-count.sh`** — fires on `PreToolUse` matcher `Bash|Read|Grep|Glob`. Reads counter at `/tmp/ciel-counter-$session_id`. Under 5 → injects `[CIEL COUNTER: N/5]` via top-level `systemMessage` (visible to model). At 5+ → emits `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"[CIEL HARD-STOP] ..."}}` — the only schema-valid hard-block on PreToolUse.
+- **`post-tool-count.sh`** — fires on `PostToolUse` matcher `Bash|Read|Grep|Glob|Task`. On `Task` → deletes the counter file (budget refreshes post-dispatch). On any other matched tool → increments counter by 1.
+- Missing counter file is treated as N=0 (implicit reset on new sessions — no explicit cleanup hook needed).
+- `@ciel-explorer` audit verdict (before write): YELLOW — flagged that PostToolUse `decision:"block"` is a NO-OP (tool has already run), forcing the dual-hook design. Now green.
+- PowerShell parity via `pre-tool-count.ps1` + `post-tool-count.ps1` (same logic, `$env:TEMP` for tmp path).
+
+### Changed — `settings.json` template
+
+Added the new `PreToolUse` + `PostToolUse` entries alongside the existing `Write|Edit` matcher (two entries per event — Claude Code supports multiple matchers per event array).
+
+### Changed — `commands/ciel-init.md`
+
+- **Step 0b — Wrong-CWD sanity check (new)** — fixes audit violation #1. Before writing the project-scope file, emit `[CIEL-INIT WARN]` if the resolved target directory differs from the running Claude Code session's CWD (suggests `--user` as the safer fallback).
+- **Step C2 canonical hooks block** — now includes the new `pre-tool-count.sh` + `post-tool-count.sh` registrations with the correct matchers.
+
+### Changed — `skills/ciel/SKILL.md` (Inline-OK ≠ pipeline-skip)
+
+Fixes audit violation #2. Added a paragraph right before the anti-pattern block clarifying that inline-OK status applies to a specific skill invocation — not the surrounding pipeline. Standard tasks that use `skill-creator` / `ciel-improve` / `skill-variant-evaluator` inline still owe: `quoi-framer` → `@ciel-explorer` scope-overlap check → FAIRE → `@ciel-critic` RELIRE (if ≥3 files) → `meta-critiquer`.
+
+### Changed — `skills/ciel/reference.md`
+
+- Header count bumped from `37 failure modes` → `38 failure modes`.
+- New row: **Self-authored rule drift** — captures the meta-failure surfaced by audit violation #3. Mitigation: mechanical enforcement required for any rule that must hold across >5 turns. Points to v2.5.0 `pre-tool-count.sh` / `post-tool-count.sh` as the canonical implementation of this principle.
+
+### Merged — `~/.claude/settings.json` (user-scope, this session)
+
+As part of the audit-fix delivery, merged the full 9-event Ciel hook block (7 existing + 2 new) into `~/.claude/settings.json`, preserving the user's existing `skipAutoPermissionPrompt` and `permissions` keys non-destructively. Backup written to `~/.claude/settings.json.bak-<timestamp>`. After the user restarts Claude Code, hooks are active globally (all sessions, regardless of CWD).
+
+### Verification procedure
+
+After install + Claude Code restart:
+
+1. Any Standard+ prompt → system-reminder contains `[CIEL depth hint:]`.
+2. Issue 4 inline Bash/Read/Grep calls → 4th call surfaces `[CIEL COUNTER: 5/5]`.
+3. Issue a 5th inline call → denied with `[CIEL HARD-STOP]` reason.
+4. Dispatch any `Task(...)` → counter resets; inline calls resume.
+5. End the session → Stop hook fires meta-critiquer.
+
+### Regenerated
+
+`platforms/opencode/.opencode/plugins/ciel.ts` — version string bumped to v2.5.0.
+`platforms/opencode/AGENTS.md` — title bumped to v2.5.0.
+
+### Note for OpenCode users
+
+The dispatch-gate counter is **Claude Code only** for v2.5.0. OpenCode's plugin model (TypeScript hooks) can implement an equivalent via `tool.execute.before` mutating `output.args` to deny, but: (a) OpenCode's deny semantics may differ, (b) state would live in TS plugin closure rather than a file. A future release will port the counter to the OpenCode TS plugin; until then OpenCode users get only the visible-counter discipline rule (self-police).
+
+---
+
 ## v2.4.7 — 2026-04-17 — `/ciel-update` bypasses raw.githubusercontent CDN cache
 
 **Context** — User pushed v2.4.6, immediately ran `/ciel-update`, got served a stale v2.4.5 from `raw.githubusercontent.com`. The CDN fronting that URL has a ~5-minute TTL; any `/ciel-update` fired in that window re-installs the previous version silently.

@@ -280,6 +280,20 @@ Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented for
   - `pr-body-generator` — composes the PR body from commits + evidence
   - `issue-closer` — `gh issue comment` with production evidence + close
 
+### Inline-OK ≠ pipeline-skip (added v2.5.0 after audit violation #2)
+
+Reading the list above and concluding "skill-creation tasks may skip dispatch entirely" is **wrong**. Inline-OK status applies to the **specific skill invocation** — not the surrounding pipeline.
+
+A Standard-depth task that uses `skill-creator` (inline) still owes:
+
+1. `quoi-framer` — frame the goal + NOT-X + done criteria.
+2. `@ciel-explorer` dispatched upfront to verify **no existing skill already covers the proposed scope** (scope-overlap check). Skipping this creates duplicate skills that compete.
+3. FAIRE — write the skill file.
+4. `@ciel-critic` MODE=RELIRE if the change touches 3+ files (new skill + command + routing + CHANGELOG + regen often does).
+5. `meta-critiquer` at end.
+
+The inline-OK list only means: the skill itself does not need its own fork. It does not authorize the main task to skip the Standard pipeline. Same applies to `skill-variant-evaluator`, `ciel-improve`, and the GitHub utility skills — they run inline but the pipeline around them still holds.
+
 ### Anti-pattern to avoid
 
 ```
