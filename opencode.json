@@ -1,5 +1,23 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": ["AGENTS.md"],
-  "plugin": ["./.opencode/plugins/ciel.ts"]
+  "plugin": ["./.opencode/plugins/ciel.ts"],
+  "agent": {
+    "ciel-critic": {
+      "mode": "subagent",
+      "prompt": "{file:./.opencode/agents/ciel-critic.md}"
+    },
+    "ciel-explorer": {
+      "mode": "subagent",
+      "prompt": "{file:./.opencode/agents/ciel-explorer.md}"
+    },
+    "ciel-researcher": {
+      "mode": "subagent",
+      "prompt": "{file:./.opencode/agents/ciel-researcher.md}"
+    },
+    "ciel-improver": {
+      "mode": "subagent",
+      "prompt": "{file:./.opencode/agents/ciel-improver.md}"
+    }
+  }
 }
