@@ -9,6 +9,7 @@
 #   - Hooks renamed: pre-write-gate → pre-tool-write, post-write-relire → post-tool-write
 #   - 5 new hook events wired: SessionStart, UserPromptSubmit, PreCompact, SubagentStop, Stop
 #   - Platforms/ is auto-regenerated from skills/ via scripts/build-platforms.sh
+#   - OpenCode: native primitives (plugin + subagents + commands) restored in .opencode/
 
 set -euo pipefail
 
@@ -207,14 +208,36 @@ install_opencode() {
   _purge_ciel_files "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
   _purge_ciel_files "$PROJECT_ROOT/.opencode/commands" "ciel*.md"
   _purge_ciel_files "$PROJECT_ROOT/.opencode/plugins" "ciel.*"
+
   cp "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
   ok "Copied AGENTS.md"
+
   if [ -f "$PLATFORMS_DIR/opencode/opencode.json" ] && [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
     cp "$PLATFORMS_DIR/opencode/opencode.json" "$PROJECT_ROOT/opencode.json"
     ok "Copied opencode.json"
   elif [ -f "$PROJECT_ROOT/opencode.json" ]; then
-    warn "opencode.json exists — merge manually if needed"
+    warn "opencode.json exists — merge manually if needed (add plugin entry: ./.opencode/plugins/ciel.ts)"
   fi
+
+  # Native primitives: plugin + 4 subagents + 6 slash commands
+  if [ -f "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" ]; then
+    mkdir -p "$PROJECT_ROOT/.opencode/plugins"
+    cp "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
+    ok "Copied .opencode/plugins/ciel.ts"
+  fi
+
+  if [ -d "$PLATFORMS_DIR/opencode/.opencode/agents" ]; then
+    mkdir -p "$PROJECT_ROOT/.opencode/agents"
+    cp "$PLATFORMS_DIR/opencode/.opencode/agents/"*.md "$PROJECT_ROOT/.opencode/agents/" 2>/dev/null
+    ok "Copied .opencode/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
+  fi
+
+  if [ -d "$PLATFORMS_DIR/opencode/.opencode/commands" ]; then
+    mkdir -p "$PROJECT_ROOT/.opencode/commands"
+    cp "$PLATFORMS_DIR/opencode/.opencode/commands/"*.md "$PROJECT_ROOT/.opencode/commands/" 2>/dev/null
+    ok "Copied .opencode/commands/ (ciel, ciel-improve, ciel-eval, ciel-create-skill, ciel-recommend, ciel-update)"
+  fi
+
   _install_overlay
 }
 
@@ -258,34 +281,35 @@ install_lmstudio() {
 }
 
 # ─── Platform detection ───────────────────────────────────────────────────────
-declare -A DETECTED=()
-command -v claude &>/dev/null && DETECTED[claude]="Claude Code CLI"
-{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; } && DETECTED[cursor]="Cursor IDE"
-{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; } && DETECTED[windsurf]="Windsurf IDE"
-command -v codex &>/dev/null && DETECTED[codex]="Codex CLI"
-command -v opencode &>/dev/null && DETECTED[opencode]="OpenCode CLI"
+# Parallel indexed arrays (portable across bash 3.2 — no associative arrays)
+DETECTED_KEYS=()
+DETECTED_LABELS=()
+_add_detected() { DETECTED_KEYS+=("$1"); DETECTED_LABELS+=("$2"); }
+
+command -v claude &>/dev/null && _add_detected claude "Claude Code CLI"
+{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; } && _add_detected cursor "Cursor IDE"
+{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; } && _add_detected windsurf "Windsurf IDE"
+command -v codex &>/dev/null && _add_detected codex "Codex CLI"
+command -v opencode &>/dev/null && _add_detected opencode "OpenCode CLI"
 { [ -d "$PROJECT_ROOT/.kilocode" ] || \
   (command -v code &>/dev/null && code --list-extensions 2>/dev/null | grep -qi "kilocode"); } \
-  && DETECTED[kilocode]="Kilo Code"
-command -v ollama &>/dev/null && DETECTED[ollama]="Ollama"
-{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; } && DETECTED[lmstudio]="LM Studio"
+  && _add_detected kilocode "Kilo Code"
+command -v ollama &>/dev/null && _add_detected ollama "Ollama"
+{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; } && _add_detected lmstudio "LM Studio"
+
+DETECTED_COUNT=${#DETECTED_KEYS[@]}
 
 # ─── User selection ───────────────────────────────────────────────────────────
-if [ ${#DETECTED[@]} -eq 0 ]; then
+if [ "$DETECTED_COUNT" -eq 0 ]; then
   warn "No supported AI tool detected automatically."
   echo "  Available platforms: claude cursor windsurf codex opencode kilocode ollama lmstudio"
   read -rp "  Platforms to install (space-separated or 'all'): " RAW
   [ "$RAW" = "all" ] && RAW="claude cursor windsurf codex opencode kilocode ollama lmstudio"
   IFS=' ' read -ra PLATFORMS <<< "$RAW"
 else
-  # Build indexed array for selection
-  DETECTED_KEYS=("${!DETECTED[@]}")
-  DETECTED_COUNT=${#DETECTED_KEYS[@]}
-
   echo -e "${BOLD}Detected:${RESET}"
-  for i in "${!DETECTED_KEYS[@]}"; do
-    local_key="${DETECTED_KEYS[$i]}"
-    echo -e "  ${CYAN}[$((i+1))]${RESET} ${DETECTED[$local_key]} ${YELLOW}[$local_key]${RESET}"
+  for i in $(seq 0 $((DETECTED_COUNT - 1))); do
+    echo -e "  ${CYAN}[$((i+1))]${RESET} ${DETECTED_LABELS[$i]} ${YELLOW}[${DETECTED_KEYS[$i]}]${RESET}"
   done
   echo ""
   read -rp "  Install? [A]ll / numbers (e.g. 1,3) / [L]ist keys / [Q]uit: " ANS
