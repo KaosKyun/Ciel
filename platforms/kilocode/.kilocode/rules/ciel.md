@@ -66,31 +66,72 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 **Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
 
 
-## Agent dispatch rules
+## Dispatch directive — Skill tool vs Task tool
 
-| Agent | Step | Context | Mandatory |
-|-------|------|---------|-----------|
-| `researcher` | RECHERCHE | Isolated fork — no session bias | Standard + Critical |
-| `explorer` | CODEBASE + FLUX | Isolated fork — reads codebase fresh | Standard + Critical |
-| `critic` | RELIRE or CRITIQUER | Isolated fork — different blind spots | Critical always; Standard if 3+ files OR auth/security |
-| `improver` | Self-improvement (long-running) | Isolated fork — extended token budget | On `/ciel-improve` |
+**MANDATORY**: before invoking a Ciel skill, check its frontmatter.
 
-Dispatch `researcher` + `explorer` **IN PARALLEL** before FAIRE.
-Dispatch `critic` after FAIRE.
-Each agent dispatch costs ~850K tokens on average — reserve accordingly.
+| Frontmatter | Invocation method | Why |
+|---|---|---|
+| `context: fork` + `agent: <role>` | **Task tool** → dispatch `@ciel-<role>` subagent with the skill as its primary instruction | Fork context = fresh perspective, blind-spot mitigation (CriticBench), isolated tool permissions. Inline defeats the whole point. |
+| No `context: fork` (or `context: inline`) | **Skill tool** inline in main session | Deterministic / lightweight / orchestration — fork overhead unjustified. |
 
-**Report quality check**: agent report < 200 tokens on Standard task → suspect truncation. Re-dispatch with narrower scope before proceeding.
+### Fork-context skills (ALWAYS dispatch via Task, never inline)
+
+- `debug-reasoning-rca` → `Task(@ciel-critic, "MODE=RCA SYMPTOM=... REPRO=... SCOPE=...")`
+- `doc-validator-official` → `Task(@ciel-researcher, "TARGET_STACK=... PROPOSED_APIS=...")`
+- `modern-patterns-checker` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... TARGET_STACK=...")`
+- `ai-failure-modes-detector` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... AUTHOR=...")`
+- `self-consistency-verifier` → `Task(@ciel-critic, "PROBLEM=... STAKES=Critical")`
+- `test-strategy-vitest-playwright` → `Task(@ciel-explorer, "FEATURE=... COMPONENTS=...")`
+- `playwright-visual-critic` → `Task(@ciel-explorer, "TARGET_URL=... VIEWPORT=...")`
+- `cicd-security-hardener` → `Task(@ciel-explorer, "PIPELINE_FILES=...")`
+- `skills-first-design-auditor` → `Task(@ciel-improver, "SKILL_PATH=...")`
+- All `skills/research/*` → dispatched by `@ciel-researcher`
+- `pattern-fitness-check`, `flux-narrator`, `critiquer-auditor`, `stride-analyzer`, `security-regression-check` → dispatched by their declared agent
+- All `skills/domain/*` skills with `context: fork` → dispatched by `@ciel-explorer`
+
+### Inline-OK skills (Skill tool direct)
+
+- `ciel` (this orchestrator) — must stay inline; it IS the main session's reasoning trace
+- `depth-classifier`, `quoi-framer`, `avec-quoi-versioner` — deterministic, fast, feed the main pipeline
+- `faire-gatekeeper`, `evaluer-sizer` — active during main-session implementation
+- `relire-critic` (inline fallback for Trivial / Standard <3 files; dispatched via `@ciel-critic` for 3+ files or Critical)
+- `meta-critiquer`, `prouver-verifier` — end-of-task orchestration in main session
+- `synthesize-findings` — aggregates research outputs back in main session
+- `learnings-capture` — writes to `ciel-overlay.md` from main session (writes are ok here)
+
+### Anti-pattern to avoid
+
+```
+❌ "Intent matched → Skill(debug-reasoning-rca)"    // inline, loses fork context
+✅ "Intent matched → Task(@ciel-critic, 'MODE=RCA SYMPTOM=...')"  // fork, fresh perspective
+```
+
+**If you catch yourself invoking a `context: fork` skill via the Skill tool, stop and re-issue via Task.**
 
 
-## Self-improvement — Ciel modifies Ciel
+## Context budget — throughout all steps
 
-Ciel can create and improve its own skills through the `meta/` subsystem:
+| Usage | Signal | Action |
+|-------|--------|--------|
+| < 50% | Comfortable | Normal depth |
+| 50–70% | Caution | Prefer `grep`/signatures over full file reads |
+| > 70% | Pressure | No new agents; compress agent prompts |
+| > 85% | Critical | Finish current step, commit, open new session |
 
-- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite)
-- `/ciel-eval [skill-name]` → `skill-variant-evaluator` runs binary evals on 2-3 variants, winner = highest aggregate score (tiebreak: lowest token usage)
-- `/ciel-create-skill <name> <purpose>` → `skill-creator` generates a valid SKILL.md scaffold
-- Session-end hooks (`Stop`, `PreCompact`) → `learnings-capture` appends user corrections to `.claude/learnings.md` or `ciel-overlay.md`
+Lazy reading: `grep -n "^fun \|^class \|^interface \|^object " <file>` before full file read.
+Never read the same file twice in a session — note a pointer after first read.
+Observation masking: tool outputs from > 3 turns ago that weren't referenced → replace with `[MASKED: ref step X]`.
 
+
+## ÉVOLUER — closed feedback loop
+
+- Per-task: `meta-critiquer` (30s) → update Guards or overlay
+- Per-session: patterns → new Guards or overlay rules via `learnings-capture`
+- Per-month: prune Guards that never fire; check overlay drift; CHANGELOG fix/revert ratio
+- Anti-entropy rule: every addition must simplify OR catch a real failure. If neither → reject.
+
+Track fix/revert ratio per version in `CHANGELOG.md` — improvement must be measurable. Baseline (v1.x monolithic): 62.8%.
 
 ---
 

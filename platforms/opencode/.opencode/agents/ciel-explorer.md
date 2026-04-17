@@ -307,12 +307,19 @@ LLMs over-weight patterns that dominated their training set years ago. Without a
 
 ---
 
-## Inputs
+## Inputs (infer before asking — see orchestrator's Autonomy protocol)
 
 ```
 CODE_UNDER_REVIEW: [file paths OR diff hunk]
 TARGET_STACK: [language + framework + version — resolved from package manifests]
 ```
+
+### Auto-inference sources (exhaust BEFORE asking the user)
+
+- **CODE_UNDER_REVIEW** → `git diff main...HEAD` for the branch under review; fall back to `git diff HEAD~1` for the latest commit; or the user-named file(s).
+- **TARGET_STACK** → read `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml`; derive framework from dependencies (`react`, `vue`, `svelte`, `fastapi`, `django`, etc.). Read `tsconfig.json` / `pyproject.toml` for strictness settings. Cross-check with `ciel-overlay.md`.
+
+Never ask the user for either. Both are deterministically inferable.
 
 ---
 
@@ -458,7 +465,7 @@ LLM-generated code compiles more often than it's correct. Six failure modes acco
 
 ---
 
-## Inputs
+## Inputs (infer before asking — see orchestrator's Autonomy protocol)
 
 ```
 CODE_UNDER_REVIEW: [file paths OR diff hunk]
@@ -467,7 +474,14 @@ PROPOSED_DEPS: [new dependencies being added, if any]
 TEST_COVERAGE: [files that have tests | files without]
 ```
 
-AUTHOR=human → optional check. AUTHOR=LLM or mixed → mandatory for Standard/Critical.
+### Auto-inference sources (exhaust BEFORE asking the user)
+
+- **CODE_UNDER_REVIEW** → `git diff HEAD~1` (last commit) or `git diff main...HEAD` (branch diff) — usually the intent. If user said "this file", extract from prompt.
+- **AUTHOR** → check the last commit's message / co-author trailer. `Co-Authored-By: Claude` or `Generated with Claude Code` → LLM. Otherwise human. If unsure, assume `mixed` (safer default).
+- **PROPOSED_DEPS** → `git diff HEAD~1 -- package.json go.mod requirements.txt` → list added entries. Zero added → skip dep-hallucination check.
+- **TEST_COVERAGE** → for each changed file in CODE_UNDER_REVIEW, check if a corresponding `*.test.*` / `*_test.go` / `test_*.py` exists next to it.
+
+Never ask the user for AUTHOR — always inferable from git. Never ask for TEST_COVERAGE — always checkable via filesystem.
 
 ---
 

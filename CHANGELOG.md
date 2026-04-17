@@ -1,5 +1,44 @@
 # Ciel — Changelog
 
+## v2.1.5 — 2026-04-17 — autonomy protocol (gather before asking)
+
+**Context** — Ciel agents were written with "bail out and ask the user" logic ("If REPRO is missing → STOP" in `debug-reasoning-rca`). This treats the user as a form to fill in, instead of treating the agent as capable of gathering context. An autonomous agent should exhaust available sources (git, filesystem, overlay, tool calls, MCP) before asking.
+
+### Added
+
+- **`skills/ciel/SKILL.md`** — new "Autonomy protocol" section defining the 7-source gather order (user prompt → overlay → git state → filesystem → tool invocations → MCP → codebase grep) and the `[ASSUMED from <source>]` / `[GIVEN by user]` / `[UNKNOWN]` annotation format that every dispatched skill must emit.
+- **Individual skill INPUTS sections updated** with explicit "Auto-inference sources" — each input documents how to obtain it without asking:
+  - `debug-reasoning-rca` — SYMPTOM from error logs, REPRO from package scripts / Playwright MCP, SCOPE from `git diff` + `git blame`, RECENT_CHANGES from `git log --since="7 days ago"`
+  - `doc-validator-official` — PACKAGE_SOURCES from manifest glob, TARGET_STACK from manifest reads, PROPOSED_APIS from task description parse
+  - `ai-failure-modes-detector` — AUTHOR from commit trailer (`Claude Code` = LLM), TEST_COVERAGE from filesystem existence, PROPOSED_DEPS from manifest diff
+  - `modern-patterns-checker` — CODE_UNDER_REVIEW from branch diff, TARGET_STACK from manifests
+
+### Behavioral change
+
+Before (interrogative):
+```
+User: /ciel my library update broke production
+Ciel: Can you tell me: what library? what error? what command?
+```
+
+After (autonomous):
+```
+User: /ciel my library update broke production
+Ciel: [ASSUMED] lib = @auth/core 3→4 from package.json diff, error = logs show
+"useAuth undefined" 1243x, repro = curl .../login returns 500. Dispatching
+@ciel-critic MODE=RCA...
+```
+
+### When Ciel still asks
+
+Only when a critical input cannot be gathered after exhausting all sources (e.g., greenfield project with no manifests at all). Always ONE specific question with 2-3 concrete options — never open-ended "tell me more".
+
+### Unchanged
+
+Dispatch directive (v2.1.4), intent routing (v2.1.3), installer, manifest, skills inventory — all intact.
+
+---
+
 ## v2.1.4 — 2026-04-17 — force Task-dispatch for fork-context skills
 
 **Context** — v2.1.3 made the orchestrator route intents to the correct Ciel skill (e.g., debug → `debug-reasoning-rca`), but Claude invoked it **inline via the Skill tool** in the main session. The skill's frontmatter declares `context: fork` + `agent: critic` — meaning it's supposed to run in a forked subagent context for blind-spot mitigation (CriticBench 2024). Inline invocation defeats the architecture: same-session critique of same-session work = degenerate self-review.

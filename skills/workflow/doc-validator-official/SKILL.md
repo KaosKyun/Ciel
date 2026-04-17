@@ -12,7 +12,7 @@ LLM hallucination of APIs is the #1 coding failure mode (ISSTA 2025). Functions 
 
 ---
 
-## Inputs
+## Inputs (infer before asking — see orchestrator's Autonomy protocol)
 
 ```
 TARGET_STACK: [language + framework + version — e.g., "TypeScript 5.5 + React 19"]
@@ -20,7 +20,13 @@ PROPOSED_APIS: [list of function/class/method calls the implementation will use]
 PACKAGE_SOURCES: [paths to package.json / go.mod / requirements.txt / Cargo.toml]
 ```
 
-If PACKAGE_SOURCES is empty → cannot validate versions → refuse to proceed; request manifest paths.
+### Auto-inference sources (exhaust BEFORE asking the user)
+
+- **PACKAGE_SOURCES** → `find . -maxdepth 3 -name 'package.json' -o -name 'go.mod' -o -name 'requirements.txt' -o -name 'pyproject.toml' -o -name 'Cargo.toml' -o -name 'Gemfile'` — pick up every manifest without asking.
+- **TARGET_STACK** → derive from PACKAGE_SOURCES (read the files, extract versions of the key libs). Cross-check with `ciel-overlay.md`.
+- **PROPOSED_APIS** → parse from the user's task description + any referenced code diff. If user said "use stripe to refund X", APIs = `stripe.refunds.create`, `stripe.paymentIntents.retrieve`, etc.
+
+Only BLOCK if no manifest file exists at all (greenfield project with no deps yet) — then ask once "Which package.json / go.mod should I validate against?".
 
 ---
 
