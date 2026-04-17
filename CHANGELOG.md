@@ -1,5 +1,32 @@
 # Ciel — Changelog
 
+## Unreleased — platforms: restore native OpenCode adaptation
+
+**Context** — v2.0.0 replaced all platform-native adaptations with a single 907-line compressed `AGENTS.md` dump. The pre-refactor OpenCode integration (plugin with pre/post-write hooks, 3 ciel-* subagents, 2 commands) was deleted in the process. This lot restores OpenCode's native primitives and updates them to the v2 4-agent + 33-skill model.
+
+### Added
+
+- **`platforms/opencode/.opencode/plugins/ciel.ts`** — TypeScript plugin (port of `hooks/pre-tool-write.sh`, `post-tool-write.sh`, `user-prompt-submit.sh`). Fires on `tool.execute.before`, `tool.execute.after`, `chat.params`. Injects depth classification and FAIRE/RELIRE reminders. Pure TS, no shell dependency.
+- **`platforms/opencode/.opencode/agents/ciel-{researcher,explorer,critic,improver}.md`** — 4 subagents with OpenCode frontmatter (`mode: subagent`, scoped tool permissions). Skills they invoke (`research/*`, `workflow/*`, `domain/*`, `meta/*`) are bundled inline since OpenCode has no native skills primitive — agents are self-sufficient.
+- **`platforms/opencode/.opencode/commands/ciel*.md`** — 6 slash commands (`/ciel`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`) with OpenCode frontmatter (`agent`, `subtask`). Meta commands (`/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`) noted as degraded without `claude --print` headless mode.
+- **`build-platforms.sh`** — new helpers `bundle_skills_inline`, `emit_opencode_agent`, `emit_opencode_command`, `emit_opencode_plugin`, `emit_opencode_config`, `emit_opencode_agents_md`. Regex extracted as script-level variables (`CIEL_CRITICAL_FILE_RE`, `CIEL_CODE_EXT_RE`, etc.) — single source of truth shared with hooks.
+
+### Changed
+
+- **`platforms/opencode/AGENTS.md`** — reduced from 907-line dump (31KB) to a 3.5KB index pointing to the native primitives.
+- **`platforms/opencode/opencode.json`** — now registers the `ciel.ts` plugin alongside `AGENTS.md` instructions.
+- **`build-platforms.sh`** — converted `declare -A LIMITS` associative array to portable prefixed variables (`LIMIT_<name>`) for bash 3.2 compatibility (macOS default shell).
+
+### Unchanged
+
+No source-of-truth files (`skills/`, `agents/`, `hooks/`, `commands/`, `settings.json`) were modified — this lot only touches `platforms/opencode/` and `scripts/build-platforms.sh`.
+
+### Follow-up
+
+The 5 remaining platforms (Cursor, Windsurf, Codex, Kilo, LM Studio/Ollama) will each get a dedicated issue + PR restoring their native primitives. Current state on those platforms is still the compressed dump.
+
+---
+
 ## v2.0.0 — 2026-04-17 — Skills-first total refactor
 
 **BREAKING — total architecture rewrite aligned with Anthropic's Skills-first paradigm.**
