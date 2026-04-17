@@ -296,7 +296,16 @@ _do_uninstall() {
   fi
 
   # Whitelist: never auto-delete these (user data / user-scope configs)
-  local preserve_re='(\.mcp\.json(\.backup-|$)|ciel-overlay\.md$)'
+  # - .mcp.json              — project MCP servers (user may have customized)
+  # - ciel-overlay.md        — project-specific Ciel rules
+  # - opencode.json          — OpenCode config (model, provider, mcp, keybinds,
+  #                            permission, etc. — user customization would be
+  #                            lost on uninstall+reinstall otherwise)
+  # - .claude/settings.json  — project-scope Claude config (contains absolute
+  #                            $CIEL_DIR hook paths that are per-machine;
+  #                            created by /ciel-init, not by install.sh)
+  # Backup variants (\.bak- and .backup- suffixes) preserved too.
+  local preserve_re='(\.mcp\.json(\.backup-|$)|ciel-overlay\.md$|opencode\.json(\.bak-|$)|\.claude/settings\.json(\.bak-|$))'
 
   local removed=0 preserved=0
   while IFS= read -r f; do
@@ -611,8 +620,39 @@ install_opencode() {
   if [ -f "$PLATFORMS_DIR/opencode/opencode.json" ] && [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
     cp "$PLATFORMS_DIR/opencode/opencode.json" "$PROJECT_ROOT/opencode.json"
     ok "Copied opencode.json"
+  elif [ -f "$PROJECT_ROOT/opencode.json" ] && command -v python3 &>/dev/null; then
+    # Existing opencode.json — merge plugin + instructions entries non-destructively
+    # (same Python pattern as /ciel-init OpenCode branch). Preserves all other keys.
+    info "Merging opencode.json (preserving your model/provider/mcp/keybinds config)"
+    cp "$PROJECT_ROOT/opencode.json" "$PROJECT_ROOT/opencode.json.bak-$(date +%Y%m%dT%H%M%S)"
+    python3 - "$PROJECT_ROOT/opencode.json" <<'PY'
+import json, os, sys
+target = sys.argv[1]
+with open(target) as f:
+    current = json.load(f)
+current.setdefault("$schema", "https://opencode.ai/config.json")
+ins = current.get("instructions")
+if ins is None:
+    current["instructions"] = ["AGENTS.md"]
+elif isinstance(ins, str):
+    current["instructions"] = [ins] if ins == "AGENTS.md" else [ins, "AGENTS.md"]
+elif isinstance(ins, list) and "AGENTS.md" not in ins:
+    current["instructions"] = ins + ["AGENTS.md"]
+target_plugin = "./.opencode/plugins/ciel.ts"
+plg = current.get("plugin")
+if plg is None:
+    current["plugin"] = [target_plugin]
+elif isinstance(plg, str):
+    current["plugin"] = [plg] if plg == target_plugin else [plg, target_plugin]
+elif isinstance(plg, list) and target_plugin not in plg:
+    current["plugin"] = plg + [target_plugin]
+with open(target, "w") as f:
+    json.dump(current, f, indent=2)
+    f.write("\n")
+PY
+    ok "Merged opencode.json (backup: opencode.json.bak-*)"
   elif [ -f "$PROJECT_ROOT/opencode.json" ]; then
-    warn "opencode.json exists — merge manually if needed (add plugin entry: ./.opencode/plugins/ciel.ts)"
+    warn "opencode.json exists and python3 unavailable — merge manually (add plugin entry: ./.opencode/plugins/ciel.ts)"
   fi
 
   # Native primitives: plugin + 4 subagents + 6 slash commands

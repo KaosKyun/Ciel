@@ -1,5 +1,58 @@
 # Ciel — Changelog
 
+## v2.4.6 — 2026-04-17 — `/ciel-update` OpenCode-safe (no more config wipe)
+
+**Context** — User asked whether `/ciel-update` works on OpenCode. It technically did (the installer detects `opencode` in PATH and calls `install_opencode()`), but with two real bugs:
+
+1. **User's `opencode.json` was deleted and replaced with the fresh template on every update.** Custom `model`, `provider`, `mcp`, `keybinds`, `permission`, and any other top-level keys were lost. The uninstall `preserve_re` whitelist covered only `.mcp.json` and `ciel-overlay.md` — `opencode.json` was tracked in the manifest and therefore removed.
+2. **Command text was Claude-centric.** `commands/ciel-update.md` pointed at `~/.claude/plugins/ciel/scripts/install.sh`, a path that does not exist for OpenCode-only users. No fallback was shown for the `curl | bash` one-liner or the repo-clone path.
+
+v2.4.6 fixes both.
+
+### Changed — `scripts/install.sh` `_do_uninstall` preserve list
+
+Added three paths to the uninstall whitelist alongside `.mcp.json` and `ciel-overlay.md`:
+
+- `opencode.json` + `opencode.json.bak-*` — OpenCode config (model/provider/mcp/permission/keybinds). Re-install now merges non-destructively instead of overwriting.
+- `.claude/settings.json` + `.claude/settings.json.bak-*` — project-scope Claude config written by `/ciel-init`. Contains absolute per-machine `$CIEL_DIR` hook paths; blowing it away on update would force a re-run of `/ciel-init` every time.
+
+Consolidated regex: `(\.mcp\.json(\.backup-|$)|ciel-overlay\.md$|opencode\.json(\.bak-|$)|\.claude/settings\.json(\.bak-|$))`.
+
+### Changed — `scripts/install.sh` `install_opencode()` merge path
+
+When `opencode.json` already exists at the target path (always true after v2.4.6 because it's now preserved across uninstall), the installer runs a Python-based non-destructive merge — the same pattern as `/ciel-init` OpenCode branch:
+
+- Ensures `"$schema": "https://opencode.ai/config.json"` is present.
+- Ensures `"instructions"` is an array containing `"AGENTS.md"` (adds without dropping existing entries).
+- Ensures `"plugin"` is an array containing `"./.opencode/plugins/ciel.ts"` (adds without dropping existing entries).
+- Preserves every other top-level key exactly as-is.
+- Writes a `opencode.json.bak-<timestamp>` before the merge.
+
+Fallback path: if `python3` is not available, the installer warns and leaves `opencode.json` untouched (asks the user to merge manually). This is the same graceful-degradation pattern as `_install_mcp`.
+
+### Changed — `commands/ciel-update.md`
+
+Full rewrite for multi-platform clarity:
+
+- Three invocation paths documented: plugin-install path, repo-clone path, network one-liner (the latter is the answer for OpenCode-only users and fresh machines).
+- Expanded `What's preserved` section covers all 4 whitelisted files with explanations.
+- New `OpenCode specifics` section enumerates exactly which `.opencode/` files get touched vs preserved.
+- New `Troubleshooting` section covers the 4 most common failure modes (no manifest, network block, local-ahead-of-remote, plugin-not-found-after-update-needs-restart).
+- Frontmatter description updated to mention all whitelisted files, not just `.mcp.json` and `ciel-overlay.md`.
+
+### Regenerated
+
+`platforms/opencode/.opencode/commands/ciel-update.md` — picks up the new multi-platform body automatically via the `build_opencode` loop over source `commands/*.md`.
+
+### Verification (manual, recommended after applying)
+
+1. Before update: `cat opencode.json` (note your custom keys).
+2. Run `/ciel-update` or `bash scripts/install.sh --update`.
+3. After update: `cat opencode.json` → every custom key still present; `plugin` array contains `./.opencode/plugins/ciel.ts`; `instructions` array contains `AGENTS.md`.
+4. Check `ls opencode.json.bak-*` — backup exists from the merge phase.
+
+---
+
 ## v2.4.5 — 2026-04-17 — `skill-freshness-auditor` + `/ciel-refresh`
 
 **Context** — User feedback: Ciel's self-improvement subsystem only catches what Ciel *experienced* (via `/ciel-improve` on session transcripts). It does not catch what *changed outside* — a library pin that became two majors outdated, a docs URL that 404s, a research paper that was superseded. Skills silently age against external reality until a failure finally triggers them. This release adds the missing outside-world-driven audit pass.
