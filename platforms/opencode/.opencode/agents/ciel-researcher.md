@@ -6,8 +6,12 @@ temperature: 0.2
 tools:
   write: false
   edit: false
+  bash: false
+  read: true
+  glob: false
+  grep: false
   webfetch: true
-  bash: true
+  websearch: true
 ---
 
 # Ciel Researcher

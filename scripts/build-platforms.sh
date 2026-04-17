@@ -348,6 +348,37 @@ bundle_skills_inline() {
   done
 }
 
+# Bundle skills in compact form: YAML description + paths glob + first 20 body lines.
+# Used for domain skills inside the explorer bundle — the full skill body is ~100 lines
+# and only one domain skill is relevant per task. Loading all 8 fully on every dispatch
+# wastes ~25KB = ~6250 tokens. Compact keeps the trigger signals + main checks,
+# points to the full skill for edge cases.
+#
+# Usage: bundle_skills_compact <skill_md_path> [<skill_md_path> ...]
+bundle_skills_compact() {
+  for skill_md in "$@"; do
+    [[ -f "$skill_md" ]] || continue
+    local name desc paths
+    name=$(basename "$(dirname "$skill_md")")
+    desc=$(skill_yaml_field "$skill_md" description)
+    paths=$(skill_yaml_field "$skill_md" paths)
+
+    echo ""
+    echo "---"
+    echo ""
+    echo "### Skill (compact): \`$name\`"
+    echo ""
+    [[ -n "$paths" ]] && echo "**Triggers on paths:** \`$paths\`"
+    [[ -n "$desc" ]] && echo ""
+    [[ -n "$desc" ]] && echo "**Purpose:** $desc"
+    echo ""
+    echo "**Key checks** (excerpt — full skill available on Claude Code at \`skills/domain/$name/\`):"
+    echo ""
+    # First 20 lines of body (after YAML), skipping the intro H1 line
+    strip_yaml "$skill_md" | sed '/^# /d' | head -20
+  done
+}
+
 # Extract a YAML field's value from a SKILL.md
 skill_yaml_field() {
   local file="$1"
@@ -377,30 +408,34 @@ emit_opencode_agent() {
   desc=$(head -1 "$src" | sed 's/^# *//')
   [[ -z "$desc" ]] && desc="Ciel $role — isolated-context subagent"
 
-  # Per-role model choice:
-  #   researcher/explorer → Sonnet 4.6 (fast, cheap, strong for research + code exploration)
-  #   critic/improver     → Opus 4.7 (deep reasoning, blind-spot hunting, self-improvement)
+  # Per-role configuration — defaults favour token economy.
+  # All four agents default to Sonnet 4.6: fast, capable, ~5x cheaper than Opus 4.7.
+  # If a user wants deeper reasoning for hostile critique or self-improvement
+  # (CriticBench / blind-spot hunting), they can edit the `model:` line in
+  # .opencode/agents/ciel-{critic,improver}.md after install to:
+  #     model: anthropic/claude-opus-4-7
   #
-  # OpenCode users can override any of these via .opencode/agents/ciel-*.md
-  # (uncomment or change the `model:` line after install).
+  # Tool permissions are as tight as the role allows — no bash/glob/grep unless
+  # the agent genuinely needs them, to prevent uncontrolled context expansion
+  # and keep the blast radius of a subagent small.
   local tools_block=""
-  local model_id=""
+  local model_id="anthropic/claude-sonnet-4-6"
   case "$role" in
     researcher)
-      tools_block=$'tools:\n  write: false\n  edit: false\n  webfetch: true\n  bash: true'
-      model_id="anthropic/claude-sonnet-4-6"
+      # Pure read-only web research: no codebase, no shell.
+      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: false\n  read: true\n  glob: false\n  grep: false\n  webfetch: true\n  websearch: true'
       ;;
     explorer)
-      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  webfetch: false'
-      model_id="anthropic/claude-sonnet-4-6"
+      # Codebase-only: no web, no shell. Read+glob+grep for navigation.
+      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: false\n  read: true\n  glob: true\n  grep: true\n  webfetch: false\n  websearch: false'
       ;;
     critic)
-      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  webfetch: false'
-      model_id="anthropic/claude-opus-4-7"
+      # Audit-only: read+grep changed files. Bash for git diff / log.
+      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  read: true\n  glob: true\n  grep: true\n  webfetch: false\n  websearch: false'
       ;;
     improver)
-      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  webfetch: true'
-      model_id="anthropic/claude-opus-4-7"
+      # Long-running meta-agent: reads session logs + web docs for benchmarks.
+      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  read: true\n  glob: true\n  grep: true\n  webfetch: true\n  websearch: true'
       ;;
   esac
 
@@ -434,9 +469,21 @@ emit_opencode_agent() {
           "$SKILLS/research/fact-check-claims/SKILL.md"
         ;;
       explorer)
+        # Full bundle for the 2 workflow skills explorer ALWAYS invokes.
         bundle_skills_inline \
           "$SKILLS/workflow/pattern-fitness-check/SKILL.md" \
-          "$SKILLS/workflow/flux-narrator/SKILL.md" \
+          "$SKILLS/workflow/flux-narrator/SKILL.md"
+
+        # Compact bundle for 8 domain skills — only 1-2 are relevant per task.
+        # Full loading wastes ~25KB / ~6250 tokens per dispatch.
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Domain skills (compact — one is dispatched IN PARALLEL based on stack signals)"
+        echo ""
+        echo "> Each domain skill below is pre-compressed to its trigger signals + main checks."
+        echo "> Match the detected stack to the skill whose \`paths\` glob applies, then apply its checks."
+        bundle_skills_compact \
           "$SKILLS/domain/frontend-mastery/SKILL.md" \
           "$SKILLS/domain/backend-mastery/SKILL.md" \
           "$SKILLS/domain/database-mastery/SKILL.md" \
@@ -617,26 +664,30 @@ const CRITICAL_KEYWORD_RE = /${CIEL_CRITICAL_KEYWORD_RE}/i;
 const TRIVIAL_KEYWORD_RE = /${CIEL_TRIVIAL_KEYWORD_RE}/i;
 
 const ciel: Plugin = async ({ \$ }) => {
+  // Track which files were already reminded this session to avoid duplicate
+  // reminders on repeated edits (each reminder = ~50 tokens in context).
   const writtenFiles = new Set<string>();
+  const remindedFiles = new Set<string>();
+  let relireBlockDispatched = false;
 
   return {
     event: async ({ event }) => {
-      // Hook: session start — banner log (idempotent, no side effects)
       if (event.type === "session.created") {
         console.log("[CIEL] Session started — depth-aware reasoning active. Use /ciel, @ciel-researcher, @ciel-explorer, @ciel-critic.");
       }
     },
 
     chat: {
-      // chat.params fires before the model processes a user prompt.
-      // Inject depth classification hint as a system message.
+      // Only inject a depth hint when the classifier finds a signal (Critical or
+      // Trivial keyword). Skip the "Standard default" case — a neutral hint adds
+      // tokens without guiding the model.
       params: async (input, output) => {
         const last = input.message?.parts?.findLast?.((p: any) => p.type === "text");
         const prompt: string = last?.text ?? "";
         if (!prompt) return;
 
-        let depth = "Standard";
-        let reason = "default";
+        let depth: string | null = null;
+        let reason = "";
         if (CRITICAL_KEYWORD_RE.test(prompt)) {
           depth = "Critical";
           reason = "auth/security/payment keyword detected";
@@ -644,8 +695,9 @@ const ciel: Plugin = async ({ \$ }) => {
           depth = "Trivial";
           reason = "rename/typo/docs keyword detected";
         }
+        if (!depth) return;
 
-        const hint = \`[CIEL] Depth hint: \${depth} (\${reason}). Invoke depth-classifier reasoning if ambiguous before routing the pipeline.\`;
+        const hint = \`[CIEL] Depth: \${depth} (\${reason}). Route the pipeline accordingly.\`;
         if (output?.system && Array.isArray(output.system)) {
           output.system.push(hint);
         }
@@ -654,34 +706,39 @@ const ciel: Plugin = async ({ \$ }) => {
 
     tool: {
       execute: {
+        // Pre-write reminder fires once per file. On non-critical files, a tight
+        // single-line hint; on critical files, the full STRIDE/FAIRE reminder.
         before: async (input, output) => {
           if (!["write", "edit"].includes(input.tool)) return;
           const filePath: string = output?.args?.file_path ?? output?.args?.path ?? "";
           if (!filePath || !CODE_EXT_RE.test(filePath)) return;
+          if (remindedFiles.has(filePath)) return;
+          remindedFiles.add(filePath);
 
           const isCritical = CRITICAL_FILE_RE.test(filePath);
           const msg = isCritical
-            ? \`[CIEL CRITIQUE] \${filePath} — Before writing: (1) faire-gatekeeper gates checked (2) stride-analyzer run (3) flux-narrator completed (4) test written FIRST (RED). Dispatch @ciel-critic MODE=RELIRE after writing is mandatory.\`
-            : \`[CIEL] \${filePath} — Invoke faire-gatekeeper gates (alternatives, idiomatic, quality, removal, test-first). If Standard/Critical: ensure @ciel-researcher + @ciel-explorer were dispatched before this write.\`;
-
+            ? \`[CIEL CRITIQUE] \${filePath} — FAIRE gates + stride-analyzer + flux-narrator + test-first (RED). Dispatch @ciel-critic MODE=RELIRE after this write.\`
+            : \`[CIEL] \${filePath} — FAIRE gates: alternatives, idiomatic, test-first. Ensure @ciel-researcher + @ciel-explorer ran.\`;
           console.log(msg);
-          writtenFiles.add(filePath);
         },
 
+        // Post-write RELIRE reminder: emit AT MOST ONCE per session once the
+        // threshold is reached (3+ files or a critical file touched). Suppresses
+        // the per-file repeat noise that otherwise burns ~50 tokens × N writes.
         after: async (input, output) => {
           if (!["write", "edit"].includes(input.tool)) return;
           const filePath: string = output?.args?.file_path ?? output?.args?.path ?? "";
           if (!filePath || !CODE_EXT_RE.test(filePath)) return;
 
           writtenFiles.add(filePath);
+          if (relireBlockDispatched) return;
+
           const changed = Array.from(writtenFiles);
           const relireRequired = changed.length >= 3 || CRITICAL_FILE_RE.test(filePath);
+          if (!relireRequired) return;
 
-          const msg = relireRequired
-            ? \`[CIEL RELIRE REQUIRED] \${filePath} just written. Dispatch @ciel-critic: MODE=RELIRE, CHANGED_FILES=[\${changed.join(", ")}]. Required: 3 RISQUES (functional + imports + data) + FIX/ACCEPT/DEFER. Do not continue before verdict.\`
-            : \`[CIEL RELIRE] \${filePath} written. Run relire-critic inline (3 RISQUES + FIX/ACCEPT/DEFER) before next write.\`;
-
-          console.log(msg);
+          relireBlockDispatched = true;
+          console.log(\`[CIEL RELIRE REQUIRED] \${changed.length} files changed (\${changed.join(", ")}). Dispatch @ciel-critic MODE=RELIRE now — 3 RISQUES + FIX/ACCEPT/DEFER. Do not continue before verdict.\`);
         },
       },
     },
@@ -753,19 +810,34 @@ if $CHECK_ONLY; then
   exit $errors
 fi
 
-# Rebuild all
-rm -rf "$PLATFORMS"
+# Rebuild — only wipe the targeted platform(s) so partial rebuilds don't
+# destroy the output of other platforms.
+purge_target() {
+  local name="$1"
+  case "$name" in
+    cursor)   rm -rf "$PLATFORMS/cursor"   ;;
+    windsurf) rm -rf "$PLATFORMS/windsurf" ;;
+    codex)    rm -rf "$PLATFORMS/codex"    ;;
+    opencode) rm -rf "$PLATFORMS/opencode" ;;
+    kilo)     rm -rf "$PLATFORMS/kilocode" ;;
+    ollama)   rm -rf "$PLATFORMS/ollama"   ;;
+    lmstudio) rm -rf "$PLATFORMS/lmstudio" ;;
+  esac
+}
+
 mkdir -p "$PLATFORMS"
 
 case "$TARGET" in
-  cursor) build_cursor ;;
-  windsurf) build_windsurf ;;
-  codex) build_codex ;;
-  opencode) build_opencode ;;
-  kilo) build_codex && build_kilo ;;
-  ollama) build_ollama ;;
-  lmstudio) build_lmstudio ;;
+  cursor)   purge_target cursor   && build_cursor   ;;
+  windsurf) purge_target windsurf && build_windsurf ;;
+  codex)    purge_target codex    && build_codex    ;;
+  opencode) purge_target opencode && build_opencode ;;
+  kilo)     purge_target codex && purge_target kilo && build_codex && build_kilo ;;
+  ollama)   purge_target ollama   && build_ollama   ;;
+  lmstudio) purge_target lmstudio && build_lmstudio ;;
   all)
+    rm -rf "$PLATFORMS"
+    mkdir -p "$PLATFORMS"
     build_cursor
     build_windsurf
     build_codex

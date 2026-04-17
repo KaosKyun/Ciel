@@ -1,13 +1,17 @@
 ---
 description: Ciel Critic
 mode: subagent
-model: anthropic/claude-opus-4-7
+model: anthropic/claude-sonnet-4-6
 temperature: 0.2
 tools:
   write: false
   edit: false
   bash: true
+  read: true
+  glob: true
+  grep: true
   webfetch: false
+  websearch: false
 ---
 
 # Ciel Critic

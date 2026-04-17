@@ -6,8 +6,12 @@ temperature: 0.2
 tools:
   write: false
   edit: false
-  bash: true
+  bash: false
+  read: true
+  glob: true
+  grep: true
   webfetch: false
+  websearch: false
 ---
 
 # Ciel Explorer
@@ -294,10 +298,22 @@ When <trigger>
 
 ---
 
-### Skill: `frontend-mastery`
+## Domain skills (compact — one is dispatched IN PARALLEL based on stack signals)
+
+> Each domain skill below is pre-compressed to its trigger signals + main checks.
+> Match the detected stack to the skill whose `paths` glob applies, then apply its checks.
+
+---
+
+### Skill (compact): `frontend-mastery`
+
+**Triggers on paths:** `"**/*.{tsx,jsx,vue,svelte,js,ts}"`
+
+**Purpose:** Expert patterns for React, Vue, Svelte, Solid frontend development — hooks, state management, routing, forms, accessibility, rendering. Auto-activates on .tsx, .jsx, .vue, .svelte files. Invoked in parallel with researcher agent during CODEBASE/FLUX steps when frontend stack is detected. Focuses on idiomatic patterns, common bypass signals, and anti-patterns the framework wants you to avoid.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/frontend-mastery/`):
 
 
-# frontend-mastery — Frontend expert knowledge
 
 Applied in parallel with `researcher` when a frontend task is detected. Contributes framework-idiomatic patterns + bypass signals specific to the component model.
 
@@ -317,83 +333,18 @@ VERSION: [exact version from avec-quoi-versioner]
 
 ## Process
 
-### 1. Identify framework
-
-From stack + file extensions:
-- `.tsx`/`.jsx` → React
-- `.vue` → Vue
-- `.svelte` → Svelte
-- `.astro` → Astro (may embed React/Vue/Svelte)
-
-### 2. Apply framework-specific pattern checks
-
-- **Component boundaries**: is logic in the right layer (hook / component / service)?
-- **State management**: local vs context vs external store — correct choice for use case?
-- **Effect hygiene**: dependency arrays, cleanup functions, race conditions
-- **Form patterns**: controlled vs uncontrolled, validation timing, accessibility
-- **Routing**: framework router vs manual `window.location` bypass
-- **Rendering**: server-side / client-side / streaming — match framework intent
-
-### 3. Flag bypass signals
-
-See `reference.md` for the full list per framework. Common across frameworks:
-
-- Direct DOM manipulation when framework provides the abstraction
-- Global state mutation when local state or context suffices
-- Side effects during render (React: `setState` in render body)
-- Stale closures over mutable data (React hooks + event handlers)
-- Accessibility gaps: missing aria attributes, keyboard navigation, focus management
-
-### 4. Cross-reference with researcher output
-
-Apply knowledge from `synthesize-findings` (official docs + version changelog) to this domain. If framework docs say X but the codebase does Y → flag as ADAPT or DO NOT USE in pattern-fitness-check.
 
 ---
 
-## Output format
+### Skill (compact): `backend-mastery`
 
-```
-## FRONTEND DOMAIN INSIGHTS — <framework> <version>
+**Triggers on paths:** `"**/build.gradle*,**/pom.xml,**/go.mod,**/requirements.txt,**/Gemfile,**/routes/**,**/controllers/**,**/services/**,**/middleware/**"`
 
-### Pattern recommendations
-- <pattern> — <when to use> — <framework reason>
+**Purpose:** Expert patterns for backend server development across Ktor, Go net/http, Node/Express, Rails, Django, FastAPI, Spring — routing, middleware, authentication, background jobs, connection pooling, error handling. Auto-activates on server framework files. Invoked in parallel with researcher agent when server-side change detected.
 
-### Bypass signals detected
-- <file:line> — <signal> — <suggested idiomatic replacement>
-
-### Accessibility check
-- <aria/keyboard/focus> — <status>
-
-### Version-specific notes
-- <feature> changed in <version> — <impact>
-
-### CROSS-REFERENCES
-- Conflicts with researcher findings: <none | list>
-```
-
----
-
-## Guardrails
-
-- **Don't duplicate researcher output** — this skill adds framework-specific expertise; research is version-specific docs
-- **Accessibility is not optional** — every frontend change touches a11y implicitly; flag gaps
-- **Framework philosophy first** — if framework wants declarative state, propose declarative even if imperative works
-- **Version-aware** — React 19 RSC differs from React 18; Vue 3 Composition differs from Options; Svelte 5 runes differ from 4
-
----
-
-## When triggered
-
-- `explorer` agent parallel dispatch when frontend files detected
-- Task mentions component / UI / form / routing
-- `paths` glob auto-activates on `.tsx/.jsx/.vue/.svelte/.js/.ts`
-
----
-
-### Skill: `backend-mastery`
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/backend-mastery/`):
 
 
-# backend-mastery — Backend expert knowledge
 
 Applied in parallel with `researcher` when server-side task detected. Contributes framework-idiomatic patterns specific to request-response / middleware / background processing.
 
@@ -413,83 +364,18 @@ VERSION: [exact version]
 
 ## Process
 
-### 1. Identify framework and layer
-
-Routes? Middleware? Services? Repositories? Jobs?
-
-### 2. Apply framework-specific pattern checks
-
-- **Request validation**: centralized? per-field? consistent across routes?
-- **Error handling**: framework exception mapper? ad-hoc try/catch?
-- **Middleware ordering**: auth before authz? logging before/after business logic?
-- **Transaction boundaries**: per-request? per-operation? nested?
-- **Connection pooling**: max connections? timeouts? closed on error?
-- **Background jobs**: queue choice? retry strategy? idempotency?
-
-### 3. Flag bypass signals
-
-- Business logic in route handlers (should be in services)
-- DB queries in controllers (should be behind repository)
-- Raw SQL string concat (should be parameterized)
-- `catch (Exception e) { }` swallowing errors
-- Unclosed resources (connections, file handles, streams)
-
-### 4. Scale considerations
-
-For each route/handler in scope:
-- Request/s under normal load?
-- Latency budget?
-- What breaks at 10x load?
 
 ---
 
-## Output format
+### Skill (compact): `database-mastery`
 
-```
-## BACKEND DOMAIN INSIGHTS — <framework> <version>
+**Triggers on paths:** `"**/*.sql,**/migrations/**,**/prisma/**,**/supabase/**,**/schema.*,**/*Migration*,**/*migration*"`
 
-### Pattern recommendations
-- <pattern> — <when to use> — <framework reason>
+**Purpose:** Expert patterns for PostgreSQL, MySQL, Redis, MongoDB, SQLite — migrations, indexes, query planning, connection pooling, parameterized queries, schema evolution. Auto-activates on SQL files, migrations, prisma schemas, supabase folders. Invoked in parallel with researcher when DB work detected. Always verifies real schema before asserting column existence.
 
-### Bypass signals detected
-- <file:line> — <signal> — <idiomatic replacement>
-
-### Middleware/transaction check
-- Auth ordering: <OK | issue>
-- Transaction scope: <OK | issue>
-- Resource lifecycle: <OK | issue>
-
-### Scale notes
-- Current load assumption: <N req/s>
-- Breakage at 10x: <what breaks first>
-
-### CROSS-REFERENCES
-- Conflicts with researcher findings: <none | list>
-```
-
----
-
-## Guardrails
-
-- **Layer discipline**: business logic in services, not routes
-- **Error handling policy**: uniform across codebase — pick one pattern and enforce
-- **Resource closure**: every open needs a close (try-with-resources, `use`, `defer`, context managers)
-- **Idempotency**: POST endpoints either idempotent-by-design or explicitly document non-idempotent
-
----
-
-## When triggered
-
-- `explorer` agent parallel dispatch when backend files detected
-- Task mentions endpoint / route / handler / middleware / service / job / worker
-- `paths` glob auto-activates on server framework files
-
----
-
-### Skill: `database-mastery`
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/database-mastery/`):
 
 
-# database-mastery — Database expert knowledge
 
 Applied in parallel with `researcher` when DB work detected. Contributes schema/query patterns + safety checks specific to transactional systems.
 
@@ -509,90 +395,18 @@ VERSION: [exact version]
 
 ## Process
 
-### 1. Identify DB engine + version
-
-From `docker-compose.yml`, `ciel-overlay.md`, environment files.
-
-### 2. Verify schema reality (never assume column existence)
-
-For any column reference:
-- Read the migration file that created it
-- OR query `information_schema` / `pg_attribute` / `sqlite_master`
-- Never trust memory for column names
-
-### 3. Apply engine-specific checks
-
-- **PostgreSQL**: index types (btree/hash/gin/gist/brin), DML concurrency (CONCURRENTLY), JSON operators
-- **MySQL**: InnoDB vs MyISAM, charset (utf8mb4), strict_mode
-- **Redis**: data structure choice, TTL strategy, persistence (RDB/AOF)
-- **MongoDB**: index compound order, aggregation pipeline stages, sharding key
-
-### 4. Migration safety
-
-- **Backward compat**: new column NOT NULL without DEFAULT breaks in-flight writes
-- **Index addition**: PostgreSQL `CREATE INDEX CONCURRENTLY`, MySQL pt-online-schema-change
-- **Column type change**: often full table rewrite — test on prod-scale data copy
-- **Drop column**: deploy code ignoring it first, drop column later
-- **Rename**: avoid in production; add new + dual-write + migrate + drop old
-
-### 5. Query patterns
-
-- Parameterized queries ALWAYS (never string concat)
-- `EXPLAIN ANALYZE` for any non-trivial query before shipping
-- N+1 detection: grep for loops containing queries
-- Transaction scope as narrow as possible
 
 ---
 
-## Output format
+### Skill (compact): `security-hardening`
 
-```
-## DATABASE DOMAIN INSIGHTS — <engine> <version>
+**Triggers on paths:** `"**/auth/**,**/security/**,**/*{Token,Password,Secret,Credential,Session}*,**/crypto/**"`
 
-### Schema verification
-- Table: <name> — verified from <migration:line | pg_attribute query>
-- Columns: <list with types, verified>
+**Purpose:** Expert knowledge on OWASP Top 10, authentication flows, session management, cryptography pitfalls, secrets hygiene, and STRIDE case library. Auto-activates on auth/, security/, Token, Password, Secret files. Invoked in parallel with researcher on Critical tasks involving credentials, identity, or data sensitivity.
 
-### Query patterns
-- <query shape> — <index used? full scan?>
-- <N+1 risk flagged or none>
-
-### Migration safety
-- <migration file> — <safe | risky + why>
-- Rollback plan: <explicit | implicit via version control>
-
-### Connection / transaction
-- Pool size: <N> — <sufficient for load?>
-- Tx scope: <OK | too wide | nested>
-
-### CROSS-REFERENCES
-- Conflicts with researcher findings: <none | list>
-```
-
----
-
-## Guardrails
-
-- **Never assume a column exists** — verify from migration or `pg_attribute` / equivalent
-- **SQL must be parameterized** — no string concat with user input, ever
-- **Migration review mandatory** for schema changes — backward compat, locking, size
-- **Index before production scale** — adding index on 100M rows takes minutes to hours; plan it
-- **Backup verification** — "we have backups" ≠ tested restore. If relevant, ask when last restore test was.
-
----
-
-## When triggered
-
-- `explorer` agent parallel dispatch when DB files detected
-- Task mentions query / migration / schema / index / table
-- `paths` glob auto-activates on SQL / migrations / prisma / supabase files
-
----
-
-### Skill: `security-hardening`
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/security-hardening/`):
 
 
-# security-hardening — Security expert knowledge
 
 Applied in parallel with `researcher` when security-sensitive work detected. Contributes OWASP case library + auth-flow anti-patterns.
 
@@ -612,109 +426,18 @@ SENSITIVITY: [credentials | session | PII | payment | general]
 
 ---
 
-## Process
-
-### 1. Map task to threat class
-
-- Credentials? → password hashing, rotation, leak detection, brute-force
-- Session? → revocation, hijacking, fixation, timeout
-- Auth flow? → OAuth / OIDC / JWT — token lifecycle, refresh, revocation
-- PII? → at-rest encryption, access logs, anonymization, retention
-- Payment? → PCI DSS scope, tokenization, webhook verification
-
-### 2. Apply OWASP Top 10 probes
-
-Check against the current OWASP Top 10 (2021 + 2025 ASVS):
-- A01: Broken Access Control
-- A02: Cryptographic Failures
-- A03: Injection
-- A04: Insecure Design
-- A05: Security Misconfiguration
-- A06: Vulnerable Components
-- A07: Identification & Authentication Failures
-- A08: Software & Data Integrity Failures
-- A09: Logging & Monitoring Failures
-- A10: SSRF
-
-### 3. Auth flow anti-patterns (specific probes)
-
-- JWT `none` algorithm accepted
-- Token stored in localStorage (XSS exposed)
-- Refresh token never rotated
-- Session fixation (accept any session ID)
-- No rate limit on login / signup
-- Password reset token reusable
-- Timing attack on user existence check
-
-### 4. Cryptography pitfalls
-
-- MD5/SHA-1 for passwords (use bcrypt/argon2id)
-- Static IV for AES
-- ECB mode
-- Own crypto implementation
-- Secret in code / environment file committed
-- Key derivation without salt
-
-### 5. Secrets hygiene
-
-- Grep for: API keys, tokens, passwords in commit history
-- `.env` / `.env.local` in `.gitignore`
-- Secrets manager (Vault, AWS Secrets, Doppler) vs env vars
 
 ---
 
-## Output format
+### Skill (compact): `api-architecture`
 
-```
-## SECURITY DOMAIN INSIGHTS
+**Triggers on paths:** `"**/routes/**,**/controllers/**,**/*.proto,**/*.graphql,**/api/**"`
 
-### Threat class
-- <credentials | session | PII | payment | general>
+**Purpose:** Expert patterns for API design across REST, GraphQL, gRPC, WebSocket — versioning, pagination, idempotency, error shapes, rate limiting, transport auth parity, schema evolution. Invoked in parallel with researcher when API design work is detected. Auto-activates on routes/, controllers/, and *.proto files.
 
-### OWASP probes run
-- A01 Access Control: <finding or N/A>
-- A02 Cryptographic Failures: <...>
-- ... (only relevant categories)
-
-### Auth flow checks
-- <check> — <status>
-
-### Crypto checks
-- <check> — <status>
-
-### Secrets hygiene
-- Repo scan: <clean | found: ...>
-- Manager: <configured | using env vars>
-
-### CROSS-REFERENCES
-- Reinforces stride-analyzer findings: <list>
-- Conflicts with researcher findings: <none | list>
-```
-
----
-
-## Guardrails
-
-- **Never ship custom crypto** — use library primitives
-- **Password hashing non-negotiable**: bcrypt / argon2id / scrypt. MD5/SHA for passwords is an incident.
-- **Always rate-limit auth endpoints**: login, signup, password reset, 2FA verification
-- **PII requires retention policy**: can't just store forever
-- **Secrets in code = leak**: once committed, considered exposed; rotate immediately
-
----
-
-## When triggered
-
-- `explorer` agent parallel dispatch on Critical tasks touching auth/security
-- Task mentions: login, logout, password, JWT, OAuth, session, encryption, 2FA
-- `paths` glob on auth/, security/, Token/Password/Secret names
-
----
-
-### Skill: `api-architecture`
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/api-architecture/`):
 
 
-# api-architecture — API design patterns
 
 Applied in parallel with `researcher` when API surface is being designed or changed.
 
@@ -734,103 +457,17 @@ STYLE: [REST | GraphQL | gRPC | WebSocket | mixed]
 ### REST
 - Resource-oriented URLs (nouns, not verbs): `/users/42` not `/getUser?id=42`
 - HTTP methods carry semantics: GET idempotent, POST non-idempotent, PUT idempotent (replace), PATCH partial
-- Status codes: 200/201/204 success, 4xx client error, 5xx server error — don't return 200 with error body
-- Versioning: URL path (`/v1/users`) OR header (`Accept: application/vnd.myapi.v1+json`)
-- Pagination: cursor > offset for deep pages; `Link: <...>; rel="next"` header OR response field
-- Idempotency: POST endpoints that must be safe to retry → `Idempotency-Key` header
-
-### GraphQL
-- Schema-first: design schema before implementation
-- N+1 via DataLoader (batch + cache within request)
-- Query depth + complexity limits (prevent DoS)
-- Persisted queries for public APIs
-- Don't expose mutations for trivial ops (prefer REST for simple CRUD)
-
-### gRPC
-- Proto versioning: never remove fields, only deprecate
-- Bi-directional streaming for real-time
-- Deadlines on every RPC (don't let clients hang)
-- Error model: `google.rpc.Status` with `code` + `details`
-
-### WebSocket / SSE
-- **Auth parity** with REST (same token, same checks)
-- Heartbeat / ping to detect dead connections
-- Per-connection rate limits
-- Message size bounds
-- Graceful reconnection client-side
 
 ---
 
-## Error shape consistency
-
-All endpoints return errors in the same shape:
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Field 'email' is invalid",
-    "details": [{"field": "email", "reason": "format"}],
-    "request_id": "req_abc123"
-  }
-}
-```
-
-Never: error as 200 with `{"success": false}`. HTTP status + structured error body.
-
----
-
-## Output format
-
-```
-## API ARCHITECTURE INSIGHTS — <style>
-
-### Design checks
-- Versioning strategy: <URL | header | none | MIXED ⚠️>
-- Pagination: <cursor | offset | none>
-- Idempotency: <header present on non-idempotent methods? | N/A>
-- Error shape: <uniform | inconsistent ⚠️>
-
-### Transport auth parity (if mixed)
-- REST: <authed>
-- WebSocket: <same auth? MISMATCH ⚠️>
-- SSE: <same auth? MISMATCH ⚠️>
-
-### Schema evolution
-- Breaking changes detected: <none | list>
-- Backward compat path: <...>
-
-### Rate limits
-- Configured: <per-IP / per-user / per-endpoint | none>
-
-### CROSS-REFERENCES
-- Conflicts with researcher findings: <none | list>
-```
-
----
-
-## Guardrails
-
-- **Transport auth parity non-negotiable** — same resource via REST and WS must use same auth
-- **Versioning on day 1** — retrofitting is painful
-- **Pagination shape consistent** across all list endpoints
-- **Never use mutation verbs in REST URLs** — `GET /api/deleteUser` is a sign of broken design
-
----
-
-## When triggered
-
-- API design/change tasks
-- New endpoint creation
-- Task mentions versioning, pagination, WebSocket, GraphQL, gRPC
-- `paths` glob on routes/, controllers/, proto files
-
----
-
-### Skill: `observability`
+### Skill (compact): `observability`
 
 
-# observability — Observable production code
+**Purpose:** Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Invoked during FAIRE step when adding server-side code, background jobs, or integrations. Complements staging-verifier utility skill.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/observability/`):
+
+
 
 Code without observability is blind in production. This skill ensures logs/metrics/traces are added WITH the feature, not as an afterthought.
 
@@ -850,102 +487,17 @@ What to log:
 - Unexpected conditions (stale cache hit, fallback triggered)
 - External calls: URL, status, duration (no body unless safe)
 - Auth events: login, logout, privilege change
-- Errors: exception with stack trace + context
-
-What NOT to log:
-- Passwords, tokens, full credit card numbers, SSN
-- Large payloads (truncate to N KB)
-- Every function call (debug noise)
-
-### 2. Metrics
-
-**RED method** (services):
-- **R**ate: requests/sec
-- **E**rrors: error rate
-- **D**uration: latency distribution (p50, p95, p99)
-
-**USE method** (resources):
-- **U**tilization: % of capacity used
-- **S**aturation: queue depth / wait time
-- **E**rrors: error events
-
-Metric types:
-- Counter: monotonically increasing (requests_total)
-- Gauge: point-in-time value (connections_open)
-- Histogram: distribution (request_duration_seconds)
-
-Cardinality limit: tag values must be bounded (not user_id — too many series).
-
-### 3. Traces (distributed)
-
-OpenTelemetry / Jaeger / Zipkin:
-- Propagate trace context across service boundaries (W3C Trace Context header)
-- Spans: one per significant operation
-- Attributes: non-sensitive context (no PII)
-- Root span per incoming request; child spans per outbound call / DB query / cache miss
 
 ---
 
-## Correlation ID pattern
-
-Every log line + metric dimension + trace span carries a request_id:
-
-1. Generated at edge (load balancer or first service)
-2. Propagated via header: `X-Request-Id` / `traceparent`
-3. Included in every log: `{..., "request_id": "req_abc123"}`
-4. Included in error responses: `{error: {request_id: "..."}}`
-
-Supports: "find all logs for this user's complaint about slow page" in 1 query.
-
----
-
-## Output format
-
-```
-## OBSERVABILITY INSIGHTS
-
-### Logs added
-- <file:line> — <event logged> — <level> — <fields included>
-
-### Metrics added
-- <metric name> — <type: counter/gauge/histogram> — <labels>
-
-### Traces added
-- <span name> — <attributes>
-
-### Correlation ID propagation
-- Inbound: <header accepted?>
-- Outbound: <header forwarded?>
-- Logs: <field included?>
-
-### Anti-patterns detected
-- <file:line> — <logging PII / missing correlation / unbounded cardinality>
-```
-
----
-
-## Guardrails
-
-- **Never log secrets**: passwords, tokens, full credit card, API keys
-- **Never create high-cardinality metrics**: user_id label → memory explosion
-- **Structured logs only**: JSON, not free-form strings with `printf`
-- **Correlation ID mandatory**: every log line must carry it for traceability
-- **Don't log every function**: debug noise drowns signal; log business events
-
----
-
-## When triggered
-
-- FAIRE step when adding server-side code
-- New endpoint / background job / integration
-- Task mentions logging / metrics / tracing / observability
-
----
-
-### Skill: `performance-engineering`
+### Skill (compact): `performance-engineering`
 
 
-# performance-engineering — Performance patterns
+**Purpose:** Expert in back-of-envelope sizing, profiling, N+1 detection, hot-path optimization, allocation budgets, and 100x volume thought experiments. Invoked during ÉVALUER step and before FAIRE on any code path handling significant throughput. Complements evaluer-sizer workflow skill with deeper performance patterns.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/performance-engineering/`):
+
+
 
 For optimization work, hot paths, and scaling concerns. Works alongside `evaluer-sizer` (sizing) and `observability` (measurement).
 
@@ -965,134 +517,17 @@ Back-of-envelope numbers (approximate):
 - Network RTT (cross-continent): ~100-150 ms
 - Disk seek (HDD): ~10 ms
 - DB query (indexed, small): ~5-20 ms
-- DB query (full scan, 1M rows): seconds
 
 ---
 
-## N+1 query detection
-
-Pattern: loop with a query inside.
-
-```python
-# BAD
-for user in users:
-    user.posts = Post.query.filter(Post.user_id == user.id).all()
-
-# GOOD
-posts_by_user = Post.query.filter(Post.user_id.in_([u.id for u in users])).all()
-# group by user_id
-```
-
-Grep signal:
-```bash
-grep -rnE 'for .* in .*\s*\{[^}]*query|findOne|findBy' src/
-```
-
-ORM-specific:
-- Rails: `includes` / `preload` / `eager_load`
-- Django: `select_related` (FK) / `prefetch_related` (M2M)
-- Hibernate: `@Fetch(JOIN)` or `JOIN FETCH` in JPQL
-- Prisma: `include` in query
-- TypeORM: `leftJoinAndSelect`
-
----
-
-## Hot-path optimization
-
-Before optimizing:
-1. Profile (cpu + heap + IO) — find the actual bottleneck
-2. Measure baseline p50/p95/p99
-3. Set target (e.g. "p95 < 100ms")
-
-Common wins:
-- **Cache**: memoize pure function calls within request; app-level cache (Redis) for expensive cross-request
-- **Batching**: N writes → 1 batch write
-- **Projection**: `SELECT name, email` not `SELECT *`
-- **Lazy loading**: fetch associations only when needed
-- **Algorithmic**: O(n²) → O(n log n) with sorted input or hash
-- **I/O parallelism**: `asyncio.gather` / `Promise.all` / `launch` concurrently
-- **Connection reuse**: HTTP keep-alive, DB pool
-
-Don't optimize:
-- Without profiling
-- For scenarios that haven't manifested
-- At the cost of correctness or readability
-
----
-
-## Allocation budgets (latency-sensitive code)
-
-- GC pressure from short-lived allocations = unpredictable pauses
-- Pool objects where reuse is safe
-- Prefer primitive arrays over object collections
-- Streaming vs loading all in memory (files, DB results)
-
----
-
-## 100x volume thought experiment
-
-"If traffic became 100x tomorrow, what breaks first?"
-
-Common failure layers:
-1. DB connection pool exhausted
-2. DB read latency degrades (no index)
-3. In-memory cache eviction storm
-4. HTTP client connection limit hit
-5. Thread pool queue fills
-6. CPU saturation
-
-Run through this before shipping any new hot path.
-
----
-
-## Output format
-
-```
-## PERFORMANCE INSIGHTS
-
-### Sizing
-- Request rate: <baseline, peak>
-- Latency budget: <p95 target>
-- Resource profile: <CPU | memory | I/O | network>
-
-### Bottleneck candidates (from code review)
-- <file:line> — <concern> — <suggested optimization>
-
-### N+1 flagged
-- <file:line> — <pattern> — <fix>
-
-### 100x volume analysis
-- First to break: <layer> — <why>
-- Mitigation: <approach>
-
-### Budget met?
-- Estimated p95: <X ms> vs target: <Y ms> — <PASS | FAIL>
-```
-
----
-
-## Guardrails
-
-- **Profile before optimizing** — intuition is wrong more than half the time
-- **Measure, don't guess** — benchmarks with real data
-- **Preserve correctness** — optimization that introduces subtle bugs is worse than slow correct code
-- **Revisit after 6 months** — optimization targets shift with scale
-
----
-
-## When triggered
-
-- ÉVALUER step for Critical tasks
-- Hot-path code (known bottleneck endpoints)
-- Task mentions performance / latency / throughput / cache / optimization
-- 100x scaling review before major launch
-
----
-
-### Skill: `refactoring-patterns`
+### Skill (compact): `refactoring-patterns`
 
 
-# refactoring-patterns — Safe refactoring
+**Purpose:** Expert in safe refactoring patterns — extract method/helper, strangler fig, branch by abstraction, seam-first refactor, parallel change. Used before removing or reducing code, and when duplication hits 2+ copies. Invoked alongside pattern-fitness-check when refactoring is the primary task.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/refactoring-patterns/`):
+
+
 
 Applied when the task is explicitly a refactor, or when `pattern-fitness-check` detects duplication ≥ 2 requiring extraction.
 
@@ -1112,115 +547,3 @@ When a block is used 2+ times OR has a clear single responsibility within a long
 
 Gradual replacement of legacy code:
 - Phase 1: put new code behind a feature flag, route a subset of traffic to it
-- Phase 2: expand traffic, keep legacy as fallback
-- Phase 3: 100% new, legacy dormant
-- Phase 4: delete legacy after stable period (weeks to months)
-
-Use when: replacing a core component that other code depends on heavily.
-
-### 3. Branch by Abstraction
-
-Introduce an abstraction layer, migrate callers one by one:
-- Create interface that covers both old and new
-- Switch callers to interface
-- Implement new underneath interface
-- Remove old implementation
-
-Use when: ripping out a library or framework; changing API shape widely.
-
-### 4. Parallel Change (Expand-Contract)
-
-For API changes that must remain backward compat:
-- **Expand**: add new field/method alongside old
-- **Migrate**: update callers to use new
-- **Contract**: remove old after all callers migrated
-
-Use when: public APIs, shared libraries, column renames.
-
-### 5. Seam-first refactor
-
-When no tests exist, introduce a seam (injection point) first:
-- Extract dependency to constructor param / argument
-- Mock the dependency in tests
-- Refactor the original code with test coverage
-- Refactor the dependency itself once tests pass
-
-Use when: legacy code without test coverage.
-
----
-
-## Process
-
-### 1. Identify refactor type
-
-- Duplication extraction → extract method/class
-- Legacy replacement → strangler fig
-- Wide API change → branch by abstraction
-- API rename → parallel change
-- Untested code → seam-first
-
-### 2. Check blast radius
-
-```bash
-grep -rn "callerOfOldApi\|oldFunctionName" src/
-```
-
-Count call sites. 20+ call sites = multi-PR refactor; don't attempt in one pass.
-
-### 3. Plan rollback
-
-Every refactor step must be revertable:
-- Each step compiles + tests pass
-- No step exposes a broken state between deployments
-
-### 4. Preserve behavior
-
-Refactor ≠ behavior change:
-- All existing tests pass
-- No observable change in API / responses / DB state
-
----
-
-## Output format
-
-```
-## REFACTORING INSIGHTS
-
-### Refactor type
-- <extract | strangler | branch by abstraction | parallel change | seam-first>
-
-### Blast radius
-- Call sites: <N files>
-- Estimated PR count: <1 | multi (N)>
-
-### Step plan
-1. <step — revertable>
-2. <step — revertable>
-3. ...
-
-### Behavior preservation
-- Tests covering current behavior: <list — exist | missing ⚠️>
-- Existing contract docs: <URL or file>
-
-### Risks
-- <risk> — <mitigation>
-```
-
----
-
-## Guardrails
-
-- **Never refactor without tests** — introduce seam first
-- **Every step compiles + passes tests** — no "big bang" refactors
-- **Preserve behavior** — refactor is behavior-preserving by definition
-- **Don't mix refactor + feature** in same PR — makes review harder + rollback impossible
-- **Set a timebox** — refactors can grow indefinitely. Cap and ship incremental progress.
-
----
-
-## When triggered
-
-- Task mentions: refactor, cleanup, extract, replace, migrate
-- Duplication ≥ 2 copies detected by `pattern-fitness-check`
-- Removing code (works with `faire-gatekeeper` removal gate)
-- Pre-deletion of large components
