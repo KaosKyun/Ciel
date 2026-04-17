@@ -131,6 +131,37 @@ Ask ONLY if ALL of the following:
 
 When asking, ask ONE specific question with 2-3 concrete options. Never ask open-ended "tell me more".
 
+### Dispatch gate — STOP gathering, START forking
+
+**Hard rule**: gather ONLY the inputs the target skill declares in its INPUTS section. As soon as all declared fields are filled (with `[ASSUMED]` or `[UNKNOWN]` markers where auto-inference failed), **IMMEDIATELY dispatch via the Task tool**. Further investigation belongs INSIDE the fork, not in the main session.
+
+**Budget**: max 5 Bash/Read/Grep calls OR 2 minutes of gathering — whichever comes first. Past that threshold, dispatch with whatever you have and let the fork drill down.
+
+**Anti-pattern (observed in v2.1.5)**:
+```
+❌ Main session:
+   - journalctl ... (gather)
+   - curl health ... (gather)
+   - ps aux ... (gather)
+   - curl direct IP ... (gather)
+   - curl FlareSolverr API ... (gather)
+   - ... 10+ inline Bash calls, 20K+ tokens burned in main session
+   [never dispatches — does RCA inline]
+```
+
+**Correct pattern**:
+```
+✅ Main session:
+   - journalctl (one call, extract SYMPTOM)
+   - git log (one call, extract RECENT_CHANGES)
+   - grep scope from stack trace (extract SCOPE)
+   - Inputs filled with [ASSUMED] markers
+   - Task(subagent_type="ciel-critic", prompt="MODE=RCA SYMPTOM=... REPRO=... SCOPE=... RECENT_CHANGES=...")
+   [dispatch — fork continues gathering + runs the 3-hypothesis RCA]
+```
+
+The fork has access to the same tools (via its permitted list) and can deepen the investigation without polluting the main session's context.
+
 ### Example contrast
 
 **Wrong (interrogative mode):**
@@ -172,18 +203,42 @@ Ciel:
 
 ### Fork-context skills (ALWAYS dispatch via Task, never inline)
 
-- `debug-reasoning-rca` → `Task(@ciel-critic, "MODE=RCA SYMPTOM=... REPRO=... SCOPE=...")`
-- `doc-validator-official` → `Task(@ciel-researcher, "TARGET_STACK=... PROPOSED_APIS=...")`
-- `modern-patterns-checker` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... TARGET_STACK=...")`
-- `ai-failure-modes-detector` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... AUTHOR=...")`
-- `self-consistency-verifier` → `Task(@ciel-critic, "PROBLEM=... STAKES=Critical")`
-- `test-strategy-vitest-playwright` → `Task(@ciel-explorer, "FEATURE=... COMPONENTS=...")`
-- `playwright-visual-critic` → `Task(@ciel-explorer, "TARGET_URL=... VIEWPORT=...")`
-- `cicd-security-hardener` → `Task(@ciel-explorer, "PIPELINE_FILES=...")`
-- `skills-first-design-auditor` → `Task(@ciel-improver, "SKILL_PATH=...")`
-- All `skills/research/*` → dispatched by `@ciel-researcher`
-- `pattern-fitness-check`, `flux-narrator`, `critiquer-auditor`, `stride-analyzer`, `security-regression-check` → dispatched by their declared agent
-- All `skills/domain/*` skills with `context: fork` → dispatched by `@ciel-explorer`
+**Concrete Task tool syntax** — use EXACTLY this shape:
+
+```
+Task(
+  subagent_type="ciel-critic",   # or ciel-explorer, ciel-researcher, ciel-improver
+  description="short 3-5 word task",
+  prompt="MODE=RCA
+SYMPTOM=<1 sentence>
+REPRO=<command or 'flaky — <freq>'>
+SCOPE=<file paths or module>
+RECENT_CHANGES=<git log summary>
+
+[ASSUMED from git log --since='7d']
+- ...
+
+Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented format."
+)
+```
+
+**Per-skill dispatch mapping**:
+
+- `debug-reasoning-rca` → `subagent_type="ciel-critic"` + `MODE=RCA` + INPUTS
+- `doc-validator-official` → `subagent_type="ciel-researcher"` + TARGET_STACK + PROPOSED_APIS + PACKAGE_SOURCES
+- `modern-patterns-checker` → `subagent_type="ciel-explorer"` + CODE_UNDER_REVIEW + TARGET_STACK
+- `ai-failure-modes-detector` → `subagent_type="ciel-explorer"` + CODE_UNDER_REVIEW + AUTHOR
+- `self-consistency-verifier` → `subagent_type="ciel-critic"` + PROBLEM + STAKES
+- `test-strategy-vitest-playwright` → `subagent_type="ciel-explorer"`
+- `playwright-visual-critic` → `subagent_type="ciel-explorer"` (+ Playwright MCP)
+- `cicd-security-hardener` → `subagent_type="ciel-explorer"`
+- `accessibility-wcag-auditor` → `subagent_type="ciel-explorer"`
+- `skills-first-design-auditor` → `subagent_type="ciel-improver"`
+- `pattern-fitness-check`, `flux-narrator` → `subagent_type="ciel-explorer"`
+- `critiquer-auditor`, `stride-analyzer`, `security-regression-check` → `subagent_type="ciel-critic"`
+- `research-web-sources`, `research-github-issues`, `research-forums`, `fact-check-claims`, `validate-source-credibility` → `subagent_type="ciel-researcher"`
+
+**Troubleshoot**: if `Task(subagent_type="ciel-<role>", ...)` errors with "unknown subagent_type", the agent files weren't installed with frontmatter. Run `bash install.sh` to register them (v2.1.6+ installs frontmatter).
 
 ### Inline-OK skills (Skill tool direct)
 

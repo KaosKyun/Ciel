@@ -77,18 +77,42 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 
 ### Fork-context skills (ALWAYS dispatch via Task, never inline)
 
-- `debug-reasoning-rca` → `Task(@ciel-critic, "MODE=RCA SYMPTOM=... REPRO=... SCOPE=...")`
-- `doc-validator-official` → `Task(@ciel-researcher, "TARGET_STACK=... PROPOSED_APIS=...")`
-- `modern-patterns-checker` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... TARGET_STACK=...")`
-- `ai-failure-modes-detector` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... AUTHOR=...")`
-- `self-consistency-verifier` → `Task(@ciel-critic, "PROBLEM=... STAKES=Critical")`
-- `test-strategy-vitest-playwright` → `Task(@ciel-explorer, "FEATURE=... COMPONENTS=...")`
-- `playwright-visual-critic` → `Task(@ciel-explorer, "TARGET_URL=... VIEWPORT=...")`
-- `cicd-security-hardener` → `Task(@ciel-explorer, "PIPELINE_FILES=...")`
-- `skills-first-design-auditor` → `Task(@ciel-improver, "SKILL_PATH=...")`
-- All `skills/research/*` → dispatched by `@ciel-researcher`
-- `pattern-fitness-check`, `flux-narrator`, `critiquer-auditor`, `stride-analyzer`, `security-regression-check` → dispatched by their declared agent
-- All `skills/domain/*` skills with `context: fork` → dispatched by `@ciel-explorer`
+**Concrete Task tool syntax** — use EXACTLY this shape:
+
+```
+Task(
+  subagent_type="ciel-critic",   # or ciel-explorer, ciel-researcher, ciel-improver
+  description="short 3-5 word task",
+  prompt="MODE=RCA
+SYMPTOM=<1 sentence>
+REPRO=<command or 'flaky — <freq>'>
+SCOPE=<file paths or module>
+RECENT_CHANGES=<git log summary>
+
+[ASSUMED from git log --since='7d']
+- ...
+
+Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented format."
+)
+```
+
+**Per-skill dispatch mapping**:
+
+- `debug-reasoning-rca` → `subagent_type="ciel-critic"` + `MODE=RCA` + INPUTS
+- `doc-validator-official` → `subagent_type="ciel-researcher"` + TARGET_STACK + PROPOSED_APIS + PACKAGE_SOURCES
+- `modern-patterns-checker` → `subagent_type="ciel-explorer"` + CODE_UNDER_REVIEW + TARGET_STACK
+- `ai-failure-modes-detector` → `subagent_type="ciel-explorer"` + CODE_UNDER_REVIEW + AUTHOR
+- `self-consistency-verifier` → `subagent_type="ciel-critic"` + PROBLEM + STAKES
+- `test-strategy-vitest-playwright` → `subagent_type="ciel-explorer"`
+- `playwright-visual-critic` → `subagent_type="ciel-explorer"` (+ Playwright MCP)
+- `cicd-security-hardener` → `subagent_type="ciel-explorer"`
+- `accessibility-wcag-auditor` → `subagent_type="ciel-explorer"`
+- `skills-first-design-auditor` → `subagent_type="ciel-improver"`
+- `pattern-fitness-check`, `flux-narrator` → `subagent_type="ciel-explorer"`
+- `critiquer-auditor`, `stride-analyzer`, `security-regression-check` → `subagent_type="ciel-critic"`
+- `research-web-sources`, `research-github-issues`, `research-forums`, `fact-check-claims`, `validate-source-credibility` → `subagent_type="ciel-researcher"`
+
+**Troubleshoot**: if `Task(subagent_type="ciel-<role>", ...)` errors with "unknown subagent_type", the agent files weren't installed with frontmatter. Run `bash install.sh` to register them (v2.1.6+ installs frontmatter).
 
 ### Inline-OK skills (Skill tool direct)
 
@@ -1055,6 +1079,12 @@ If your output is < 200 tokens on a Standard/Critical RELIRE → suspect truncat
 
 ### explorer
 
+---
+name: ciel-explorer
+description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
+tools: Read, Grep, Glob
+---
+
 # Ciel Explorer
 
 You are the **Ciel Explorer** — a thin orchestrator agent executing CODEBASE and FLUX steps in an isolated context.
@@ -1131,6 +1161,12 @@ Test level: [unit | integration | E2E] — [justification]
 
 ### improver
 
+---
+name: ciel-improver
+description: Long-running meta-agent for Ciel self-improvement. Dispatch ONLY on /ciel-improve, /ciel-eval, /ciel-create-skill, or when skills-first-design-auditor is needed to lint a new skill. Analyzes recent sessions, runs binary evals, proposes skill patch-sets for user approval — never rewrites autonomously.
+tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+---
+
 # Ciel Improver
 
 You are the **Ciel Improver** — a long-running meta-agent specialized in analyzing Ciel's own performance across sessions and proposing concrete skill improvements.
@@ -1204,6 +1240,12 @@ Improver typically consumes 1-2M tokens (several sub-skill invocations × headle
 Do NOT invoke this agent as part of regular task workflows — `researcher` / `explorer` / `critic` handle those.
 
 ### researcher
+
+---
+name: ciel-researcher
+description: Isolated-context researcher subagent for Ciel. Dispatch for RECHERCHE step (Standard + Critical tasks) — official docs, anti-patterns, framework philosophy, version changelog, source credibility. Also owns doc-validator-official (anti-hallucination API check). WebFetch + WebSearch enabled, no write/edit/bash.
+tools: Read, Grep, WebFetch, WebSearch
+---
 
 # Ciel Researcher
 

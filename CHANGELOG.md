@@ -1,5 +1,24 @@
 # Ciel — Changelog
 
+## v2.1.6 — 2026-04-17 — agents frontmatter + dispatch gate
+
+**Context** — v2.1.4's dispatch directive said "Task(@ciel-critic, ...)" but live use on `/opt/Neiyomi` revealed Claude doing ALL the RCA inline in the main session (10+ Bash calls, 20K+ tokens) instead of dispatching. Root causes:
+
+1. **Agent files had no YAML frontmatter** — Claude Code subagents require `name:` + `description:` in frontmatter to be registered as callable `subagent_type`s. Without it, `Task(subagent_type="ciel-critic", ...)` errors silently and Claude falls back to inline.
+2. **No dispatch gate** — the autonomy protocol told Claude to "gather before asking" but never said "stop gathering once inputs are fillable". Claude kept drilling deeper in the main session.
+
+### Fixed
+
+- **`agents/critic.md`, `explorer.md`, `researcher.md`, `improver.md`** — each now has YAML frontmatter with `name: ciel-<role>`, focused `description:`, and scoped `tools:` list. Dispatchable via `Task(subagent_type="ciel-critic", ...)`.
+- **`skills/ciel/SKILL.md`** — added "Dispatch gate": gather MINIMUM inputs, max 5 tool calls OR 2 minutes, then dispatch. Anti-pattern from v2.1.5 documented, correct pattern shown.
+- **`skills/ciel/SKILL.md`** — Dispatch directive rewritten with concrete `Task(subagent_type=..., description=..., prompt=...)` syntax and per-skill mapping.
+
+### Effect
+
+`/ciel my library update broke production` should now: gather MINIMUM inputs (≤5 calls) → `Task(subagent_type="ciel-critic", ...)` → fork executes debug-reasoning-rca phases 1-5. Instead of 10+ inline investigations burning main-session tokens.
+
+---
+
 ## v2.1.5 — 2026-04-17 — autonomy protocol (gather before asking)
 
 **Context** — Ciel agents were written with "bail out and ask the user" logic ("If REPRO is missing → STOP" in `debug-reasoning-rca`). This treats the user as a form to fill in, instead of treating the agent as capable of gathering context. An autonomous agent should exhaust available sources (git, filesystem, overlay, tool calls, MCP) before asking.
