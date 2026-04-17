@@ -367,9 +367,16 @@ _do_update() {
 
   FLAG_YES=true _do_uninstall
   info "Fetching latest installer..."
+  # Cache-bust the raw.githubusercontent.com CDN (same pattern as _check_update
+  # above). Without this, the /ciel-update that fires <5min after a push often
+  # re-installs the PREVIOUS version because the CDN still serves the old blob.
+  # Query param + Cache-Control + Pragma combined is the most robust mix the
+  # CDN honors for a GET request.
   # Use process substitution so BASH_SOURCE[0] is defined in the child shell.
   # `bash -s --` leaves BASH_SOURCE unset which trips set -u on the re-entry.
-  bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) -y
+  bash <(curl -fsSL \
+    -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+    "https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh?t=$(date +%s)") -y
 }
 
 # ─── Flag short-circuits (uninstall/check-update/update exit immediately) ────

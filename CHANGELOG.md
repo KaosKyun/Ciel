@@ -1,5 +1,40 @@
 # Ciel — Changelog
 
+## v2.4.7 — 2026-04-17 — `/ciel-update` bypasses raw.githubusercontent CDN cache
+
+**Context** — User pushed v2.4.6, immediately ran `/ciel-update`, got served a stale v2.4.5 from `raw.githubusercontent.com`. The CDN fronting that URL has a ~5-minute TTL; any `/ciel-update` fired in that window re-installs the previous version silently.
+
+`_check_update` (VERSION compare) already cache-busts. `_do_update`'s re-fetch of `install.sh` itself did not.
+
+### Changed — `scripts/install.sh` `_do_update`
+
+The re-fetch curl now mirrors the `_check_update` pattern:
+
+```bash
+curl -fsSL \
+  -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+  "https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh?t=$(date +%s)"
+```
+
+Three layers of cache-bust (query param that some proxies honor, Cache-Control header that most CDNs honor, Pragma header for older HTTP/1.0 intermediaries). Fresh blob returned even within minutes of a push.
+
+### Workaround if you're on v2.4.6 or earlier and want to update now
+
+One of:
+
+```bash
+# Option A — run from local repo clone (zero network, direct bits)
+bash /path/to/Ciel/scripts/install.sh -y
+
+# Option B — cache-bust manually from the command line
+bash <(curl -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+  "https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh?t=$(date +%s)") -y
+```
+
+After running v2.4.7 once, all future `/ciel-update` invocations are cache-bust-safe.
+
+---
+
 ## v2.4.6 — 2026-04-17 — `/ciel-update` OpenCode-safe (no more config wipe)
 
 **Context** — User asked whether `/ciel-update` works on OpenCode. It technically did (the installer detects `opencode` in PATH and calls `install_opencode()`), but with two real bugs:
