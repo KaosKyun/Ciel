@@ -58,14 +58,12 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
     event: async ({ event }) => {
       if (event.type === "session.created") {
         sessionStartTime = Date.now();
-        console.log("[CIEL] Session active — /ciel for orchestrator");
+        // Silencieux pour éviter overflow
       }
 
-      // Session idle — compact meta-critiquer (single line to avoid overflow)
+      // META-CRITIQUER ultra-compact
       if (event.type === "session.idle") {
-        const changed = writtenFiles.size;
-        const status = relireSticky ? "RELIRE✓" : "RELIRE✗";
-        console.log(`[CIEL] META-CRITIQUER: ${changed} files, ${inlineCallCount} inline calls, ${status}`);
+        console.log(`[CIEL] ${writtenFiles.size}f ${inlineCallCount}c ${relireSticky ? "R✓" : "R✗"}`);
       }
     },
 
@@ -79,9 +77,7 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
       }
       
       if (relireSticky) {
-        output.system.push(
-          `[CIEL] ${writtenFiles.size} files changed — dispatch @ciel-critic MODE=RELIRE`
-        );
+        output.system.push(`[CIEL] ${writtenFiles.size}f RELIRE`);
       }
     },
 
@@ -110,11 +106,7 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
       // Immediate depth classification
       const { depth, reason } = classifyDepth(prompt);
       
-      if (depth) {
-        lastDepthHint = `[CIEL] Depth: ${depth}`;
-      } else {
-        lastDepthHint = null;
-      }
+      lastDepthHint = depth ? `[CIEL] ${depth[0]}` : null;
     },
 
     tool: {
@@ -128,7 +120,7 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
           const count = dispatchCounter.get(sid) ?? 0;
           if (count < 5) return;
 
-          const msg = `[CIEL] HARD-STOP: ${count} inline calls — dispatch @ciel-researcher/@ciel-explorer now`;
+          const msg = `[CIEL] STOP:${count}`;
           console.error(msg);
           
           if (output && typeof output === "object") {
@@ -166,10 +158,10 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
           if (remindedFiles.has(filePath)) return;
           remindedFiles.add(filePath);
 
-          // Compact reminders (single line to avoid terminal overflow)
+          // Ultra-compact reminders
           const reminder = isCritical
-            ? `\n\n[CIEL] ${filePath} — CRITICAL: FAIRE + STRIDE + RELIRE required`
-            : `\n\n[CIEL] ${filePath} — FAIRE gates: check alternatives, idiomatic, tests`;
+            ? `\n[CIEL] ${filePath} — CRIT`
+            : `\n[CIEL] ${filePath}`;
 
           if (typeof output?.output === "string") {
             output.output += reminder;
@@ -177,9 +169,9 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
             (output as any).output = reminder.trimStart();
           }
           
-          // META-CRITIQUER trigger (compact)
+          // META trigger
           if (writtenFiles.size >= 3 && !relireSticky) {
-            console.log(`[CIEL] META-CRITIQUER: ${writtenFiles.size} files — dispatch @ciel-critic`);
+            console.log(`[CIEL] META: ${writtenFiles.size}f`);
           }
         },
       },
