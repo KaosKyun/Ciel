@@ -1,5 +1,28 @@
 # Ciel — Changelog
 
+## v2.1.7 — 2026-04-17 — hotfix: critic.md frontmatter missing
+
+**Context** — v2.1.6 was supposed to add YAML frontmatter to all 4 agents (`critic`, `explorer`, `researcher`, `improver`). Live test on `/opt/Neiyomi` revealed only 3 were registered — `ciel-critic` was MISSING from the Task tool's available subagents. Claude correctly tried `Task(subagent_type="ciel-critic", ...)` but got `Agent type 'ciel-critic' not found`.
+
+Root cause: the critic.md Edit in v2.1.6 reported success but didn't actually land on disk (likely due to the editor session's file-state tracking — a previously successful Edit wasn't present after the branch switch). The 3 other agents (explorer, researcher, improver) landed correctly because they were re-edited after a fresh Read.
+
+### Fixed
+
+- **`agents/critic.md`** — frontmatter block actually written this time:
+  \`\`\`yaml
+  ---
+  name: ciel-critic
+  description: Isolated-context critic subagent for Ciel...
+  tools: Read, Grep, Glob, Bash
+  ---
+  \`\`\`
+
+### Impact on the affected user
+
+After \`--update\` to v2.1.7, `Task(subagent_type="ciel-critic", ...)` will succeed. The test case (`/ciel my library update broke production`) should now complete the full flow: gather (3-5 calls) → dispatch ciel-critic → fork runs RCA → verdict returned.
+
+---
+
 ## v2.1.6 — 2026-04-17 — agents frontmatter + dispatch gate
 
 **Context** — v2.1.4's dispatch directive said "Task(@ciel-critic, ...)" but live use on `/opt/Neiyomi` revealed Claude doing ALL the RCA inline in the main session (10+ Bash calls, 20K+ tokens) instead of dispatching. Root causes:
