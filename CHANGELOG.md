@@ -1,5 +1,55 @@
 # Ciel — Changelog
 
+## v2.4.0 — 2026-04-17 — Real OpenCode parity, platform-aware `/ciel-init`
+
+**Context** — The OpenCode build (`platforms/opencode/`) shipped since v2.1.0 was functionally broken for model-context injection: `chat.params.output.system.push(...)` was a silent no-op (`chat.params` has no `system` field in the published `@opencode-ai/plugin` types), and `tool.execute.before/after` reminders were `console.log` calls that reach the terminal, never the model. Verified against `@opencode-ai/plugin/dist/index.d.ts`. v2.4.0 rewires the plugin to use the verified-correct hooks and ports `/ciel-init` to OpenCode.
+
+### Changed — `.opencode/plugins/ciel.ts` (via generator)
+
+- Depth classification now runs in `experimental.chat.messages.transform` (reads the latest user text) and is injected every turn via `experimental.chat.system.transform` (pushes to `output.system: string[]`). No more no-op `chat.params.system.push`.
+- Per-file FAIRE/RELIRE reminders now mutate `output.output` in `tool.execute.after`, which IS the tool-result string shipped to the model. The model reads the reminder attached to its own Write/Edit call on the next turn.
+- Sticky RELIRE notice: once 3+ code files or a critical-pattern file has been written, every subsequent turn re-injects a system-prompt segment naming the files until `@ciel-critic` runs.
+- Dropped `tool.execute.before` — its output is args-only; there is no way to inject context from it. Was previously a `console.log` that did nothing.
+
+Source of truth: `scripts/build-platforms.sh` `emit_opencode_plugin`. Regenerate with `bash scripts/build-platforms.sh --target=opencode`.
+
+### Changed — `commands/ciel-init.md` is now platform-aware
+
+Auto-detects Claude vs OpenCode (project signals → installed CLIs → ask). Two branches:
+
+- **Claude branch** — unchanged from v2.3.1. Merges `./.claude/settings.json` hooks block via `jq`, preserves non-Ciel entries, backs up to `.bak-<timestamp>`.
+- **OpenCode branch** — new. Copies `.opencode/plugins/ciel.ts` + 4 subagents + 7 commands from `$CIEL_DIR/platforms/opencode/`; merges `./opencode.json` via Python (add `plugin`, add `instructions: ["AGENTS.md"]`, preserve every other key); copies `AGENTS.md` if absent. `--platform=claude|opencode` forces the branch; `--user` targets `~/.config/opencode/opencode.json`; `--check` dry-runs a diff.
+
+### Changed — `scripts/build-platforms.sh`
+
+- `LIMIT_opencode_command` bumped 8192 → 16384 to accommodate the platform-aware `ciel-init.md` body (12.3KB). Command files are loaded on-demand per slash invocation, not in session baseline — per-file byte count does not compound.
+- `emit_opencode_plugin` rewritten per the plugin API verification above.
+
+### Intentional non-goals
+
+- No Claude-side hook changes (`hooks/*.sh`, `hooks/*.ps1` are unchanged from v2.3.1).
+- No new skills.
+- No npm-published plugin package (still ships as a project-scoped `./.opencode/plugins/ciel.ts` file).
+- Non-Anthropic providers on OpenCode: `experimental.*` hooks may not fire for every provider — tested primarily against Anthropic via OpenCode. If depth hints don't appear, check `opencode --log-level=debug` for plugin errors.
+
+---
+
+## v2.3.1 — 2026-04-17 — Stop/PreCompact/PreToolUse hook JSON schema fix
+
+- `hooks/stop.sh` + `.ps1` rewritten to use `{"decision":"block","reason":"..."}` with a `stop_hook_active` loop guard. The earlier `hookSpecificOutput.additionalContext` shape is rejected by the Stop event schema.
+- `hooks/pre-compact.sh` + `.ps1` switched to top-level `{"systemMessage":"..."}` (PreCompact has no documented context-injection field; `systemMessage` is the universally-valid fallback).
+- `hooks/pre-tool-write.sh` + `.ps1` same switch (PreToolUse `hookSpecificOutput` only accepts `permissionDecision` fields).
+
+No behavior change for users aside from hooks actually firing again. Claude Code was silently rejecting the v2.3.0 JSON and continuing — reminders never landed in the model context.
+
+## v2.3.0 — 2026-04-17 — `/ciel-init` + MCP routing + two new guards
+
+- **`commands/ciel-init.md`** (new) — bootstraps/repairs `./.claude/settings.json` with absolute-path Ciel hook entries. Resolves `$CIEL_DIR` via candidate ladder (`$CLAUDE_PLUGIN_DIR`, `$HOME/.claude/plugins/ciel`, `/root/.claude/plugins/ciel`, `find` fallback). Preserves non-Ciel keys. Backs up before writing. `--check` dry-run, `--user` for `$HOME/.claude/settings.json`.
+- **`skills/ciel/SKILL.md`** — added MCP-related intent routing row (`"mcp server"`, `".mcp.json"`, `"claude mcp"` → `debug-reasoning-rca` + `stride-analyzer` if secrets).
+- **`skills/ciel/reference.md`** — 2 new failure modes (35 → 37): **Dispatch gate bypass** (>5 inline tool calls without any `Task()` on Standard+) and **Hook name drift** (`settings.json` references a filename that no longer exists in `hooks/`).
+
+---
+
 ## v2.2.1 — 2026-04-17 — `/ciel-audit` session post-mortem
 
 **Context** — User reported that `/ciel <task>` keeps working inline in the main session instead of dispatching `Task(subagent_type=ciel-*)` forks. Hypothesis: the dispatch rule in `skills/ciel/SKILL.md:201-273` is documented but not enforced, and the `UserPromptSubmit` / `PreToolUse` hooks that could remind the model are probably inactive because `settings.json` declares them with relative paths (`bash .claude/plugins/ciel/hooks/…`) that do not resolve when `claude` is launched from any CWD other than the plugin root.

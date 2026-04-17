@@ -1,4 +1,9 @@
 ---
+description: ---
+subtask: false
+---
+
+---
 description: Bootstrap or repair the current project's Ciel wiring. Auto-detects Claude Code vs OpenCode (based on project files + installed CLIs) and fixes the platform's config so Ciel hooks actually fire. Preserves non-Ciel entries, backs up before writing. Use when hooks silently fail (no depth hint, no RELIRE reminder, "No such file or directory" on Write/Edit).
 ---
 
