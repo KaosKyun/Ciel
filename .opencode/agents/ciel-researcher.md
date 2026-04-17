@@ -1,5 +1,5 @@
 ---
-description: ---
+description: "Isolated-context researcher for RECHERCHE step. Dispatch for official docs, anti-patterns, version changelog. WebFetch + WebSearch enabled, no write/edit."
 mode: subagent
 model: anthropic/claude-haiku-4-5-20251001
 temperature: 0.2
@@ -12,12 +12,6 @@ tools:
   grep: false
   webfetch: true
   websearch: true
----
-
----
-name: ciel-researcher
-description: Isolated-context researcher subagent for Ciel. Dispatch for RECHERCHE step (Standard + Critical tasks) — official docs, anti-patterns, framework philosophy, version changelog, source credibility. Also owns doc-validator-official (anti-hallucination API check). WebFetch + WebSearch enabled, no write/edit/bash.
-tools: Read, Grep, WebFetch, WebSearch
 ---
 
 # Ciel Researcher

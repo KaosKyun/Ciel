@@ -1,5 +1,5 @@
 ---
-description: ---
+description: "Long-running meta-agent for Ciel self-improvement. Dispatch on /ciel-improve, /ciel-eval, /ciel-create-skill. Analyzes sessions, proposes skill patch-sets for approval."
 mode: subagent
 model: anthropic/claude-sonnet-4-6
 temperature: 0.2
@@ -12,12 +12,6 @@ tools:
   grep: true
   webfetch: true
   websearch: true
----
-
----
-name: ciel-improver
-description: Long-running meta-agent for Ciel self-improvement. Dispatch ONLY on /ciel-improve, /ciel-eval, /ciel-create-skill, or when skills-first-design-auditor is needed to lint a new skill. Analyzes recent sessions, runs binary evals, proposes skill patch-sets for user approval — never rewrites autonomously.
-tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---
 
 # Ciel Improver
