@@ -1,5 +1,31 @@
 # Ciel — Changelog
 
+## v2.1.4 — 2026-04-17 — force Task-dispatch for fork-context skills
+
+**Context** — v2.1.3 made the orchestrator route intents to the correct Ciel skill (e.g., debug → `debug-reasoning-rca`), but Claude invoked it **inline via the Skill tool** in the main session. The skill's frontmatter declares `context: fork` + `agent: critic` — meaning it's supposed to run in a forked subagent context for blind-spot mitigation (CriticBench 2024). Inline invocation defeats the architecture: same-session critique of same-session work = degenerate self-review.
+
+### Fixed
+
+- **`skills/ciel/SKILL.md`** — added a "Dispatch directive" section after the intent routing table. Explicitly maps each `context: fork` Ciel skill to a `Task(@ciel-<role>, '...')` dispatch, NOT a `Skill(<name>)` inline. Lists the inline-OK exceptions (`depth-classifier`, `quoi-framer`, `faire-gatekeeper`, `meta-critiquer`, `prouver-verifier`, etc.) and the anti-pattern to avoid.
+
+### Rationale
+
+| Skill frontmatter | Invocation | Why |
+|---|---|---|
+| `context: fork` + `agent: X` | `Task(@ciel-X, ...)` | Fresh context — blind-spot mitigation, isolated tool permissions, main session stays lean |
+| No `context: fork` | `Skill(...)` inline | Deterministic / lightweight — fork overhead unjustified |
+
+### Effect
+
+- `/ciel debug production issue` → now triggers `Task(@ciel-critic, 'MODE=RCA ...')` instead of inline `Skill(debug-reasoning-rca)`. The critic runs in a fork with fresh context, its own RCA hypotheses, and `edit: false` tool permission.
+- Same story for `doc-validator-official`, `modern-patterns-checker`, `playwright-visual-critic`, `cicd-security-hardener`, `accessibility-wcag-auditor`, `skills-first-design-auditor`, `self-consistency-verifier`, `ai-failure-modes-detector`, and all `skills/research/*`.
+
+### Unchanged
+
+Inline pipeline skills (`quoi-framer`, `depth-classifier`, `avec-quoi-versioner`, `faire-gatekeeper`, `evaluer-sizer`, `relire-critic` for Trivial/Standard <3 files, `meta-critiquer`, `prouver-verifier`, `synthesize-findings`, `learnings-capture`) still run inline — fork would be overkill.
+
+---
+
 ## v2.1.3 — 2026-04-17 — hotfix: orchestrator routes v2.1.0 skills + command frontmatter
 
 **Context** — On a live install, `/ciel debug this production issue` invoked Claude Code's native `systematic-debugging` skill instead of Ciel's `debug-reasoning-rca`. Root cause: the `skills/ciel/SKILL.md` orchestrator was written for v2.0.0 and never updated to reference the 10 new v2.1.0 skills. Claude's skill-matcher fell back to the native skill with the closest description. Separately, `commands/*.md` lacked YAML frontmatter, which on some Claude Code versions caused `Unknown command: /ciel`.
