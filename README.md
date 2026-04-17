@@ -2,45 +2,56 @@
 
 > *Named after the Primordial Sage from Tensura — the advisor who reasons at infinite speed before Rimuru acts.*
 
-Universal deep-reasoning workflow plugin for LLM-assisted development. Distributed across 5 enforcement layers to eliminate the systematic failure modes of single-skill AI workflows.
+Skills-first deep-reasoning plugin for LLM-assisted development. **v2.0.0 total refactor** toward the Anthropic Skills-first paradigm: one generic orchestrator + library of 33 specialized skills > many specialized agents.
+
+Principle: **"Understand before generating. Verify before claiming done."**
 
 ## The problem it solves
 
 | LLM default behavior | Ciel solution |
 |---|---|
-| Skip research ("I already know this") | `researcher` agent — mandatory, isolated context |
-| Copy patterns without fitness check | `explorer` agent — 3-question fitness check on every pattern |
-| Self-critique in same context = same blind spots | `critic` agent — fresh context, MAR-inspired isolation |
-| "Done" = code written | `PROUVER` — staging evidence mandatory before PR |
-| Process skipped for "simple" tasks | Hooks — deterministic enforcement on every file write |
-| No feedback loop on process quality | `CHANGELOG` — fix/revert ratio tracked per version |
+| Skip research ("I already know this") | `research/*` skills — specialized per source (web, GitHub issues, forums) |
+| Copy patterns without fitness check | `workflow/pattern-fitness-check` — 3-question fitness gate |
+| Self-critique in same context = same blind spots | `critic` agent → `relire-critic` skill in fresh fork |
+| "Done" = code written | `workflow/prouver-verifier` — staging evidence gates |
+| Process skipped for "simple" tasks | Hooks — 7 events, deterministic enforcement |
+| No feedback loop on process quality | `meta/ciel-improve` + `meta/skill-variant-evaluator` — auto-refine skills from session transcripts |
+| Monolithic SKILL.md rots and gets skipped | 33 specialized skills, each ≤ 500 lines, composable and testable |
 
-**Baseline**: 62.8% fix/revert ratio on Neiyomi with monolithic dev-reasoning skill (2026-04-04).
+**Baseline**: 62.8% fix/revert ratio on Neiyomi with v1.x monolithic dev-reasoning skill (2026-04-04). v2.0.0 target: < 45% (reference SICA: 17 → 53%).
 
-## Architecture
+## Architecture (v2.0.0)
 
 ```
-Layer 1 — ciel-overlay.md    Project context (stack, versions, rules) — always loaded
-Layer 2 — hooks/             Deterministic enforcement — never bypassable
-Layer 3 — skills/ciel/       CRÉER/CRITIQUER workflow — explicit invocation
-Layer 4 — agents/            researcher + explorer + critic — isolated contexts
-Layer 5 — CHANGELOG.md       Fix/revert metrics per version — closed feedback loop
+ciel/
+├── skills/
+│   ├── ciel/              Orchestrator (~220 lines) — classifies depth, routes to skills
+│   ├── workflow/          13 skills — the old CRÉER/CRITIQUER pipeline, decomposed
+│   ├── research/          6 skills — meta-research (web, github, forums, validate, synthesize, fact-check)
+│   ├── domain/            8 skills — frontend/backend/db/security/api/observability/perf/refactor
+│   ├── utility/           5 skills — commit/PR/issue/changelog/staging helpers
+│   └── meta/              4 skills — ciel-improve, skill-creator, variant-evaluator, learnings-capture
+├── agents/                4 thin orchestrators — researcher, explorer, critic, improver
+├── commands/              6 commands — /ciel, /ciel-recommend, /ciel-update, /ciel-improve, /ciel-create-skill, /ciel-eval
+├── hooks/                 7 hook events — session-start, user-prompt-submit, pre/post-tool-write, pre-compact, subagent-stop, stop
+├── evals/                 Self-improvement harness — datasets, runners, results
+└── platforms/             Auto-generated compressed versions for Cursor/Windsurf/Codex/OpenCode/Kilo/Ollama/LM Studio
 ```
 
 ## Platform Support
 
-| Platform | File installed | Size | Notes |
-|----------|---------------|------|-------|
-| **Claude Code** | `~/.claude/skills/ciel/SKILL.md` | 27KB | Full workflow + hooks + agents |
-| **Cursor** | `.cursor/rules/ciel.mdc` | 4KB | MDC format, compressed, under 6KB limit |
-| **Windsurf** | `.windsurf/rules/ciel.md` | 3.8KB | Plain MD, under 6KB limit |
-| **Codex CLI** | `AGENTS.md` | 27KB | Full workflow, under 32KB limit |
-| **OpenCode** | `AGENTS.md` + `opencode.json` | 27KB | Full workflow |
-| **Kilo Code** | `.kilocode/rules/ciel.md` | 27KB | Full workflow |
-| **Ollama** | `Modelfile` (baked SYSTEM) | — | `ollama create ciel -f Modelfile` |
-| **LM Studio** | `system-prompt.md` (copy-paste) | — | Paste into Settings → System Prompt |
+| Platform | File installed | Size | Compression |
+|----------|---------------|------|-------------|
+| **Claude Code** | `~/.claude/plugins/ciel/` | full | **Native Skills architecture** |
+| **Cursor** | `.cursor/rules/ciel.mdc` | ≤ 3.5 KB | Heavy (essentials only) |
+| **Windsurf** | `.windsurf/rules/ciel.md` | ≤ 3.5 KB | Heavy |
+| **Codex CLI** | `AGENTS.md` | ≤ 30 KB | Medium (inlined workflow skills) |
+| **OpenCode** | `AGENTS.md` + `opencode.json` | ≤ 30 KB | Medium |
+| **Kilo Code** | `.kilocode/rules/ciel.md` + `.kilo/agents/` | ≤ 30 KB | Medium |
+| **Ollama** | `Modelfile` (baked SYSTEM) | ~300 tokens | Extreme (core principles) |
+| **LM Studio** | `system-prompt.md` (copy-paste) | ~200–500 tokens | Extreme |
 
-**Cursor/Windsurf note**: due to the 6KB per-file limit, these platforms receive a compressed version covering all key principles, the 10-step pipeline, top guards, and context budget. Full docs remain at this repo.
+Full self-improvement subsystem runs **only on Claude Code** (requires fork contexts + session transcripts). Other platforms receive stable snapshots; improvements are rebuilt into platforms via `scripts/build-platforms.sh`.
 
 ## Install
 
@@ -61,76 +72,30 @@ bash ~/.ciel/scripts/install.sh [project-root]
 ### Windows (PowerShell)
 
 ```powershell
-# Universal installer — auto-detects your tools
 irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.ps1 | iex
-
-# Claude Code (official plugin)
 claude plugin install github:KaosKyun/Ciel
-
-# Manual — clone and run installer
-git clone https://github.com/KaosKyun/Ciel.git ~/.ciel
-pwsh ~/.ciel/scripts/install.ps1 [project-root]
 ```
 
-The installer detects which AI tools are present and copies the right files for each. It also creates `ciel-overlay.md` in your project root (fill in your stack versions and CI config). On Windows, `settings.json` hooks are automatically wired with `pwsh -File` commands instead of `bash`.
-
-### Per-platform quick install
-
-**Linux / macOS:**
-
-```bash
-# Cursor only
-mkdir -p .cursor/rules && curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/cursor/.cursor/rules/ciel.mdc -o .cursor/rules/ciel.mdc
-
-# Windsurf only
-mkdir -p .windsurf/rules && curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/windsurf/.windsurf/rules/ciel.md -o .windsurf/rules/ciel.md
-
-# Codex / OpenCode / Kilo — AGENTS.md
-curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/codex/AGENTS.md -o AGENTS.md
-
-# Ollama
-curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/ollama/Modelfile -o Modelfile
-# Edit FROM line, then: ollama create ciel -f Modelfile
-```
-
-**Windows (PowerShell):**
-
-```powershell
-# Cursor only
-New-Item -ItemType Directory -Force .cursor/rules | Out-Null
-irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/cursor/.cursor/rules/ciel.mdc -OutFile .cursor/rules/ciel.mdc
-
-# Windsurf only
-New-Item -ItemType Directory -Force .windsurf/rules | Out-Null
-irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/windsurf/.windsurf/rules/ciel.md -OutFile .windsurf/rules/ciel.md
-
-# Codex / OpenCode / Kilo — AGENTS.md
-irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/codex/AGENTS.md -OutFile AGENTS.md
-
-# Ollama
-irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/platforms/ollama/Modelfile -OutFile Modelfile
-# Edit FROM line, then: ollama create ciel -f Modelfile
-```
-
-After installing, bootstrap your project overlay:
-
-```bash
-cp ciel-overlay-template.md ciel-overlay.md   # or let the installer create it
-# Fill in: stack versions, CI URL, deploy commands, critical file patterns
-```
+The installer detects which AI tools are present and copies the right files for each. It creates `ciel-overlay.md` in your project root (fill in your stack versions and CI config). On Windows, `settings.json` hooks are automatically wired with `pwsh -File` commands.
 
 ## Usage
 
 ```
-/ciel <task description>          # Claude Code
-# Other platforms: Ciel is always-active via rules files
+/ciel <task description>          # Main entry — depth classification + routing
+/ciel-recommend                   # Discover community plugins for your stack
+/ciel-improve                     # Analyze recent sessions, propose skill improvements
+/ciel-create-skill <name> <purpose>   # Create a new skill
+/ciel-eval [skill-name]           # Run eval harness on one or all skills
+/ciel-update                      # Self-update from GitHub
 ```
 
-Ciel classifies the task depth (Trivial/Standard/Critical), dispatches researcher + explorer in parallel, enforces RELIRE via an isolated critic session, and requires staging evidence before done.
+On Claude Code, skills trigger automatically based on their YAML `description` field — you don't have to remember which one to use. The orchestrator `skills/ciel/` routes from `/ciel <task>` based on depth (Trivial / Standard / Critical).
 
-## Portability
+On other platforms, Ciel is always active via rules files.
 
-Ciel is stack-agnostic. Project-specific config lives in `ciel-overlay.md`:
+## Project overlay
+
+Project-specific config lives in `ciel-overlay.md`:
 
 ```markdown
 # ciel overlay — My Project
@@ -142,47 +107,44 @@ Ciel is stack-agnostic. Project-specific config lives in `ciel-overlay.md`:
 ## CI
 - Staging: https://staging.example.com
 - Deploy: git push origin branch (~30s)
+## Leçons projet
+- [date] MISTAKE: ... → RULE: ...
 ```
 
-The overlay stays in your project. The plugin stays generic.
+## Hooks
 
-## Hooks behavior
+7 hook events wired via `settings.json` on Claude Code:
 
-Each hook has a `.sh` (Linux/macOS) and a `.ps1` (Windows) variant — same logic, same output format.
+| Event | Purpose | Skill triggered |
+|---|---|---|
+| `SessionStart` | Banner, load overlay, TRACE_ID | — |
+| `UserPromptSubmit` | Pre-classify depth | `depth-classifier` (light) |
+| `PreToolUse` (Write/Edit) | FAIRE gates reminder | `faire-gatekeeper` |
+| `PostToolUse` (Write/Edit) | RELIRE dispatch | `relire-critic` |
+| `PreCompact` | Save session-progress | `learnings-capture` |
+| `SubagentStop` | Log report size | (passive) |
+| `Stop` | Meta-critique | `meta-critiquer` |
 
-- **`pre-write-gate`** — Before any code file write: injects FLUX checkpoint reminder. Critical files (auth/, Service, Route...) get a stronger STRIDE reminder.
-- **`post-write-relire`** — After any code file write: injects mandatory critic dispatch instruction.
+Hooks never block writes — they inject context via `hookSpecificOutput.additionalContext`.
 
-Hooks inject context — they never block writes.
+## Self-improvement
 
-To wire hooks manually in `~/.claude/settings.json`:
+Ciel can **create and improve its own skills**:
 
-```json
-{
-  "hooks": {
-    "PreToolUse": [{ "matcher": "Write|Edit", "hooks": [
-      { "type": "command", "command": "bash ~/.claude/plugins/ciel/hooks/pre-write-gate.sh" }
-    ]}],
-    "PostToolUse": [{ "matcher": "Write|Edit", "hooks": [
-      { "type": "command", "command": "bash ~/.claude/plugins/ciel/hooks/post-write-relire.sh" }
-    ]}]
-  }
-}
-```
+- `/ciel-improve` → reads the last N session transcripts, detects repeated failure modes, produces a patch-set with before/after diffs (for user approval — never autonomous rewrite)
+- `/ciel-eval` → runs binary evals per skill (`evals/datasets/*.jsonl`), compares variant scores, proposes the winner
+- `/ciel-create-skill <name> <purpose>` → generates a valid SKILL.md scaffold with YAML frontmatter, progressive-disclosure reference file, and registers it
 
-On Windows, replace `bash ... .sh` with `pwsh -File ... .ps1`.
+The self-improvement subsystem is **closed-loop**: session → evals → patches → review → CHANGELOG entry with fix/revert ratio.
 
 ## Self-update
 
 ```bash
-# Linux / macOS
-bash ~/.claude/plugins/ciel/scripts/self-update.sh
-
-# Windows
-pwsh ~/.claude/plugins/ciel/scripts/self-update.ps1
+bash ~/.claude/plugins/ciel/scripts/self-update.sh     # Linux/macOS
+pwsh ~/.claude/plugins/ciel/scripts/self-update.ps1    # Windows
 ```
 
-Requires `gh` CLI authenticated (`gh auth login`). Compares local SHA with remote — downloads only if a new version is available.
+Requires `gh` CLI authenticated (`gh auth login`).
 
 ## Versions & metrics
 
@@ -191,7 +153,8 @@ See [CHANGELOG.md](CHANGELOG.md) — each version records the observed fix/rever
 ## Research basis
 
 Built from:
-- Audit of 675 commits (62.8% fix/revert with monolithic skill)
+- Audit of 675 commits (62.8% fix/revert with v1.x monolithic skill)
+- Anthropic Skills-first paradigm — "Stop building agents, build Skills" (Barry Zhang / Mahesh Murag, AI Engineer Code Summit)
 - [MAR — Multi-Agent Reflexion](https://arxiv.org/html/2512.20845) (degeneration of thought in single-agent critique)
 - [SICA — Self-Improving Coding Agent](https://arxiv.org/html/2504.15228v2) (17→53% improvement via self-edit + metrics)
 - [Reflexion](https://arxiv.org/abs/2405.06682) (self-reflection improves problem-solving, p < 0.001)

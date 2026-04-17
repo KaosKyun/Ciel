@@ -23,6 +23,12 @@ Usage: `/ciel-recommend` — reads `ciel-overlay.md` for stack context.
 Read `ciel-overlay.md` → extract `## Domain Skills` and `## Stack` sections.
 If no overlay → scan project root for `package.json`, `build.gradle.kts`, `go.mod`, `Cargo.toml`, `requirements.txt`.
 
+**Ciel built-in domain skills** (always available, no install needed):
+- `frontend-mastery` · `backend-mastery` · `database-mastery` · `security-hardening`
+- `api-architecture` · `observability` · `performance-engineering` · `refactoring-patterns`
+
+External plugins complement these — they bring stack-specific community expertise that Ciel's generic skills can't match (e.g. `typescript-lsp` for real-time diagnostics, `supabase` for project-specific tooling).
+
 ## Step 2 — Search per technology (WebSearch for each)
 
 For each detected technology, run:

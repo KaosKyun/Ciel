@@ -1,1 +1,0 @@
-Run `bash -c "$(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)"` to update Ciel. This will re-download and overwrite all Ciel files while preserving ciel-overlay.md.

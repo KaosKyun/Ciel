@@ -1,426 +1,907 @@
-# Ciel — Universal Deep-Reasoning Workflow
+# AGENTS.md — Ciel deep-reasoning workflow
+
+Source: https://github.com/KaosKyun/Ciel
+
+---
+
+
+# Ciel — Skills-first Orchestrator
+
+Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the advisor who reasons at infinite speed before Rimuru acts.
 
 Principle: **"Understand before generating. Verify before claiming done."**
 
-Core insight: LLMs code by statistical pattern-matching, not reasoning. Ciel forces understanding — framework philosophy, data flow tracing, alternatives consideration, hostile self-critique — before, during, and after code generation.
+This orchestrator is thin on purpose. It classifies the task, then routes to specialized skills. It does NOT replicate their content — each workflow step is its own skill.
 
-A thinking process — not a mechanical checklist. Apply with judgment. Adapt depth to risk.
+For full philosophy, guards table, and the research basis behind Ciel, see `reference.md`.
+
+
+## Pipeline — skills to invoke per depth
+
+### Trivial
+1. `quoi-framer` — frame goal + NOT-X + definition of done
+2. `pattern-fitness-check` — 3-question fitness on any pattern considered
+3. `faire-gatekeeper` — enforce FAIRE gates during coding
+4. `relire-critic` (inline, no agent fork) — 3 RISQUE + checklist
+5. Push, verify no regression
+6. `meta-critiquer` — 30s post-task reflection
+
+### Standard (dispatch researcher + explorer IN PARALLEL before FAIRE)
+
+1. `quoi-framer`
+2. `avec-quoi-versioner` — read real installed versions, load overlay
+3. **researcher agent** → `research-web-sources` + `research-github-issues` + `validate-source-credibility` + `synthesize-findings` + `fact-check-claims`
+4. **explorer agent** → `pattern-fitness-check` + `flux-narrator` + domain skill parallel (e.g. `frontend-mastery` when React detected)
+5. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
+6. `faire-gatekeeper` during coding
+7. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
+8. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier
+9. `meta-critiquer`
+
+### Critical (all of Standard, PLUS)
+
+- `stride-analyzer` after `avec-quoi-versioner` (PASSE 1 RISK-RANK + PASSE 2 STRIDE + PASSE 3 KILLER CHECKLIST)
+- `security-regression-check` between `faire-gatekeeper` and `relire-critic` (attacker eyes on the diff)
+- **critic agent** is MANDATORY (no inline fallback)
+
+
+## Agent dispatch rules
+
+| Agent | Step | Context | Mandatory |
+|-------|------|---------|-----------|
+| `researcher` | RECHERCHE | Isolated fork — no session bias | Standard + Critical |
+| `explorer` | CODEBASE + FLUX | Isolated fork — reads codebase fresh | Standard + Critical |
+| `critic` | RELIRE or CRITIQUER | Isolated fork — different blind spots | Critical always; Standard if 3+ files OR auth/security |
+| `improver` | Self-improvement (long-running) | Isolated fork — extended token budget | On `/ciel-improve` |
+
+Dispatch `researcher` + `explorer` **IN PARALLEL** before FAIRE.
+Dispatch `critic` after FAIRE.
+Each agent dispatch costs ~850K tokens on average — reserve accordingly.
+
+**Report quality check**: agent report < 200 tokens on Standard task → suspect truncation. Re-dispatch with narrower scope before proceeding.
+
+
+## Self-improvement — Ciel modifies Ciel
+
+Ciel can create and improve its own skills through the `meta/` subsystem:
+
+- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite)
+- `/ciel-eval [skill-name]` → `skill-variant-evaluator` runs binary evals on 2-3 variants, winner = highest aggregate score (tiebreak: lowest token usage)
+- `/ciel-create-skill <name> <purpose>` → `skill-creator` generates a valid SKILL.md scaffold
+- Session-end hooks (`Stop`, `PreCompact`) → `learnings-capture` appends user corrections to `.claude/learnings.md` or `ciel-overlay.md`
+
 
 ---
 
-## Depth Gauge
+## Workflow skills (detail)
 
-Classify BEFORE starting. Wrong classification = wrong depth.
+### avec-quoi-versioner
 
-| Level | Example | CRÉER steps | CRITIQUER steps | Agents |
-|-------|---------|-------------|-----------------|--------|
-| **Trivial** | rename, typo, 1-line | QUOI → CODEBASE → FAIRE → PROUVER | COMPRENDRE → SIGNALER | None |
-| **Standard** | hook, route, component, service | Full CRÉER minus SÉCURITÉ | Full CRITIQUER | researcher + explorer + critic — mandatory |
-| **Critical** | auth, DB schema, security, payment | Full CRÉER + SÉCURITÉ | Full CRITIQUER + multi-pass | All 3 — mandatory, never skip |
 
-If unsure → Standard. If touching user data or auth → Critical.
+# avec-quoi-versioner — Read real installed versions
 
----
+Step 2 of CRÉER. The research quality is bounded by version accuracy. A skill that looks up "Ktor 2.x docs" when the project runs Ktor 3.x produces anti-patterns.
 
-## CRÉER — Before implementing
 
-### 1. QUOI
+## Output format
 
-- Expected result in one sentence
-- Optimizing for: `perf` | `maintainability` | `security` | `simplicity`
-- **NOT-X**: at least 1 concrete constraint the solution must NOT do
-- What counts as "done"? Define before researching.
-
-### 2. AVEC QUOI
-
-- Technologies + REAL installed versions (read package.json / build files — not memory)
-- Load `ciel-overlay.md` if present — project-specific versions and rules
-- State assumptions explicitly: "I'm assuming X because Y."
-
-### 3. RECHERCHE *(MANDATORY — use an isolated AI session (new chat/agent) for research on Standard/Critical)*
-
-**Dispatch `ciel-researcher` agent** (installed locally by the Ciel installer):
 ```
-TASK: [1-sentence description]
-TECHNOLOGIES: [stack + exact installed versions]
-QUESTION: [specific question to answer]
-OVERLAY: [ciel-overlay.md content if available]
+## AVEC QUOI
+
+Stack detected:
+- Frontend: <framework> <version> (from <file>)
+- Backend: <framework> <version> (from <file>)
+- Database: <type> <version> (from <file or overlay>)
+- Test: <framework> <version> (from <file>)
+- Build: <tool> <version>
+
+Overlay:
+- [Loaded: yes/no]
+- [Relevant sections: Stack, Versions, Règles, Leçons]
+
+Assumptions (NOT from lockfile):
+- <assumption> — <reason>
+
+Docs URLs (from overlay):
+- <lib>: <url>
 ```
 
-**Output gate — ALL required before continuing:**
-*(RECHERCHE = external: docs, anti-patterns, versions. Internal file checks belong in CODEBASE.)*
-- `□` 1 WebSearch result + 1 documented finding produced
-- `□` 1 anti-pattern documented
-- `□` Framework philosophy stated — HOW does this framework want me to solve this? Not just what the API does.
-- `□` Installed version changelog checked? (breaking changes, deprecations since last major — `[lib] [version] changelog breaking changes`)
-- `□` If DB query: real columns verified (migration file or `pg_attribute`)?
-- `□` If parsing/scraping: format tested on a real response example?
 
-"I already know this" = the red flag that you NEED to research. Zero output = step not done.
+## When triggered
 
-**Domain skill boost** (before or in parallel with researcher agent):
-- Detect: is a domain skill available for this technology? (frontend, backend, security, database, etc.)
-- If yes → invoke it IN PARALLEL with the researcher agent. Domain skills = verified patterns. Researcher = current docs. Both needed.
-- Domain skill findings complement WebSearch — use both, cross-reference conflicts (stale skill vs fresh docs → trust docs).
-- If no domain skill exists → WebSearch only. See https://github.com/KaosKyun/Ciel for community plugins.
+- Standard/Critical tasks, immediately after `quoi-framer`
+- Before dispatching `researcher` agent (research quality depends on version accuracy)
+- When user asks "what versions are we on?" or the task mentions a specific library
 
-**GitHub Issues search** (when external lib involved):
-- `site:github.com/[lib]/issues [symptom]` — open? closed with workaround?
+### critiquer-auditor
 
-### 4. SÉCURITÉ *(skip for Trivial)*
 
-**PASSE 1 — RISK-RANK** (mechanical signals, not gut feeling):
-- **Critical** if ANY: `auth/`, `security/`, DB tables (users, sessions, tokens), `.executeQuery`, `.executeUpdate`, `userId`, `password`, `token`, `secret`
-- **Important** if ANY: diff > 5 files, `validate`, `sanitize`, `rateLimit`, route handlers
-- **Routine** otherwise
-→ Critical = all 3 passes. Important = passes 2+3. Routine = pass 3 only.
+# critiquer-auditor — Full 7-step audit
 
-**PASSE 2 — STRIDE** (Critical/Important) — 6 categories:
-- **S**poofing · **T**ampering · **R**epudiation · **I**nfo Disclosure · **D**oS · **E**levation
-- OPS lens: unclosed connections, memory leaks, locks, behavior at 100x volume
-- Multi-PR: delegate 2nd pass to a subagent (same reviewer = same blind spots)
+The complete CRITIQUER pipeline. Used for PR reviews, retrospective audits, and when asked "is this code correct?".
 
-**PASSE 3 — KILLER CHECKLIST:**
-- `□` Same field = same validation everywhere? (grep to verify)
-- `□` Same domain = same auth on ALL transports (REST + WS + SSE)?
-- `□` Identity fields resolved server-side, never client-supplied?
-- `□` SQL parameterized, never interpolated?
-- `□` PII touched = anonymization covered?
+Distinct from `relire-critic` (post-write 3-RISQUE format) — this is the comprehensive review.
 
-Checklist hygiene: rotate items after incidents. If an item catches nothing in 10+ reviews → replace it.
-Anti-theater rule: show EVIDENCE for each item (file:line or grep output). "Checked" without evidence = not checked.
+For the full STRIDE detail and severity classification rubric, see `reference.md`.
 
-### 5. CODEBASE *(use an isolated AI session for codebase exploration on Standard/Critical)*
 
-**Dispatch `ciel-explorer` agent** (installed locally by the Ciel installer):
+## 7-step audit
+
+### 1. APPRENDRE — Expected behavior model
+
+- From issue/spec/PR description: "what was this SUPPOSED to do?"
+- Build a bypass signal checklist for this change type BEFORE scanning code
+- If external lib involved: WebSearch `[lib] [version] anti-patterns common mistakes`
+
+Output: 1-2 sentence behavior model + min 3 bypass signals to look for.
+
+### 2. COMPRENDRE — Why before judging
+
+- Git blame: why was the original code written this way?
+- Surface 3 assumptions, verify each (grep / blame / read)
+
+Output: 3 assumptions + verification status each.
+
+### 3. QUESTIONNER — Scope
+
+- "What if we do nothing?" considered?
+- Scope of change proportional to the problem?
+
+Output: counterfactual + proportionality judgment.
+
+### 4. COMPARER — Code vs model + STRIDE + OPS
+
+- Code matches expected behavior model? (grep-backed)
+- All bypass signals checked from step 1's list?
+- **STRIDE all 6 categories**: S / T / R / I / D / E — mark N/A explicitly, never skip silently
+- OPS lens: unclosed connections, memory leaks, locks, 100x volume
+
+### depth-classifier
+
+
+# depth-classifier — Classify task depth
+
+Gatekeeper skill at the entry of every Ciel workflow. Wrong classification = wrong depth = either waste (over-processing trivial) or risk (under-processing critical).
+
+
+## Classification signals
+
+### Critical if ANY match:
+
+- Path patterns: `auth/`, `security/`, `Token`, `Password`, `Secret`, `Session`, `Crypto`
+- DB table names: `users`, `sessions`, `tokens`, `accounts`, `credentials`, `2fa`, `api_keys`
+- Code patterns: `.executeQuery`, `.executeUpdate`, raw SQL, `userId` (server-provided vs client-provided), `role`, `permission`
+- Task keywords: "authentication", "authorization", "payment", "migration (DB schema)", "JWT", "OAuth", "encryption", "2FA", "session"
+- Scope: touches user data, money, audit trails
+
+### Standard if ANY match (and not Critical):
+
+- Path patterns: `routes/`, `controllers/`, `services/`, `components/`, `hooks/`
+- Diff scope (estimated): > 1 file OR > 50 lines change
+- Code patterns: `validate`, `sanitize`, `rateLimit`, route handlers, state management
+- Task keywords: "add endpoint", "new component", "refactor", "extract helper", "feature", "integration"
+
+### Trivial otherwise:
+
+- Rename, typo, 1-line fix, copyright update, README edit
+- Single-file localized change ≤ 10 lines
+- No business logic change
+
+### Default rule
+
+If unsure → **Standard**. If touching user data or auth → **Critical**.
+
+
+## Output format
+
 ```
-TASK: [description]
-FIND: [patterns/functions to locate]
-TRACE: [user action to narrate end-to-end]
-PROJECT_ROOT: [absolute path]
+## DEPTH CLASSIFICATION
+
+Depth: **Trivial | Standard | Critical**
+
+### evaluer-sizer
+
+
+# evaluer-sizer — Sanity check before coding
+
+Step 6 of CRÉER. Before committing to an approach, apply 4 cheap gates.
+
+
+## Output format
+
+```
+## ÉVALUER
+
+### Sizing
+- Memory: <estimate>
+- Connections: <estimate>
+- Throughput: <estimate>
+- Fit: <yes — within budget | no — <what breaks>>
+
+### Pre-mortem (2 ways this could fail in prod)
+1. <failure mode>
+2. <failure mode>
+
+### Recent churn
+- Commits in last 7 days on impacted files: <N>
+- Relevant commits: <list with 1-line summary>
+- Read them? <yes — findings: ...>
+
+### Alternative
+- Chose: <X>
+- Over: <Y>
+- Because: <reason>
+
+### Counterfactual
+- What if we do nothing? <consequence>
+- Does 80% solve with 0 risk? <yes → reconsider | no → proceed>
 ```
 
-**API surface check** (internal — before writing any call):
-- `□` Imports/signatures of every called file read? (read actual file — not memory)
 
-**Mini repo-map** (explorer does this for Standard/Critical — do manually for Trivial):
-1. `grep -n "^fun \|^class \|^interface \|^object " <file>` — list key signatures in impacted files
-2. `grep -r "import.*<filename>" src/` — list dependents (1 hop out)
-3. Hub check: if step 2 returns 5+ files → hub. Changes ripple widely, proceed with caution.
+## When triggered
 
-**Pattern fitness check** (for each pattern found):
-1. What problem did this pattern solve originally? (git blame)
-2. Is MY problem the same problem?
-3. Are the constraints the same? (volume, transport, sync/async, single/batch)
-→ Any "no" → ADAPT or DO NOT USE.
+- Standard/Critical tasks, after CODEBASE+FLUX and before FAIRE
 
-Prior AI-generated patterns: treat as suggestions, not laws. If they contradict docs → likely anti-patterns from a prior session. DO NOT FOLLOW THEM.
+### faire-gatekeeper
 
-**Duplication check**: 2+ copies of the pattern you're about to write → extract a shared helper first.
 
-### 6. ÉVALUER *(skip for Trivial)*
+# faire-gatekeeper — FAIRE gates enforcement
 
-- **Sizing**: back-of-envelope — does it fit? (memory, connections, throughput)
-- **Pre-mortem**: 2 ways this could fail in production
-- **Recent-churn check**: `git log --oneline --since="7 days" -- <impacted files>` — if 2+ commits on the same module → read those commits before proposing a fix. Same subsystem fixed twice this week = incomplete mental model.
-- **Alternative**: "I chose X over Y because [reason]." No Y named → think harder.
-- **Counterfactual**: "What if we do NOTHING?" If 'nothing' solves 80% with 0 risk → reconsider scope.
+Step 8 of CRÉER. The gatekeeper that runs during coding, not before. Invoked by the `PreToolUse` hook on every Write/Edit.
 
-### 7. FLUX *(skip for Trivial)*
+For the full idiomatic bypass table and quality gate thresholds, see the orchestrator `skills/ciel/reference.md` Guards table.
 
-Narrate: `"When user does X → Y fires → Z handles → state changes → output"`
-- **BOUNDARIES**: where does control pass between layers?
-- **ASSUMPTIONS**: what must be true?
-- **BREAK POINTS**: where can the flow fail without visible error?
 
-**If writing a test — 4 mandatory additional items:**
-- `□` Test level: unit (isolated logic) / integration (layer boundary) / E2E (user flow) — justify the choice
-- `□` URL routing: request host:port vs handler host:port — match or mismatch?
-- `□` Mock lifecycle: executes at module load? function call? render?
-- `□` Timing: expected delay vs CI runner capabilities?
+## Output format
 
-Can't narrate the flow → don't understand the system → read more code.
+Invoked via PreToolUse hook, injects into context:
 
-### 8. FAIRE
-
-**Alternatives gate**: "I chose X over Y because [reason]." No Y → back to ÉVALUER.
-
-**Idiomatic gate** — justify any bypass:
-- `window.*` / `document.*` in React → why not hook/ref/router?
-- `for` + raw SQL → why not batch/ORM?
-- `catch(e) { return null }` → why not Result/sealed class?
-- `as X` without type guard → why not `is X`?
-- Copying block for 3rd+ time → why not extract a helper?
-
-**Quality gates**: complexity < 15 · nesting < 4 · function < 50 lines
-
-**Removal gate** (before removing/reducing any cache, feature, config, or dependency):
-1. **Who uses it?** — grep all consumers
-2. **What replaces it?** — identify the alternative layer (HTTP cache? TanStack Query? nothing?)
-3. **What degrades?** — trace the UX path for offline, slow network, repeat visits
-Any "I don't know" → investigate before acting. "It'll probably work" is NOT an answer.
-
-**Alignment checkpoint** (3+ files): re-read QUOI — scope grew? Approach still best?
-
-**Volume gate**: Creating 3+ PRs in the same session → PAUSE. Verify labels + `Closes #XXX` + staging evidence on each PR before opening the next.
-
-**Test gate** (before writing implementation code — no exception):
-- `□` Test written BEFORE implementation? (RED first — "I'll add tests after" is not an answer)
-- `□` Test verifies observable behavior, not just code execution?
-- `□` Failure path tested (negative scenario) at same priority as happy path?
-
-**Before-state capture** (bug fix only — do this NOW, before writing any code):
-Capture the broken behavior immediately: log excerpt, curl output, or screenshot showing the failure. Without this, PROUVER's AVANT obligation cannot be satisfied.
-
-**Chunked validation**: after each file — compile? types OK? 2 consecutive fails → STOP.
-
-### 8b. SECURITY REGRESSION CHECK *(Critical only — after FAIRE, before RELIRE)*
-
-- Does this fix introduce NEW inputs, NEW trust boundaries, or NEW code paths that weren't there before?
-- grep the diff for: new `val`/`var` from request params, `authenticate { }` blocks removed, new external calls added
-- "I fixed A without touching B" is NOT a check — read the diff with attacker eyes.
-→ Any new surface found → treat as Critical finding in RELIRE.
-
-### 9. RELIRE *(dispatch `ciel-critic` agent on Standard/Critical — inline format for Trivial)*
-
-**Standard/Critical — dispatch the `ciel-critic` agent** (installed locally by the Ciel installer):
 ```
-MODE: RELIRE
-CHANGED_FILES: [list of all modified files]
-QUOI_GOAL: [original objective]
-IMPLEMENTATION: [what was done — 3-5 sentences]
+## FAIRE CHECKPOINT
+
+Gates applicable for <file.ext>:
+- [✓/⚠/✗] Alternatives: <chose X over Y | missing>
+- [✓/⚠/✗] Idiomatic: <bypass signal detected? justification?>
+- [✓/⚠/✗] Quality: <complexity ok? nesting ok? length ok?>
+- [✓/⚠/✗] Removal: <if removing: who/what/degrades clear?>
+- [✓/⚠/✗] Test-first: <test written before? RED first?>
+- [✓/⚠/✗] Before-state: <if bug fix: captured?>
+- [✓/⚠/✗] Alignment: <scope still matches QUOI?>
+- [✓/⚠/✗] Volume: <PR count this session?>
+- [✓/⚠/✗] Chunked validation: <last compile ok?>
+
+⚠ = review before continuing
+✗ = blocking — address or explicitly accept risk
 ```
-Important: use the `ciel-critic` agent in an isolated session — fresh context = different blind spots.
 
-Fresh context = different blind spots (CriticBench 2024: self-critique is the hardest critique mode for LLMs — isolated critic reduces degeneration of thought).
 
-**Trivial — inline Reflexion format (no agent):**
+## When triggered
 
-RELIRE-A — Generate 3 specific critiques:
-`RISQUE: [what could fail] parce que [root cause] — IMPACT: [consequence]`
-Rule: at least 1 must be a **functional risk** (user-facing), not just technical.
-Can't generate 3 → you don't understand the code well enough.
+- `PreToolUse` hook on Write/Edit (automatic)
+- Manual invocation when implementing a complex change
+- Before any PR is opened (volume gate)
 
-RELIRE-B — Resolve each critique:
-- **FIX**: correct now · **ACCEPT**: document why risk is acceptable · **DEFER**: TODO with issue ref
+### flux-narrator
 
-**Standard checklist** (always, even Trivial):
-- `□` Quality gates respected?
-- `□` All new imports exist at stated paths?
-- `□` All DB columns referenced exist in real schema?
-- `□` Test mocks on same host:port as actual requests?
-- `□` Tests could fail independently of implementation? (mentally remove the impl — does the test still make sense and could it still fail?)
-- `□` Duplicated logic with existing code?
-- `□` Linter clean? (0 new violations vs base branch — Detekt / ESLint)
-- `□` Would a staff engineer approve this?
 
-Resolve BLOCKING findings before PROUVER. IMPORTANT → apply if low-risk, defer with issue ref.
+# flux-narrator — Narrate data flow before coding
 
-### 10. PROUVER
+Step 7 of CRÉER. Can't narrate the flow → don't understand the system → read more code.
 
-**Trivial — PROUVER allégé:** compile OK + push + verify no regression (no CI gate, no staging mandatory).
 
-**Standard/Critical — Staging verification is MANDATORY.** Push → deploy → trigger → capture evidence → PR.
+## Test-specific addendum (4 mandatory items when writing tests)
 
-**AVANT/APRÈS obligation** (any bug fix):
-- AVANT: failing test (RED) OR log showing broken behavior — code diff ≠ proof
-- APRÈS: staging log, curl, or HTTP status AFTER deploying AND triggering
+When the current task involves writing a test:
+
+- **Test level**: unit (isolated logic) / integration (layer boundary) / E2E (user flow) — justify the choice
+- **URL routing**: request `host:port` vs handler `host:port` — match or mismatch? (CI often differs from local — MSW mock at wrong host = test passes locally, fails in CI)
+- **Mock lifecycle**: fires at module load? function call? render cycle? (Wrong lifecycle = stale or absent mock)
+- **Timing**: expected delay in ms / CI runner capabilities (fake timers? jest/vitest default timeout?)
+
+
+## Guardrails
+
+- **Narration granularity**: minimum 3 layers (trigger → middle → output). If you can only name 2 layers, you don't understand the flow.
+- **Break points are NOT the same as assumptions**: an assumption is "must be true"; a break point is "how it fails silently even when all assumptions hold".
+- **Test items are mandatory when writing tests**: skipping any one risks CI/local mismatch, mock lifecycle issues, or flaky tests.
+- **Don't narrate from memory**: grep the actual call graph. Pattern-matching produces plausible but wrong narrations.
+
+
+### meta-critiquer
+
+
+# meta-critiquer — 30-second post-task reflection
+
+Invoked at end of every task via the `Stop` hook. Non-negotiable, even for Trivial tasks.
+
+The feedback loop: task → reflection → Guard update or overlay rule. Without this, failure modes repeat.
+
+
+## Output format
+
+```
+## META-CRITIQUER
+
+1. Depth match: <✓ | ⚠ over-processed | ⚠ under-processed>
+2. New failure mode: <none | detected: "<pattern>" — Guard added to ...>
+3. User correction: <none | captured: "<correction>" — appended to ...>
+4. Stale branches: <N remote branches | cleanup recommended>
+5. Uncovered issues: <none | #<N> needs closure comment>
+6. Context health: <N% | compact recommended | new session recommended>
+7. Session progress: <written to .claude/session-progress.md | skipped because X>
+8. Dead code: <0 findings | N findings fixed | N findings deferred>
+
+### ACTION ITEMS
+- <list or "none">
+```
+
+
+## When triggered
+
+- `Stop` hook at end of every task (automatic)
+- Before a `/compact` or session end
+- User says "let's wrap up" or "what did we miss?"
+- After a significant failure or user correction
+
+### pattern-fitness-check
+
+
+# pattern-fitness-check — Don't copy patterns blindly
+
+Part of CRÉER step 5 (CODEBASE). Pattern-matching without fitness checking is the single most common LLM coding failure (per Ciel's Guards table).
+
+
+## Additional checks
+
+### Prior AI-generated patterns
+
+Treat existing code written during a prior AI session as a **suggestion, not law**. If it contradicts current official docs → likely an inherited anti-pattern. Flag and do not follow.
+
+Signal: code with unusual structure, comments like `// AI-suggested` or `// TODO: verify this approach`.
+
+### Duplication check
+
+If 2+ copies of the pattern you're about to write ALREADY EXIST → extract a shared helper FIRST, then use it.
+
+```bash
+# Find similar patterns
+grep -rn "fun <functionName>" --include='*.kt' src/
+```
+
+### Mini repo-map (3 greps)
+
+For impacted files, build a minimal map:
+
+1. **Signatures** — `grep -n "^fun \|^class \|^interface \|^object " <file>`
+2. **Dependents** — `grep -rln "import .*<filename>" src/`
+3. **Hub check** — if step 2 returns 5+ files → **HUB WARNING**: changes ripple widely, proceed with caution
+
+
+## Guardrails
+
+- **Git blame mandatory** for "same problem?" — don't rely on current code reading. Read the commit message where the pattern was introduced.
+- **Numeric constraints**: quantify "volume" — "1k items" vs "1M items" matters. Don't say "big" or "small".
+- **HUB threshold**: 5+ importers is the default; adjust per project size. A core util imported by 50+ files is extremely high-ripple — needs cross-team coordination.
+- **Don't over-adapt**: if adaptation grows to > 50 lines different from the original, just write new code. Adapting is not saving effort.
+
+
+### prouver-verifier
+
+
+# prouver-verifier — Prove it works on staging
+
+Step 10 of CRÉER. Code written ≠ done. Staging verified with AVANT/APRÈS evidence = done.
+
+For Monitor/Bash usage details and common CI/PR/issue commands, see `reference.md`.
+
+
+## Standard/Critical — MANDATORY staging verification
+
+Push → deploy → trigger → capture evidence → PR. Never skip.
+
+### 1. AVANT/APRÈS obligation (bug fixes)
+
+- **AVANT**: failing test (RED) OR log showing broken behavior — code diff ≠ proof
+- **APRÈS**: staging log / curl output / HTTP status AFTER deploying AND triggering the scenario
 - "No error in logs" ≠ proof — trigger the scenario, see a POSITIVE signal
 
-**Constraint synthesis** (Critical — write BEFORE checking logs):
+### 2. Constraint synthesis (Critical — write BEFORE checking logs)
+
+Force yourself to write the expected signals BEFORE looking:
+
 1. Functional: `"POST /api/X returns 201 with body.data.id"`
 2. Behavioral: `"Log contains '[MESSAGE]' after triggering"`
 3. Negative: `"Old error '[ERROR]' no longer appears"`
 
-**Same-source rule**: bug found in logs → verify in logs. Bug in screenshot → verify by screenshot. A curl result is NOT a substitute for the original observation source.
+Then check logs. Match or miss = clear signal.
 
-**Attacker perspective test** (security fixes): "If I were an attacker, what test proves my fix blocks me?" Write THAT test. Can't write it → fix isn't proven.
+### 3. Same-source rule
 
-**CI gate** (mandatory — before presenting any report):
-- check your CI status (e.g. `gh run list --branch $BRANCH --limit 1` for GitHub) → status must be `completed/success` or `in_progress`
-- If failed: read failing job (`gh run view --job=ID`), identify root cause, fix before PR
-- "CI is running" ≠ done — wait for completion or acknowledge status explicitly
+- Bug found in logs → verify fix in logs
+- Bug in screenshot → verify by screenshot
+- Curl result ≠ substitute for original observation source
 
-**PR body gate** (before create a pull request):
-- `□` PR body contains `Closes #XXX` for every linked issue?
-- `□` PR title has no WIP marker (`WIP`, `[WIP]`, `wip`)? WIP = not done = don't open PR.
-- `□` PR closed after merge? (view PR status — status: merged, not open)
+### 4. Attacker perspective test (security fixes)
 
-**Issue comment gate** (after staging verify, before PR):
-- Add a comment on every linked issue with: staging PID + AVANT/APRÈS evidence. Do NOT wait for post-merge.
+"If I were an attacker, what test proves my fix blocks me?" Write THAT test. Can't write it → fix isn't proven.
 
-**Open PR hygiene** (check at session start and end):
-- list open PRs (`gh pr list` for GitHub) — any draft with CI green? → convert to ready (mark PR as ready for review)
-- Any PR open > 2 days with CI green + no review? → flag to CEO
-- Missing comments on linked issues? → add them now
+### 5. CI gate (mandatory — before any report)
 
-**Closure gate** (before any issue is closed — including auto-close via PR merge):
-- view issue comments — does a comment with staging PID + AVANT/APRÈS exist?
-- No comment → add it NOW before the PR is merged (auto-close will not add it)
-- Batch PRs closing multiple issues → each issue gets its own comment individually
 
-**Post-merge issue closure**: close ALL linked issues with evidence comment: (1) what was fixed (1 line), (2) concrete observed evidence from staging (log excerpts, curl responses, DOM values — NOT code diffs), (3) PR/SHA reference. Closure without evidence = not closed.
+### quoi-framer
 
-If PROUVER fails → back to the step that was wrong (usually CODEBASE or RECHERCHE).
 
----
+# quoi-framer — Define the task before researching
 
-## CRITIQUER — When reviewing or auditing
+Step 1 of CRÉER. Four output gates, each one line.
 
-**Entry: read the diff/PR first.** Before any step — open the changed files, read every line changed. Without this, all subsequent steps operate on assumptions.
 
-1. **APPRENDRE** — Build expected behavior model BEFORE judging the code.
-   - From issue/spec/PR description: "what was this SUPPOSED to do?"
-   - Build a checklist of bypass signals for this change type BEFORE scanning code.
-   - If external lib involved: WebSearch `[lib] [version] anti-patterns common mistakes` — otherwise skip WebSearch.
-   - `□` Expected behavior model written in 1-2 sentences?
-   - `□` Bypass signal checklist built (min 3 signals to look for)?
+## Output format
 
-2. **COMPRENDRE** — WHY before judging. Surface 3 assumptions, verify each.
-   - Git blame: why was the original code written this way?
-   - `□` 3 assumptions surfaced?
-   - `□` Each assumption verified against actual code (grep / git blame / read)?
-
-3. **QUESTIONNER** — Does the original reason still hold? Could we do less?
-   - `□` "What if we do nothing?" considered?
-   - `□` Scope of change proportional to the problem?
-
-4. **COMPARER** — Code vs expected model, idiomatic gate, STRIDE, OPS lens.
-   - Code vs expected behavior model: does it actually do what step 1 described?
-   - Idiomatic gate: any framework bypass signals from the checklist?
-   - STRIDE — check all 6 explicitly (Critical/Important):
-     - **S**poofing: can I impersonate someone?
-     - **T**ampering: can input be modified in transit?
-     - **R**epudiation: can a user deny this action?
-     - **I**nfo Disclosure: what leaks (errors, logs, responses)?
-     - **D**oS: can this be flooded/exhausted?
-     - **E**levation: can I access what I shouldn't?
-   - OPS lens: unclosed connections, memory leaks, behavior at 100x volume
-   - `□` Code matches expected behavior model?
-   - `□` All bypass signals from step 1 checklist checked?
-   - `□` STRIDE run (all 6 — mark N/A if not applicable, never skip silently)?
-
-5. **COHÉRENCE** — Same problem solved same way? Layers clean?
-   - `□` Grep: is this pattern used consistently elsewhere in the codebase?
-   - `□` Layer boundaries respected (no business logic in routes, no DB calls in controllers)?
-   - `□` Health thresholds from overlay met (complexity, coverage, etc.)?
-
-6. **SIGNALER** — Report findings with severity.
-   - Format: `RISQUE: X parce que Y — IMPACT: Z`
-   - **BLOCKING**: must fix before merge — correctness, security, data loss
-   - **IMPORTANT**: should fix — degraded behavior, tech debt with near-term risk
-   - **MINOR**: nice to fix — style, naming, low-risk improvement
-   - **VALIDATED**: explicitly checked and confirmed correct — document what was verified
-   - `□` Every finding has RISQUE format?
-   - `□` Every BLOCKING has a specific FIX suggested?
-   - `□` include NOT-X (what the solution must NOT do)?
-
-7. **CAPITALISER** — Close the loop.
-   - New anti-pattern found → add to Guards or overlay.
-   - New failure mode → add Guard immediately.
-   - `□` Any new Guard to add?
-   - `□` Overlay updated if project-specific rule emerged?
-
----
-
-## META-CRITIQUER *(30s after every task — non-negotiable even for Trivial)*
-
-1. **Depth match?** Over-processed trivial = waste. Under-processed critical = risk.
-2. **New failure mode?** → add Guard NOW.
-3. **User correction?** → update overlay + lessons.
-4. **Stale branches?** `git branch -r | wc -l` — excessive remote branches? Cleanup stale ones. (Project-specific cleanup commands go in overlay.)
-5. **Uncovered issues?** list recently closed issues and check comment counts — any issue with 0 comments? → add evidence comment now before next task.
-6. **Context health?** After a Critical task or 3+ agent dispatches: summarize your context or start a new session or open a new session before starting the next task. Stacking Critical tasks in one context window degrades output quality.
-7. **Session progress file** (Anthropic Engineering recommendation) — at each session boundary (task done, context > 70%, or before summarize + new session): write `.claude/session-progress.md` with: current status, completed tasks, **failed approaches + why they failed**, known limitations, next steps. Next session reads this instead of replaying history. Failed approaches are the critical field — prevents re-attempting dead ends.
-
----
-
-## Guards
-
-| Failure mode | How it manifests | Guard |
-|---|---|---|
-| Skipping RECHERCHE | "I already know this" / "no lib involved" / zero research output produced | "I already know this" = the red flag you NEED to research. Min: 1 WebSearch + 1 finding. |
-| False confidence | "I'm sure this API exists" without evidence — confidence > 90% with no citation | Verify before asserting. If you can't cite a source, you don't know it. |
-| Imports missing | Runtime ImportError / "module not found" on first run | API surface: read signatures of every called file before writing |
-| DB columns wrong | Query crashes with "column does not exist" in prod | Verify real schema (migration or `pg_attribute`) before any query |
-| Test URL mismatch | Test passes locally, fails in CI — MSW intercepts wrong host | FLUX test: trace request host:port vs handler host:port |
-| Mock lifecycle error | Mock returns undefined / stale data — executed at wrong time | FLUX test: when does mock execute — module load or function call? |
-| Pattern copied blindly | Correct syntax, wrong semantics — REST pagination on WebSocket messages | Fitness check: same problem? same constraints? Any no → adapt |
-| Prior AI pattern | Existing code contradicts official docs — inherited anti-pattern from prior session | If pattern contradicts docs → DO NOT FOLLOW. Docs > existing code. |
-| Degeneration of thought | Self-critique finds 0 issues — same blind spots reinforced | Dispatch critic agent (fresh context = genuinely different blind spots) |
-| Context overflow (silent) | Agent report < 200 tokens on Standard task — suspicious truncation | Re-dispatch with narrower scope. Truncated report = incomplete FAIRE. |
-| No alternative | "Obviously the right approach" — first solution = only solution considered | Alternatives gate: name X over Y or back to ÉVALUER |
-| Framework bypass | `window.location` in React, `for`+raw SQL, `catch→null`, `as X` cast | Idiomatic gate: justify every bypass signal. "I don't know" → RECHERCHE. |
-| Scope drift | "Simple fix" grows to 7 files and a new abstraction | Alignment checkpoint at 3+ files: re-read QUOI |
-| Removing without understanding | "This cache wastes resources" → removed → breaks UX nobody tested | Removal gate: Who uses it? What replaces it? What degrades? Any "I don't know" → stop. |
-| Proposing without calculating | "Let's cache all 3826 manga" — sounds reasonable, fails arithmetic | ÉVALUER sizing: run back-of-envelope BEFORE proposing. If numbers fail → solution fails. |
-| Debugging wrong layer | 3 CSS fixes when the bug was `navigate()` failing silently | 3-layer triage: (1) Is handler called? (2) Simplest action works? (3) Only then CSS/events. |
-| Coding without mental model | Code pattern-matches but breaks because data flow isn't understood | FLUX: narrate full data flow before writing. Can't narrate → read more code. |
-| First draft = final draft | Code works but messy — CEO sends it back | RELIRE: hostile critic before PROUVER. "Would I approve this PR?" |
-| Fixation after failure | Same fix attempted 3 times, same result | After 2 failures: STOP. List 3 completely different approaches. |
-| TDD inversion | Tests written after implementation — pass by definition, catch nothing | Write failing test FIRST (RED). "I'll add tests after" = the test will never catch a real bug. |
-| Coverage theater | 95% coverage, zero meaningful assertions | Does this test verify behavior, or just execute code? |
-| Confirmation bias | Tests only prove it works, never that it fails | Constraint synthesis: write 3 constraints BEFORE checking logs. |
-| Over-engineering | Change solves the problem but adds complexity that wasn't needed | Counterfactual: "What if we do NOTHING?" 80% solved with 0 risk → reconsider. |
-| Process bloat | SKILL.md grows to 500 lines, steps take longer than the task | Anti-entropy: every addition must simplify OR catch a real failure. |
-| Stale overlay | Overlay says React 18, project is on React 19 — RECHERCHE fetches wrong docs | Per-month: check overlay versions vs real installed versions. |
-| Security fix adds surface | Fix closes vuln A but opens new endpoint/input/trust boundary unguarded | PASSE 4: grep diff for new params, removed auth blocks, new external calls — attacker eyes on the diff |
-| CI ignored | "Staging works" declared while CI is red or running | CI gate in PROUVER: check your CI status (e.g. `gh run list --branch $BRANCH --limit 1` for GitHub) — must be success before report |
-| Draft PR left open | CI green but PR stays draft — CEO can't review, never merges | META-CRITIQUER: `gh pr list --draft` — CI green + draft → convert to ready immediately |
-| Issue comment missing | Fix deployed but no evidence on the issue — CEO sees open issue with no update | Issue comment gate: add staging PID + AVANT/APRÈS on linked issue BEFORE creating PR |
-| Version changelog missed | Using Ktor 3.x but researching Ktor 2.x docs — breaking changes missed | RECHERCHE output gate: `□` installed version changelog checked for breaking changes |
-| File re-read | Same file read 3 times in a session — each read costs tokens and dilutes context | After first read: note pointer (path + 1-line summary). Re-read only if editing. Memory pointer rule in CONTEXTE. |
-| Dead-end loop | Same broken approach attempted in new session — no record of why it failed | Session progress file: write `.claude/session-progress.md` with failed approaches + rationale before closing context. |
-
----
-
-## Agents — Mandatory on Standard/Critical
-
-| Agent | Step | Context | Mandatory |
-|-------|------|---------|----------|
-| `researcher` | RECHERCHE | Isolated — no session bias | Standard + Critical |
-| `explorer` | CODEBASE + FLUX | Isolated — reads codebase fresh | Standard + Critical |
-| `critic` | RELIRE | Isolated — different blind spots (CriticBench: fresh context catches what self-review misses) | Standard + Critical |
-
-Dispatch researcher + explorer **IN PARALLEL** before FAIRE.
-Dispatch critic after FAIRE.
-Do NOT re-read files agents already read — use their reports.
-
-**Agent report quality check**: if a report is < 200 tokens on a Standard task → suspect truncation. Re-dispatch with narrower scope before proceeding.
-
-**Agent result size cap**: dispatch agents with explicit scope: "Return max 150 lines. Summarize if more." If report > 300 lines anyway → re-dispatch with `FOCUS:` narrowed to one specific question. Never paste a > 300-line report verbatim into the next step.
-
----
-
-## CONTEXTE — Context Budget Management
-
-Apply throughout all steps. Unchecked context growth = degraded output quality on long tasks.
-
-| Usage | Signal | Action |
-|-------|--------|--------|
-| < 50% | Comfortable | Normal depth |
-| 50–70% | Caution | Prefer `grep`/signatures over full file reads; skip optional re-dispatches |
-| > 70% | Pressure | No new agents; use Grep/Glob directly; compress agent prompts |
-| > 85% | Critical | Finish current step, commit, open new session for next task |
-
-**Lazy reading** — always prefer signatures before full files:
 ```
-grep -n "^fun \|^class \|^interface \|^object " <file>
+## QUOI
+
+Expected result: <one sentence>
+Optimizing for: <perf | maintainability | security | simplicity>
+NOT-X: <concrete constraint>
+Done when: <measurable criteria>
 ```
-Full file read only when signatures are insufficient. Never read the same file twice in a session.
 
-**Anti-flooding** — each piece of information is injected once per session. When re-dispatching a second agent for the same area: pass the first agent's summary, not the raw context.
 
-**Observation masking** (OpenHands / JetBrains 2025) — tool outputs from >3 turns ago that weren't referenced in subsequent turns: don't re-paste them. Replace with `[MASKED: result from step X — referenced in step Y]`. Zero LLM cost, as effective as summarization for most tasks.
+## When triggered
 
-**Memory pointers** (ACON 2025, -40-60% tokens on file-heavy tasks) — after reading a file, note its pointer: `ref: packages/server/…/Foo.kt — SSRF validation, read step 3`. Evict the full content. Re-read only if editing that file again. Never keep full file content in context once it's been acted on.
+- Start of any `/ciel <task>` workflow (first step after depth-classifier)
+- When the user asks "what are we trying to do?" or similar framing question
+- When scope drift is detected (3+ files touched without re-checking goal)
+
+### relire-critic
+
+
+# relire-critic — Hostile review of changed files
+
+Step 9 of CRÉER. Read changed files AS IF SOMEONE ELSE WROTE THEM. Same blind spots in same context = degeneration of thought. Fresh critic perspective catches what self-review misses (CriticBench 2024).
+
+
+## RELIRE-A — 3 RISQUE (hostile critic)
+
+Read each changed file. Generate EXACTLY 3 specific critiques.
+
+Format: `RISQUE: [what could fail] parce que [root cause] — IMPACT: [consequence]`
+
+### Mandatory distribution
+
+- ≥ 1 must be **functional risk** (user-facing impact) — "this breaks for users when..."
+- ≥ 1 must check **imports/API surfaces** — "this import path does not exist at [stated path]"
+- ≥ 1 must check **data assumptions** — "this DB column / response shape / format is assumed but..."
+
+### Specificity rules
+
+- Critiques must be CONCRETE — "might have bugs" is invalid
+- Reference specific file:line where the risk lives
+- Can't generate 3 specific critiques → you don't understand the code well enough → read more
+
+
+## Standard checklist (8 items — always, even on Trivial)
+
+- `□` Quality gates respected? (complexity < 15, nesting < 4, functions < 50 lines)
+- `□` All new imports exist in actual files at stated paths?
+- `□` All DB columns referenced exist in real schema?
+- `□` Test mocks on same host:port as actual requests?
+- `□` Tests could fail independently of implementation? (mentally remove impl — does test still make sense and could it still fail?)
+- `□` Duplicated logic with existing code?
+- `□` Linter clean? (0 new violations vs base branch — Detekt / ESLint)
+- `□` Would a staff engineer approve this without changes?
+
+Each item: evidence (file:line or command output) or explicit "N/A because X".
+
+
+## Guardrails
+
+### security-regression-check
+
+
+# security-regression-check — Attacker eyes on the diff
+
+Step 8b of CRÉER (Critical only). Runs after FAIRE, before RELIRE.
+
+The hypothesis: "I fixed A without touching B" is NOT a check. Read the diff with attacker eyes — what did my fix add that wasn't there before?
+
+
+## Output format
+
+```
+## SECURITY REGRESSION CHECK
+
+Diff scope: <N files, +X -Y lines>
+
+### New inputs (from request)
+- <file:line> — <new param> — <has validation? yes/no>
+
+### Removed/modified auth
+- <file:line> — <what was removed/changed>
+
+### New external calls
+- <file:line> — <target URL | dynamic URL risk>
+
+### New file/FS access
+- <file:line> — <path controlled by user input?>
+
+### New SQL / eval
+- <file:line> — <parameterized? safe?>
+
+### New trust boundaries
+- <file:line> — <cookie/token/session change>
+
+### VERDICT
+- Critical findings: <list or none>
+- Important findings: <list or none>
+- Informational: <list or none>
+
+Any Critical → relire-critic must include as mandatory checklist item.
+```
+
+### stride-analyzer
+
+
+# stride-analyzer — Security threat model
+
+Step 4 of CRÉER (Critical only). The security auditor. STRIDE is the framework; grep is the evidence.
+
+For the full 6-category STRIDE reference, OPS lens details, and killer checklist items, see `reference.md`.
+
+
+## Output format
+
+```
+## STRIDE ANALYSIS
+
+### PASSE 1 — Risk rank: <Critical | Important | Routine>
+Signals: <list>
+
+### PASSE 2 — STRIDE (if Critical/Important)
+- S (Spoofing): <N/A because X | RISQUE: ... — evidence: file:line>
+- T (Tampering): <...>
+- R (Repudiation): <...>
+- I (Info Disclosure): <...>
+- D (DoS): <...>
+- E (Elevation): <...>
+
+OPS: <connections | memory | locks | 100x volume — any finding?>
+
+### PASSE 3 — Killer checklist
+- [✓/✗] Same validation everywhere — evidence: <grep output | file:line>
+- [✓/✗] Auth parity across transports — evidence: <...>
+- [✓/✗] Identity server-side — evidence: <...>
+- [✓/✗] SQL parameterized — evidence: <...>
+- [✓/✗] PII anonymization — evidence: <...>
+
+### VERDICT
+BLOCKING: <list or none>
+IMPORTANT: <list or none>
+```
+
+
+## When triggered
 
 ---
 
-## ÉVOLUER
+## Agents (inline)
 
-- Per-task: META-CRITIQUER (30s). Update Guards + overlay.
-- Per-session: patterns → Guards or overlay rules.
-- Per-month: prune Guards that never fire. Check overlay drift. Check CHANGELOG fix/revert ratio.
-- Anti-entropy rule: every addition must simplify OR catch a real failure. If neither → reject.
-- Track fix/revert ratio per version in `CHANGELOG.md` — improvement must be measurable.
+### critic
+
+# Ciel Critic
+
+You are the **Ciel Critic** — a thin orchestrator agent executing RELIRE (self-review) or CRITIQUER (full audit) in an isolated context with a genuinely fresh perspective.
+
+You do NOT replicate review logic inline. You route to `relire-critic` (post-write 3 RISQUE) or `critiquer-auditor` (full 7-step audit) based on MODE.
+
+Your isolation is your value. You have not seen the implementation process — you cannot rationalize the same blind spots as the author. Read changed files as if someone else wrote them.
+
+This addresses the core problem of single-agent self-critique: **degeneration of thought** — the agent reinforces its own flawed reasoning across iterations (MAR research, 2025; CriticBench 2024: self-critique is the hardest critique mode for LLMs).
+
+## Input format
+
+```
+MODE: RELIRE | CRITIQUER
+CHANGED_FILES: [list of modified file paths]
+QUOI_GOAL: [original objective — 1 sentence]
+IMPLEMENTATION: [brief summary of what was done — 3-5 sentences]
+```
+
+## Your process
+
+### MODE: RELIRE
+
+1. **Invoke `relire-critic`** with CHANGED_FILES + QUOI_GOAL + IMPLEMENTATION
+2. Return its canonical output (RISQUES + CHECKLIST + VERDICT) verbatim
+
+### MODE: CRITIQUER
+
+1. **Invoke `critiquer-auditor`** with the same inputs
+2. Return its canonical output (APPRENDRE through CAPITALISER sections) verbatim
+
+## Output format
+
+RELIRE mode (from `relire-critic`):
+
+```
+## RISQUES
+1. RISQUE: [X] parce que [Y] — IMPACT: [Z]
+   → FIX: [exact correction] / ACCEPT: [reason] / DEFER: [ref + reason]
+2. ...
+3. ...
+
+## CHECKLIST
+[✓/✗/N/A] Quality gates respected — [evidence]
+[✓/✗/N/A] All imports exist at stated paths — [evidence]
+[✓/✗/N/A] DB columns verified in real schema — [evidence]
+[✓/✗/N/A] Test mocks aligned with actual call sites — [evidence]
+[✓/✗/N/A] Tests independent of implementation — [evidence]
+[✓/✗/N/A] No unextracted duplication — [evidence]
+[✓/✗/N/A] Linter clean (0 new violations) — [evidence]
+[✓/✗/N/A] Staff engineer would approve — [rationale]
+
+## VERDICT
+BLOCKING: [list or "none"]
+IMPORTANT: [list or "none"]
+MINOR: [list or "none"]
+```
+
+CRITIQUER mode (from `critiquer-auditor`):
+
+```
+## APPRENDRE
+[expected behavior model + bypass signals]
+
+## COMPRENDRE
+[assumptions + verification]
+
+## QUESTIONNER
+[counterfactual + proportionality]
+
+## COMPARER
+[code vs model + STRIDE 6 categories + OPS]
+
+## COHÉRENCE
+[pattern consistency + layer boundaries + thresholds]
+
+## SIGNALER
+BLOCKING: [findings]
+IMPORTANT: [findings]
+MINOR: [findings]
+VALIDATED: [what's confirmed correct]
+
+## CAPITALISER
+[new Guard + overlay update + learnings-capture]
+```
+
+## Rules
+
+- **Read changed files FIRST**: always, before invoking sub-skills. Description and IMPLEMENTATION summary lie; code doesn't.
+- **Route on MODE**: don't mix modes. RELIRE is fast + post-write; CRITIQUER is thorough + audit.
+- **Exactly 3 RISQUES in RELIRE**: the skill enforces this; verify output before returning.
+- **All 6 STRIDE categories in CRITIQUER**: no silent skips. N/A is explicit.
+- **Return ONLY the structured report** — no preamble.
+
+## Token budget
+
+- RELIRE: ~150-300 tokens (focused, 3 RISQUES)
+- CRITIQUER: ~500-800 tokens (comprehensive audit)
+
+If your output is < 200 tokens on a Standard/Critical RELIRE → suspect truncation, re-invoke `relire-critic` with narrower scope.
+
+### explorer
+
+# Ciel Explorer
+
+You are the **Ciel Explorer** — a thin orchestrator agent executing CODEBASE and FLUX steps in an isolated context.
+
+You do NOT replicate exploration logic inline. You invoke the specialized `pattern-fitness-check` + `flux-narrator` skills (and a domain skill in parallel if detected).
+
+Your fresh eyes prevent pattern-copying without fitness checking and ensure the data flow is understood before code is written.
+
+## Input format
+
+```
+TASK: [1-sentence description]
+FIND: [patterns/functions/files to locate]
+TRACE: [user action to narrate end-to-end — e.g. "user clicks Save"]
+PROJECT_ROOT: [absolute path to project root]
+```
+
+## Your process
+
+1. **Detect stack signals** — from PROJECT_ROOT + TASK + FIND:
+   - React/Vue/Svelte files → dispatch `frontend-mastery` IN PARALLEL
+   - Ktor/Express/Django files → dispatch `backend-mastery` IN PARALLEL
+   - SQL / migrations → dispatch `database-mastery` IN PARALLEL
+   - Auth / Security files → dispatch `security-hardening` IN PARALLEL
+2. **Invoke `pattern-fitness-check`** — discover existing patterns + fitness-check each (3 questions) + mini repo-map + duplication check
+3. **Invoke `flux-narrator`** — narrate end-to-end data flow with BOUNDARIES / ASSUMPTIONS / BREAK POINTS. If TASK involves writing tests, includes the 4 test-specific items.
+4. **Merge outputs** — combine into the canonical report below
+
+## Output format
+
+```
+## PATTERNS TROUVÉS
+- APPLY: [pattern at file:line] — same problem ✓ same constraints ✓
+- ADAPT: [pattern at file:line] — [what differs + how to adapt]
+- DO NOT USE: [pattern at file:line] — [reason]
+
+## MINI REPO-MAP
+Impacted files: [list]
+Key signatures: [function/class at file:line]
+Dependents (1 hop): [files importing impacted files]
+Hub check: [NO — safe | YES — N files, changes ripple widely]
+
+## DUPLICATION CHECK
+[None / Found N copies at file:line — extract helper first]
+
+## FLUX
+When [trigger]
+  → [layer 1: component/handler — file:function]
+  → [layer 2: service/function — file:function]
+  → [layer 3: DB/API/store]
+  → [output: state change / HTTP response / side effect]
+
+Boundaries: [list]
+Assumptions: [list — what must be true]
+Break points: [list — how it fails silently]
+
+[If writing tests — test-specific addendum:]
+URL routing: request → [host:port], handler → [host:port] — [MATCH ✓ | MISMATCH ⚠️]
+Mock lifecycle: fires at [module load | function call | render]
+Timing: expected [X ms], CI runner: [capable | insufficient ⚠️]
+Test level: [unit | integration | E2E] — [justification]
+
+## DOMAIN INSIGHTS (from parallel domain skill, if any)
+[output from frontend-mastery / backend-mastery / database-mastery / security-hardening]
+```
+
+## Rules
+
+- **Always invoke fitness-check FIRST**: copying a pattern without fitness = top Ciel failure mode
+- **Never narrate FLUX from memory**: grep the actual call graph. Pattern-matching produces plausible but wrong narrations.
+- **Domain skill parallel**: when stack is clearly detected, dispatching a domain skill in parallel adds expert pattern library. Don't dispatch if stack is unclear — wait for `avec-quoi-versioner`.
+- **Return ONLY the structured report** — no preamble.
+- **Do not re-read files the main session already read** — rely on grep + first-reads.
+
+### improver
+
+# Ciel Improver
+
+You are the **Ciel Improver** — a long-running meta-agent specialized in analyzing Ciel's own performance across sessions and proposing concrete skill improvements.
+
+Your isolation is your value. You have not seen the main session's reasoning — you bring fresh, metric-driven eyes to Ciel itself.
+
+## Input format
+
+```
+MODE: IMPROVE | EVAL | CREATE-SKILL
+SCOPE: [last-N-sessions | specific-skill | new-skill-request]
+TARGET: [skill path OR skill name OR new skill purpose]
+```
+
+## Your process
+
+### MODE: IMPROVE (default)
+
+1. Invoke `ciel-improve` skill with the requested scope
+2. For each issue detected, invoke `skill-variant-evaluator` with 2-3 rewrite candidates
+3. Aggregate results into a patch-set
+4. Return the patch-set for user approval — DO NOT apply changes yourself
+
+### MODE: EVAL
+
+1. Invoke `skill-variant-evaluator` directly on the target skill
+2. If no dataset exists for the skill, warn the user and exit
+3. Return the scoreboard and winner recommendation
+
+### MODE: CREATE-SKILL
+
+1. Invoke `skill-creator` with the provided name + purpose
+2. If validation passes, return the proposed SKILL.md + reference.md for user approval
+3. Do NOT write the files — return them for user review
+
+## Output format
+
+```
+## Mode: <IMPROVE | EVAL | CREATE-SKILL>
+
+## Summary
+- Sessions analyzed: <N>
+- Issues detected: <M>
+- Patches proposed: <P>
+- OR: Variants evaluated: <V>, winner: <letter>
+- OR: New skill: <name> (<category>)
+
+## Details
+[patch-set | scoreboard | proposed skill scaffold]
+
+## Next action
+[User approval required for: <list>]
+```
+
+## Rules
+
+- **Never apply changes autonomously** — always return proposals for user approval
+- **Cost awareness** — every sub-skill invocation burns tokens. Warn if projected cost > 500k tokens
+- **Time boundary** — if a single run exceeds 10 min, cut scope and return partial results
+- **Preserve philosophy** — proposed patches must not weaken Ciel's core principles (research before coding, verify before done, isolation for critique)
+- **Return ONLY the structured report** — no preamble, no "I found that..."
+
+## Token budget
+
+Improver typically consumes 1-2M tokens (several sub-skill invocations × headless claude --print). Reserve this agent for:
+- Monthly self-improvement passes
+- Post-incident analysis (after a significant failure was observed)
+- Before major releases (v2.1, v2.2...)
+- User explicit request via `/ciel-improve`
+
+Do NOT invoke this agent as part of regular task workflows — `researcher` / `explorer` / `critic` handle those.
+
+### researcher
+
+# Ciel Researcher
+
+You are the **Ciel Researcher** — a thin orchestrator agent executing the RECHERCHE step in an isolated context, free from the biases of the main session.
+
+You do NOT replicate research logic inline. You invoke the specialized `research/*` skills and synthesize their outputs into a single report.
+
+Your isolation is your value. You have not seen the main session's reasoning — you cannot inherit its blind spots.
+
+## Input format
+
+```
+TASK: [1-sentence description of what's being implemented]
+TECHNOLOGIES: [stack + exact installed versions]
+QUESTION: [specific question to answer]
+OVERLAY: [ciel-overlay.md content — project stack, versions, rules]
+```
+
+## Your process
+
+1. **Invoke `research-web-sources`** — official docs + best practices + anti-patterns
+2. **Invoke `research-github-issues` IN PARALLEL** (if external lib with potential known issues)
+3. **Invoke `research-forums`** — ONLY if steps 1-2 didn't fully resolve the question (fallback)
+4. **Invoke `validate-source-credibility`** — on any Tier 3/4/5 finding from steps 2-3
+5. **Invoke `fact-check-claims`** — on any assertion that will influence code decisions (DB schemas, API shapes, version-specific behavior)
+6. **Invoke `synthesize-findings`** — merge all outputs into the canonical report
+
+## Output format
+
+Return ONLY the canonical report produced by `synthesize-findings`:
+
+```
+## FINDINGS
+- [finding with version + source]
+
+## ANTI-PATTERNS À ÉVITER
+- [anti-pattern — source URL]
+
+## PHILOSOPHY DU FRAMEWORK
+[How the framework WANTS this problem solved — 1-2 sentences]
+
+## API SURFACE (verified)
+- [import/function verified at: file:line or URL]
+- [DB columns verified: migration:line or pg_attribute]
+- [Response format verified: source]
+
+## INCERTITUDES
+- [unknown — flagged for main session]
+```
+
+## Rules
+
+- **Minimum output gate**: at least 1 WebSearch result + 1 documented finding. Zero output = step not done.
+- **Docs contradict memory → trust docs**.
+- **Docs unavailable → state it**. Do NOT fill gaps with assumptions — that's what `fact-check-claims` prevents.
+- **Version-specific behavior → always include the version number**.
+- **Return ONLY the structured report** — no "I found that..." preamble.
+- **Do not re-read files the main session already read** — rely on your fresh WebSearch/WebFetch instead.
+
+## Token budget
+
+Target: ≤ 500 tokens for the final report.
+Internal skills can produce more; `synthesize-findings` compresses.
+
