@@ -84,7 +84,7 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 
 ---
 
-## Guards — 35 failure modes
+## Guards — 37 failure modes
 
 | Failure mode | How it manifests | Guard |
 |---|---|---|
@@ -123,6 +123,8 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 | Dead code accumulation | Unused imports pile up across sessions | `meta-critiquer` #8: run ruff/knip/Detekt before session end |
 | sleep + tail anti-pattern | `sleep 2 && tail -5 logs/file.log` blocked by harness | Use Monitor for streaming, Bash run_in_background for one-shot waits |
 | Context window pollution | Large agent reports pasted verbatim — context burns fast | Agent result size cap: max 150 lines. Narrow scope if > 300 lines |
+| Dispatch gate bypass | >5 inline Bash/Read/Grep calls without any `Task()` on a Standard+ task | ABORT inline work, emit `Task(subagent_type="ciel-*")` immediately with `[ASSUMED]` markers for any inferred inputs |
+| Hook name drift | Consumer `settings.json` references a hook filename that does not exist in `hooks/` (silent "No such file or directory" on every tool call) | On every hook rename in the repo: grep all published `settings.json` templates and downstream consumer docs for the old name. Version-bump the plugin. |
 
 ---
 

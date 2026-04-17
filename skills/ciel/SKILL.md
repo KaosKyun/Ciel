@@ -88,6 +88,7 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 | "accessibility audit", WCAG, a11y, frontend PRs | **`accessibility-wcag-auditor`** | `@ciel-explorer` |
 | Changes to `skills/**/SKILL.md`, skill review | **`skills-first-design-auditor`** | `@ciel-improver` |
 | "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`issue-closer`** | inline (all utility skills) |
+| "mcp server", "mcp config", ".mcp.json", "claude mcp", "serveurs mcp" | **`debug-reasoning-rca`** (config drift + failures) + `stride-analyzer` if secrets found | `@ciel-explorer` for config read → `@ciel-critic` MODE=RCA |
 
 **Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
 
