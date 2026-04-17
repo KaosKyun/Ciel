@@ -128,7 +128,7 @@ function _register_installed_files {
             }
         }
     }
-    for ($a in @("researcher", "explorer", "critic", "improver")) {
+    foreach ($a in @("researcher", "explorer", "critic", "improver")) {
         if (isFile "$HOME/.claude/agents/$a.md") { _manifest_append_file "$HOME/.claude/agents/$a.md" }
     }
     Get-ChildItem "$HOME/.claude/commands" -Filter "ciel*.md" -ErrorAction SilentlyContinue | ForEach-Object {
