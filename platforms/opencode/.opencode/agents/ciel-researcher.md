@@ -1,7 +1,7 @@
 ---
 description: Ciel Researcher
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: anthropic/claude-haiku-4-5-20251001
 temperature: 0.2
 tools:
   write: false

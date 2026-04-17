@@ -409,21 +409,37 @@ emit_opencode_agent() {
   [[ -z "$desc" ]] && desc="Ciel $role — isolated-context subagent"
 
   # Per-role configuration — defaults favour token economy.
-  # All four agents default to Sonnet 4.6: fast, capable, ~5x cheaper than Opus 4.7.
-  # If a user wants deeper reasoning for hostile critique or self-improvement
-  # (CriticBench / blind-spot hunting), they can edit the `model:` line in
-  # .opencode/agents/ciel-{critic,improver}.md after install to:
-  #     model: anthropic/claude-opus-4-7
+  # Model choice is graded by task difficulty vs dispatch frequency:
+  #   researcher → Haiku 4.5  (retrieval + structured synthesis, no subtle
+  #                            reasoning; ~3x cheaper than Sonnet, ~15x
+  #                            cheaper than Opus; dispatched on every
+  #                            Standard+ task so savings compound)
+  #   explorer   → Sonnet 4.6 (flux-narrator needs call-graph tracing)
+  #   critic     → Sonnet 4.6 (blind-spot hunting — keep a safety margin;
+  #                            override to Opus 4.7 for audit-critical work)
+  #   improver   → Sonnet 4.6 (long-running aggregation; override to Opus
+  #                            for deep self-improvement passes if budget
+  #                            allows — 1-2M tokens/run)
   #
-  # Tool permissions are as tight as the role allows — no bash/glob/grep unless
-  # the agent genuinely needs them, to prevent uncontrolled context expansion
-  # and keep the blast radius of a subagent small.
+  # OpenCode users can override any of these post-install by editing the
+  # `model:` line in .opencode/agents/ciel-*.md. Available model IDs:
+  #     anthropic/claude-haiku-4-5-20251001
+  #     anthropic/claude-sonnet-4-6
+  #     anthropic/claude-opus-4-7
+  #
+  # Tool permissions are as tight as the role allows — no bash/glob/grep
+  # unless the agent genuinely needs them, to prevent uncontrolled context
+  # expansion and keep the blast radius of a subagent small.
   local tools_block=""
   local model_id="anthropic/claude-sonnet-4-6"
   case "$role" in
     researcher)
       # Pure read-only web research: no codebase, no shell.
+      # Haiku 4.5: retrieval + synthesis is its sweet spot, structured
+      # output (≤500 tokens target) doesn't benefit from Sonnet's deeper
+      # reasoning. Override to sonnet-4-6 if you see hallucinated findings.
       tools_block=$'tools:\n  write: false\n  edit: false\n  bash: false\n  read: true\n  glob: false\n  grep: false\n  webfetch: true\n  websearch: true'
+      model_id="anthropic/claude-haiku-4-5-20251001"
       ;;
     explorer)
       # Codebase-only: no web, no shell. Read+glob+grep for navigation.
