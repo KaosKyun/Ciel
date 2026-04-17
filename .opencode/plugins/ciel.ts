@@ -177,9 +177,9 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
             (output as any).output = reminder.trimStart();
           }
           
-          // Trigger meta-critiquer after 3+ files changed (task boundary simulation)
+          // META-CRITIQUER trigger (compact)
           if (writtenFiles.size >= 3 && !relireSticky) {
-            console.log(`[CIEL] META-CRITIQUER triggered: ${writtenFiles.size} files changed — dispatch @ciel-critic MODE=RELIRE`);
+            console.log(`[CIEL] META-CRITIQUER: ${writtenFiles.size} files — dispatch @ciel-critic`);
           }
         },
       },
