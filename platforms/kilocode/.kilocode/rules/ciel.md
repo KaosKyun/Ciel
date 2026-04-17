@@ -30,13 +30,18 @@ For full philosophy, guards table, and the research basis behind Ciel, see `refe
 
 1. `quoi-framer`
 2. `avec-quoi-versioner` — read real installed versions, load overlay
-3. **researcher agent** → `research-web-sources` + `research-github-issues` + `validate-source-credibility` + `synthesize-findings` + `fact-check-claims`
-4. **explorer agent** → `pattern-fitness-check` + `flux-narrator` + domain skill parallel (e.g. `frontend-mastery` when React detected)
-5. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
-6. `faire-gatekeeper` during coding
-7. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
-8. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier
-9. `meta-critiquer`
+3. **Project management setup** (if fix/feature intent — skippable with `--no-pm` if user explicit):
+   - `issue-creator` — GitHub issue with RCA / feature spec / acceptance criteria
+   - `branch-setup` — `fix/<N>-<slug>` or `feat/<N>-<slug>` branch from fresh origin/main
+4. **researcher agent** → `research-web-sources` + `research-github-issues` + `validate-source-credibility` + `synthesize-findings` + `fact-check-claims`
+5. **explorer agent** → `pattern-fitness-check` + `flux-narrator` + domain skill parallel (e.g. `frontend-mastery` when React detected)
+6. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
+7. `faire-gatekeeper` during coding → `commit-writer` adds `Refs #<N>` footers
+8. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
+9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier
+10. `pr-opener` — opens PR with `Closes #<N>`, body composed by `pr-body-generator`
+11. `issue-closer` — post-merge, adds evidence comment + closes issue
+12. `meta-critiquer`
 
 ### Critical (all of Standard, PLUS)
 
@@ -60,6 +65,7 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 | Changes to `.github/workflows/`, `.gitlab-ci.yml`, pipeline review | **`cicd-security-hardener`** | `@ciel-explorer` |
 | "accessibility audit", WCAG, a11y, frontend PRs | **`accessibility-wcag-auditor`** | `@ciel-explorer` |
 | Changes to `skills/**/SKILL.md`, skill review | **`skills-first-design-auditor`** | `@ciel-improver` |
+| "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`issue-closer`** | inline (all utility skills) |
 
 **Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
 
@@ -123,6 +129,13 @@ Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented for
 - `meta-critiquer`, `prouver-verifier` — end-of-task orchestration in main session
 - `synthesize-findings` — aggregates research outputs back in main session
 - `learnings-capture` — writes to `ciel-overlay.md` from main session (writes are ok here)
+- **GitHub workflow utility skills** (all inline — deterministic `gh` / `git` commands):
+  - `issue-creator` — `gh issue create` with RCA-derived body
+  - `branch-setup` — `git checkout -b fix/<N>-<slug>` from fresh origin
+  - `commit-writer` — conventional commits + `Refs #<N>` footer
+  - `pr-opener` — `gh pr create` with `Closes #<N>`
+  - `pr-body-generator` — composes the PR body from commits + evidence
+  - `issue-closer` — `gh issue comment` with production evidence + close
 
 ### Anti-pattern to avoid
 
