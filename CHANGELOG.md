@@ -1,5 +1,13 @@
 # Ciel — Changelog
 
+## v2.7.1 — 2026-04-17 — PowerShell install script syntax fix
+
+### Fixed
+
+- **install.ps1 line 131**: Changed `for ($a in @(...))` to `foreach ($a in @(...))` — fixes `Invoke-Expression: Unexpected token 'in'` error when running `irm ... | iex` installation on PowerShell.
+
+---
+
 ## v2.7.0 — 2026-04-17 — Stop-hook `release-gate` — mechanical release discipline
 
 **Context** — v2.6.0 rattrapage answered the immediate backlog (20+ `feat:` commits since v2.0 with zero tags). v2.7.0 prevents recurrence by adding the mechanical enforcement layer, following the same philosophy as v2.5.0's `pre-tool-count.sh` dispatch-gate counter: rules that must hold across many turns need hook-side enforcement, not SKILL.md text.
