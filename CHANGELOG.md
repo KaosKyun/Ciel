@@ -1,5 +1,60 @@
 # Ciel — Changelog
 
+## v2.5.1 — 2026-04-17 — OpenCode dispatch-gate counter port + README refresh
+
+**Context** — v2.5.0 shipped the mechanical dispatch-gate counter as shell hooks (Claude Code only). User asked whether everything differs between Claude and OpenCode, and flagged that README still described v2.0.0 architecture. v2.5.1 closes the biggest parity gap and refreshes the README.
+
+### Changed — `scripts/build-platforms.sh` `emit_opencode_plugin` (dispatch-gate counter port)
+
+TS-plugin port of the Claude `pre-tool-count.sh` + `post-tool-count.sh` pair. Design validated by `@ciel-explorer` before write — the explorer flagged three risks (throw-to-reject unverified, `session.idle` shape unverified, `experimental.session.compacting` shape unverified). Scope tightened to ship only the counter this release; the other two handlers DEFERRED pending `.d.ts` verification.
+
+Added to the plugin closure state (alongside existing `writtenFiles` / `remindedFiles` / `relireSticky` / `lastDepthHint`):
+
+- `const dispatchCounter = new Map<string, number>()` — per-session count.
+- `const INLINE_GATHER_TOOLS = new Set(["bash", "read", "grep", "glob"])` — match set.
+- `const getSessionKey(input)` — best-effort reader with fallback to `"__default"` bucket (input shape for `tool.execute.*` is partially documented; `sessionID` / `session_id` / `sessionId` all attempted).
+
+Added handlers:
+
+- **`tool.execute.before`** — on `bash|read|grep|glob` with count ≥ 5: defense-in-depth rejection. (a) `console.error` the HARD-STOP message (terminal visibility), (b) mutate `output.args` to `{ __ciel_hardstop__: msg }` so the tool call fails at the arg-validation layer if the runtime swallows throws, (c) `throw new Error(msg)` assumed-semantic throw-to-reject. At least one of these three channels will halt the call on any reasonable runtime.
+- **`tool.execute.after`** — extended with an early branch before the existing `write|edit` logic. On `task` → `dispatchCounter.delete(sid)` (dispatch refreshes budget). On `bash|read|grep|glob` → increment counter. Existing `write|edit` FAIRE/RELIRE logic untouched below.
+
+Explorer notes preserved in code comments — future release can verify the `.d.ts` and tighten semantics.
+
+### Deferred — OpenCode parity gaps NOT in this release
+
+- **`session.idle` meta-critiquer**: Claude fires `meta-critiquer` on Stop; OpenCode equivalent needs `session.idle` handler. Shape unverified — explorer proposed two-step flag + `experimental.chat.system.transform` consume pattern. Target: v2.6.0.
+- **`experimental.session.compacting` progress write**: Claude's `pre-compact.sh` writes `.claude/session-progress.md`. OpenCode equivalent would need the compacting hook. Shape unverified; side-channel `fs.promises.writeFile` always works but output-mutation is treated read-only. Target: v2.6.0.
+
+### Changed — `scripts/build-platforms.sh` `LIMIT_opencode_plugin`
+
+Bumped 8192 → 12288. The counter port added ~1.5KB (handlers + state + comments). Plugin loads once per session — ~4KB headroom is not a per-turn cost.
+
+### Changed — `README.md`
+
+Full refresh for the v2.0 → v2.5.1 evolution. Fixed:
+
+- Skill count: 33 → ~50 (workflow 20 + research 6 + domain 10 + utility 8 + meta 5 + orchestrator 1).
+- Command list: 6 → 7 slash commands (`/ciel-audit`, `/ciel-init`, `/ciel-refresh` added; `/ciel` + `/ciel-improve` removed as command files per v2.4.2 — Claude Code auto-routes `/<name>` → same-named skill; OpenCode gets thin wrappers). Note added.
+- Hook list: 7 → 9 events (added `PreToolUse` / `PostToolUse` counter entries). Clarified that the counter hook is the only one that blocks.
+- Platform table: removed stale "AGENTS.md ≤ 30KB Medium" — OpenCode now uses native primitives (TS plugin + subagents + commands).
+- Install flow: added note that `/ciel-init --user` + restart is required for hooks to fire. Without it, silent no-op.
+- Self-update: updated paths (network one-liner + plugin path + repo clone), mentioned v2.4.7 cache-bust + v2.4.6 preserve-list.
+- Self-improvement section: added `/ciel-refresh` (outside-world-driven) on orthogonal axis to `/ciel-improve` (transcript-driven).
+- Hooks table: removed "Hooks never block writes" line (no longer true as of v2.5.0).
+- Research basis: added CriticBench 2024 reference (motivates fresh-fork dispatch).
+
+### Regenerated
+
+`platforms/opencode/.opencode/plugins/ciel.ts` — now 9638 bytes (was ~6.1KB). `platforms/opencode/AGENTS.md` — title bumped to v2.5.1.
+
+### Known non-goals
+
+- `.d.ts` verification — still only asserted via code comments, not a file check-in. Pre-v2.6.0 work item: add a `bun install @opencode-ai/plugin && cp node_modules/.../index.d.ts tests/fixtures/` step so design decisions have a canonical reference.
+- Counter-throw verification — relies on `console.error` + args mutation + throw (three channels). A regen-test on real OpenCode would confirm at least one channel halts; not yet automated.
+
+---
+
 ## v2.5.0 — 2026-04-17 — Mechanical dispatch-gate counter + audit-driven fixes
 
 **Context** — `/ciel-audit` on the v2.4.7 session surfaced 4 violations:

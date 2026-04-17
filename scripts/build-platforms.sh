@@ -39,7 +39,10 @@ LIMIT_codex=65536
 LIMIT_opencode=32768
 LIMIT_kilo=65536
 LIMIT_opencode_agents_md=6144
-LIMIT_opencode_plugin=8192
+# Bumped 8192 → 12288 in v2.5.1 to fit the dispatch-gate counter port
+# (tool.execute.before hook + closure state + defense-in-depth). Plugin body
+# loads once per session, so ~4KB headroom is not a per-turn cost.
+LIMIT_opencode_plugin=12288
 LIMIT_opencode_agent=65536
 # Command bodies are loaded only on slash invocation, not in session baseline,
 # so per-command byte count doesn't compound. 16KB gives headroom for /ciel-init
@@ -803,6 +806,23 @@ const ciel: Plugin = async ({ \$ }) => {
   let relireSticky = false; // once true, every turn re-injects the RELIRE notice
   let lastDepthHint: string | null = null;
 
+  // Dispatch-gate counter (v2.5.1) — Claude Code parity. Per-session count
+  // of inline bash|read|grep|glob calls; reset on task dispatch. At 5+ the
+  // tool.execute.before hook throws to reject the next tool call AND
+  // mutates output.args into an invalid form so the tool fails loud even
+  // if throw-to-reject is swallowed by the runtime (defense in depth).
+  //
+  // Session key: best-effort from any input field that looks like a
+  // session id; falls back to a single "__default" bucket if absent.
+  // (input shape for tool.execute.* hooks is not fully documented; one
+  // bucket means the counter is effectively global when no sessionID is
+  // exposed — acceptable because OpenCode runs one session per plugin
+  // module instance in practice.)
+  const dispatchCounter = new Map<string, number>();
+  const INLINE_GATHER_TOOLS = new Set(["bash", "read", "grep", "glob"]);
+  const getSessionKey = (input: any): string =>
+    input?.sessionID ?? input?.session_id ?? input?.sessionId ?? "__default";
+
   return {
     event: async ({ event }) => {
       if (event.type === "session.created") {
@@ -865,11 +885,52 @@ const ciel: Plugin = async ({ \$ }) => {
 
     tool: {
       execute: {
+        // Dispatch-gate counter (v2.5.1) — Claude Code parity. Throws at
+        // N>=5 to reject the 6th+ inline bash|read|grep|glob call AND
+        // mutates args to a clearly-invalid form so the tool fails loud
+        // if the runtime swallows the throw. WARNING: OpenCode's
+        // throw-from-before semantic is not formally documented — the
+        // args mutation is the belt-and-suspenders fallback.
+        before: async (input, output) => {
+          if (!INLINE_GATHER_TOOLS.has(input.tool)) return;
+          const sid = getSessionKey(input);
+          const count = dispatchCounter.get(sid) ?? 0;
+          if (count < 5) return;
+
+          const msg = \`[CIEL HARD-STOP] Dispatch gate exceeded (\${count} inline calls without a Task() on a Standard+ task). Dispatch @ciel-researcher / @ciel-explorer / @ciel-critic now with [ASSUMED] markers for unresolved inputs. Further investigation belongs INSIDE the fork, not in the main session.\`;
+          console.error(msg);
+          // Belt: nullify the tool args so the tool call errors out if
+          // throw is swallowed. OpenCode tool.execute.before output is
+          // { args } — mutating it flows to the tool invocation.
+          if (output && typeof output === "object") {
+            (output as any).args = { __ciel_hardstop__: msg };
+          }
+          // Suspenders: throw to reject (assumed semantic).
+          throw new Error(msg);
+        },
+
         // Append FAIRE/RELIRE reminder to the tool result text. OpenCode's
         // tool.execute.after output is { title, output, metadata } — the
         // \`output\` field is the tool result string surfaced to the model.
         // Mutation here is the ONLY way to inject per-tool context.
+        //
+        // Also maintains the v2.5.1 dispatch-gate counter: increment on
+        // bash|read|grep|glob, reset on task. Runs BEFORE the existing
+        // write|edit branch; both paths are independent (same handler,
+        // different early-return gates).
         after: async (input, output) => {
+          // Counter maintenance — incremented on tool SUCCESS (post-hoc),
+          // read by tool.execute.before next time around.
+          const sid = getSessionKey(input);
+          if (input.tool === "task") {
+            dispatchCounter.delete(sid);
+            return;
+          }
+          if (INLINE_GATHER_TOOLS.has(input.tool)) {
+            dispatchCounter.set(sid, (dispatchCounter.get(sid) ?? 0) + 1);
+            return;
+          }
+
           if (!["write", "edit"].includes(input.tool)) return;
           const args: any = (input as any).args ?? {};
           const filePath: string = args.file_path ?? args.path ?? "";
