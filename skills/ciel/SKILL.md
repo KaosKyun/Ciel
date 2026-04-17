@@ -20,7 +20,7 @@ For full philosophy, guards table, and the research basis behind Ciel, see `refe
 | Level | Example | Pipeline |
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-line fix | `quoi-framer` → `pattern-fitness-check` → `faire-gatekeeper` → `relire-critic` (inline) → push |
-| **Standard** | hook, route, component, service | Full pipeline minus `stride-analyzer` + `security-regression-check` |
+| **Standard** | hook, route, component, service, **review open PRs + fix blocking CI** | Full pipeline minus `stride-analyzer` + `security-regression-check` |
 | **Critical** | auth, DB schema, security, payment | Full pipeline including `stride-analyzer` + `security-regression-check` |
 
 Unsure → Standard. Touching user data or auth → Critical.
@@ -51,7 +51,7 @@ Invoke `depth-classifier` if classification is ambiguous (mechanical signals: `a
 6. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
 7. `faire-gatekeeper` during coding → `commit-writer` adds `Refs #<N>` footers
 8. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
-9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier
+9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before `gh pr merge --auto` — auto-merge is the consequence of this gate passing, not a parallel shortcut. Enabling auto-merge without first running prouver-verifier skips the evidence capture and blurs accountability when CI flakes mid-queue.**
 10. `pr-opener` — opens PR with `Closes #<N>`, body composed by `pr-body-generator`
 11. `issue-closer` — post-merge, adds evidence comment + closes issue
 12. `meta-critiquer`
@@ -93,6 +93,13 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 **Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
 
 **Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
+
+**Mid-session re-routing rule** (added v2.4.1): the routing table above is **not one-shot at invocation**. Re-scan it on every `Edit` / `Write` tool call using the **target file path** as the signal (in addition to the prompt-text scan done at invocation). Examples:
+
+- First edit targets `.github/workflows/ci.yml` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing the edit**, even if the original prompt was "review open PRs".
+- First edit targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
+
+A task that **starts** as "PR review" can drift into "CI hardening" mid-session — the routing table must catch that drift. Not re-routing here is the failure mode documented in the 2026-04-17 audit (intent routing miss on `cicd-security-hardener`).
 
 ---
 
@@ -143,6 +150,14 @@ When asking, ask ONE specific question with 2-3 concrete options. Never ask open
 **Hard rule**: gather ONLY the inputs the target skill declares in its INPUTS section. As soon as all declared fields are filled (with `[ASSUMED]` or `[UNKNOWN]` markers where auto-inference failed), **IMMEDIATELY dispatch via the Task tool**. Further investigation belongs INSIDE the fork, not in the main session.
 
 **Budget**: max 5 Bash/Read/Grep calls OR 2 minutes of gathering — whichever comes first. Past that threshold, dispatch with whatever you have and let the fork drill down.
+
+**[DISPATCH GATE] hard-stop** (added v2.4.1 after PR-review audit): on the **5th** inline Bash/Read/Grep call of a Standard+ task, emit a visible checkpoint to the user:
+
+```
+[DISPATCH GATE] Budget exhausted (5 inline calls). Dispatching @ciel-researcher + @ciel-explorer now with [ASSUMED] markers for unresolved inputs. Further investigation continues inside the forks.
+```
+
+Then **immediately** issue the Task() dispatches on the same turn. No "one more check first", no "let me just verify X" — those belong in the fork. Skipping this checkpoint on a Standard+ task is a dispatch-discipline failure and triggers the `Dispatch gate bypass` guard in `reference.md`.
 
 **Anti-pattern (observed in v2.1.5)**:
 ```

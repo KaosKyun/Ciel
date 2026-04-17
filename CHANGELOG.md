@@ -1,5 +1,35 @@
 # Ciel — Changelog
 
+## v2.4.1 — 2026-04-17 — Orchestrator discipline + command-skill deduplication
+
+**Context** — Two issues surfaced right after v2.4.0: (a) a post-hoc audit of a real `/ciel` session found that `researcher` + `explorer` were never dispatched and `.github/workflows/` edits skipped `cicd-security-hardener`, despite both being mandatory; (b) on install, `commands/ciel.md` + `skills/ciel/SKILL.md` (and same for `ciel-improve`) showed up as two near-identical entries in the available-skills list — confusing, looks like duplication.
+
+### Changed — `skills/ciel/SKILL.md` (4 discipline fixes from the 2026-04-17 audit)
+
+1. **Depth gauge row** — added `review open PRs + fix blocking CI` to the Standard examples. PR review with a CI fix is Standard, not Trivial — the classifier was reading it as low-effort.
+2. **Dispatch gate hard-stop** — after the "whichever comes first" budget line, added an explicit `[DISPATCH GATE]` checkpoint instruction: on the 5th inline Bash/Read/Grep call of a Standard+ task, emit the checkpoint visibly to the user and dispatch Task() on the same turn. No "one more check first".
+3. **Mid-session re-routing rule** — the intent routing table is no longer one-shot at `/ciel` invocation. Re-scan it on every Edit/Write using the target file path (e.g., first edit on `.github/workflows/` matches `cicd-security-hardener` → dispatch `@ciel-explorer` BEFORE writing). Catches late-emerging intents when a task's scope drifts.
+4. **Auto-merge ordering constraint on `prouver-verifier`** — appended a MUST: complete prouver-verifier BEFORE `gh pr merge --auto`. Auto-merge is the consequence of the gate passing, not a parallel shortcut.
+
+### Changed — `commands/ciel.md` + `commands/ciel-improve.md` (thin wrappers)
+
+Both command files had ~60-70 lines re-stating what their same-named skills already document. They now ship as ≤20-line thin wrappers that invoke the matching skill via the Skill tool with `$ARGUMENTS`. The frontmatter `description` explicitly identifies them as "Slash trigger for the X skill" so they no longer visually collide with the skill's own description in the available-skills list. The skill is the single source of truth for the orchestration logic; the command is a UX shim.
+
+### Changed — `scripts/build-platforms.sh`
+
+- Added `CIEL_VERSION=$(cat VERSION)` at the top and interpolated it into the generated `ciel.ts` header comment (`// Ciel — OpenCode plugin (v${CIEL_VERSION})`). Future version bumps no longer drift the TS plugin comment.
+
+### Regenerated
+
+`platforms/opencode/.opencode/plugins/ciel.ts` (version string) + `.opencode/commands/ciel.md` + `ciel-improve.md` (thin wrappers).
+
+### Intentional non-goals
+
+- No rename of the `ciel` / `ciel-improve` skills or commands (would break muscle memory and existing references in SKILL.md / docs / README).
+- No deletion of the command files (Claude Code needs a registered slash command to show `/ciel` in the picker — removing them would hide the trigger even though the skill still exists).
+
+---
+
 ## v2.4.0 — 2026-04-17 — Real OpenCode parity, platform-aware `/ciel-init`
 
 **Context** — The OpenCode build (`platforms/opencode/`) shipped since v2.1.0 was functionally broken for model-context injection: `chat.params.output.system.push(...)` was a silent no-op (`chat.params` has no `system` field in the published `@opencode-ai/plugin` types), and `tool.execute.before/after` reminders were `console.log` calls that reach the terminal, never the model. Verified against `@opencode-ai/plugin/dist/index.d.ts`. v2.4.0 rewires the plugin to use the verified-correct hooks and ports `/ciel-init` to OpenCode.

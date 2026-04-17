@@ -1,71 +1,17 @@
 ---
-description: Runs the Ciel improver agent on recent session transcripts to detect failure modes and produce a patch-set of skill rewrites for user approval.
+description: Slash trigger for the `ciel-improve` skill. Use `/ciel-improve [scope]` to run a self-improvement pass on recent session transcripts. The skill holds the patch-set generation logic.
 ---
 
-# /ciel-improve — Self-improvement pass
+# /ciel-improve — Slash trigger
 
-*Analyzes recent session transcripts, detects repeated failure modes and user corrections, and proposes concrete skill improvements as a patch-set for user approval.*
-
-Usage: `/ciel-improve [scope]`
-
-- `scope` defaults to `last-10-sessions`
-- Other scopes: `last-N-sessions`, `since-date=YYYY-MM-DD`, `skill=<name>`, `project-only`
-
----
-
-## What it does
-
-1. Dispatches the `improver` agent in MODE=IMPROVE
-2. The agent invokes `ciel-improve` skill → `skill-variant-evaluator` for each candidate patch
-3. Returns a structured patch-set: for each skill to improve, shows BEFORE / AFTER blocks with eval scores
-4. Waits for user approval on each patch (y/n/edit)
-5. Applies approved patches + auto-generates commit messages
-
----
-
-## Example output
+Invoke the `ciel-improve` skill via the Skill tool with the scope argument:
 
 ```
-# Ciel improvement proposals — 2026-04-17T14:23
-
-Sessions analyzed: 10
-Issues detected: 4
-Patches proposed: 3
-
-## Patch 1 — skills/workflow/flux-narrator/SKILL.md
-Issue: REPEATED — user corrected "missing test-specific items" 3 times across sessions
-Sessions affected: 3
-Baseline score: 0.71 | Candidate B score: 0.88 (winner)
-
---- BEFORE (lines 34-38)
-- Test level: unit / integration / E2E
---- AFTER
-- Test level: unit (isolated logic) / integration (layer boundary) / E2E (user flow)
-- Mandatory when writing tests: URL routing, mock lifecycle, timing — see reference.md
-
-Approve? [y/n/edit]
+$ARGUMENTS
 ```
 
----
-
-## Guardrails
-
-- **Max 5 patches per run** — prevents noise
-- **Always patch-set, never autonomous rewrite** — you approve each change
-- **Preserves YAML validity** — every proposed patch validates against the skill schema
-- **Logs rejected patches** — `evals/results/rejected-patches.jsonl` for future proposal improvements
+Scope defaults to `last-10-sessions` if `$ARGUMENTS` is empty. Other valid scopes: `last-N-sessions`, `since-date=YYYY-MM-DD`, `skill=<name>`, `project-only`.
 
 ---
 
-## When to run
-
-- Monthly routine — catch process drift early
-- After a significant failure — post-incident analysis
-- Before a major version bump — ensure baseline quality
-- When you've corrected Claude on the same thing 3+ times — time to make it a rule
-
----
-
-## Cost
-
-Typical run consumes 1-2M tokens across sub-skill evaluations. Projected cost is displayed before the run — you can abort.
+**Note**: this command file is a thin wrapper. The patch-set generation, variant evaluation, and approval flow all live in `skills/meta/ciel-improve/SKILL.md`. Modify the skill, not this file, to change behavior.

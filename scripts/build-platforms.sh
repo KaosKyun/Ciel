@@ -20,6 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SKILLS="$ROOT/skills"
 PLATFORMS="$ROOT/platforms"
+CIEL_VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION" 2>/dev/null || echo "0.0.0")"
 
 CHECK_ONLY=false
 TARGET="all"
@@ -719,7 +720,7 @@ emit_opencode_plugin() {
   local out="$1"
   # Inject the regex globals into the TS source so there is a single source of truth.
   cat > "$out" <<EOF
-// Ciel — OpenCode plugin (v2.4.0)
+// Ciel — OpenCode plugin (v${CIEL_VERSION})
 // Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
