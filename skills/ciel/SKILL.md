@@ -89,6 +89,51 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 
 ---
 
+## Dispatch directive — Skill tool vs Task tool
+
+**MANDATORY**: before invoking a Ciel skill, check its frontmatter.
+
+| Frontmatter | Invocation method | Why |
+|---|---|---|
+| `context: fork` + `agent: <role>` | **Task tool** → dispatch `@ciel-<role>` subagent with the skill as its primary instruction | Fork context = fresh perspective, blind-spot mitigation (CriticBench), isolated tool permissions. Inline defeats the whole point. |
+| No `context: fork` (or `context: inline`) | **Skill tool** inline in main session | Deterministic / lightweight / orchestration — fork overhead unjustified. |
+
+### Fork-context skills (ALWAYS dispatch via Task, never inline)
+
+- `debug-reasoning-rca` → `Task(@ciel-critic, "MODE=RCA SYMPTOM=... REPRO=... SCOPE=...")`
+- `doc-validator-official` → `Task(@ciel-researcher, "TARGET_STACK=... PROPOSED_APIS=...")`
+- `modern-patterns-checker` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... TARGET_STACK=...")`
+- `ai-failure-modes-detector` → `Task(@ciel-explorer, "CODE_UNDER_REVIEW=... AUTHOR=...")`
+- `self-consistency-verifier` → `Task(@ciel-critic, "PROBLEM=... STAKES=Critical")`
+- `test-strategy-vitest-playwright` → `Task(@ciel-explorer, "FEATURE=... COMPONENTS=...")`
+- `playwright-visual-critic` → `Task(@ciel-explorer, "TARGET_URL=... VIEWPORT=...")`
+- `cicd-security-hardener` → `Task(@ciel-explorer, "PIPELINE_FILES=...")`
+- `skills-first-design-auditor` → `Task(@ciel-improver, "SKILL_PATH=...")`
+- All `skills/research/*` → dispatched by `@ciel-researcher`
+- `pattern-fitness-check`, `flux-narrator`, `critiquer-auditor`, `stride-analyzer`, `security-regression-check` → dispatched by their declared agent
+- All `skills/domain/*` skills with `context: fork` → dispatched by `@ciel-explorer`
+
+### Inline-OK skills (Skill tool direct)
+
+- `ciel` (this orchestrator) — must stay inline; it IS the main session's reasoning trace
+- `depth-classifier`, `quoi-framer`, `avec-quoi-versioner` — deterministic, fast, feed the main pipeline
+- `faire-gatekeeper`, `evaluer-sizer` — active during main-session implementation
+- `relire-critic` (inline fallback for Trivial / Standard <3 files; dispatched via `@ciel-critic` for 3+ files or Critical)
+- `meta-critiquer`, `prouver-verifier` — end-of-task orchestration in main session
+- `synthesize-findings` — aggregates research outputs back in main session
+- `learnings-capture` — writes to `ciel-overlay.md` from main session (writes are ok here)
+
+### Anti-pattern to avoid
+
+```
+❌ "Intent matched → Skill(debug-reasoning-rca)"    // inline, loses fork context
+✅ "Intent matched → Task(@ciel-critic, 'MODE=RCA SYMPTOM=...')"  // fork, fresh perspective
+```
+
+**If you catch yourself invoking a `context: fork` skill via the Skill tool, stop and re-issue via Task.**
+
+---
+
 ## Agent dispatch rules
 
 | Agent | Step | Context | Mandatory |
