@@ -75,6 +75,49 @@ Ciel can create and improve its own skills through the `meta/` subsystem:
 
 ## Workflow skills (detail)
 
+### ai-failure-modes-detector
+
+
+# ai-failure-modes-detector — Catch confident-wrong before it lands
+
+LLM-generated code compiles more often than it's correct. Six failure modes account for >90% of post-merge incidents in agentic PRs (ISSTA 2025). This skill runs each check systematically.
+
+
+## The six failure modes
+
+### 1. Invented APIs
+
+Function/class/method that doesn't exist in the library at the pinned version.
+
+**Detection**:
+- Grep every import and every method call on imported symbols
+- Cross-reference with `node_modules/<pkg>/package.json` + type definitions
+- For dynamic imports (`await import()`), inspect at runtime if possible
+
+**Signal**: import resolves but `<symbol>` not in the `.d.ts` or `__init__.py`.
+
+### 2. Hallucinated dependencies
+
+`npm package` or `pip package` that doesn't exist on the registry (or typo-squat).
+
+**Detection**:
+- For each new dep in PROPOSED_DEPS: `npm view <pkg> --json` or `pip index versions <pkg>`
+- Check publisher reputation (weekly downloads, last publish date, repo link present)
+- Typo-squat check: Levenshtein distance ≤ 2 from a popular package name is SUSPICIOUS
+
+**Signal**: registry returns 404, or package has < 100 downloads/week with no repo.
+
+### 3. Version drift
+
+Code uses an API that exists but at a different version than pinned.
+
+**Detection**:
+- For each external API call, check "Added in vX.Y" / "Deprecated in vX.Y" metadata
+- Compare against pinned version in lockfile
+
+**Signal**: API exists in v2, code pins v1 — silently broken.
+
+
 ### avec-quoi-versioner
 
 
@@ -156,6 +199,49 @@ Output: counterfactual + proportionality judgment.
 - **STRIDE all 6 categories**: S / T / R / I / D / E — mark N/A explicitly, never skip silently
 - OPS lens: unclosed connections, memory leaks, locks, 100x volume
 
+### debug-reasoning-rca
+
+
+# debug-reasoning-rca — Reason to the root, don't patch the symptom
+
+Default LLM failure mode when debugging: jump to the first plausible fix. That's symptom-patching. Proper debugging is hypothesis-driven (Hunt & Thomas) and catches 75% more recurrences (STRATUS 2025).
+
+
+## Phase 1 — Context seeding (5 min max)
+
+Gather before hypothesizing. Skipping this phase = hypotheses based on vibes.
+
+1. **Read the error** literally. Stack trace, log line, exit code. What does the system actually say?
+2. **Read the failing code** at the exact file:line from the trace. Not the surrounding code yet.
+3. **Check recent changes** — `git log -p --since="7 days ago" -- <scope>`. A bug that appeared recently has a recent cause.
+4. **Run the repro once** and capture full output to `/tmp/ciel-rca-<id>.log`.
+
+
+## Phase 3 — Parallel validation
+
+For each hypothesis, run ONE targeted check (not fix). Max 10 min total.
+
+- MODEL → add a log line or unit test asserting the expected invariant
+- CONTEXT → dump the actual input/config at the failure point; diff vs expected
+- ORCHESTRATION → check retry count, timeout value, queue depth at failure time
+- ENVIRONMENT → `<pkg-mgr> list | grep <dep>` vs `package-lock.json`; `uname -a`; deployment age
+
+Record: evidence collected, H<n> supported/refuted/inconclusive.
+
+
+## Phase 5 — Corrective suggestion
+
+Two layers:
+
+- **Direct fix** — address the supported hypothesis (the bug itself)
+- **Systemic fix** (optional) — address why the bug was possible (missing test, missing alert, missing type, missing config review process)
+
+Systemic fix is the 75% MTTR-reduction lever per STRATUS — don't skip it on Critical bugs.
+
+
+## Guardrails
+
+
 ### depth-classifier
 
 
@@ -198,6 +284,49 @@ If unsure → **Standard**. If touching user data or auth → **Critical**.
 ## DEPTH CLASSIFICATION
 
 Depth: **Trivial | Standard | Critical**
+
+### doc-validator-official
+
+
+# doc-validator-official — Official docs first, blogs never
+
+LLM hallucination of APIs is the #1 coding failure mode (ISSTA 2025). Functions that don't exist, wrong version signatures, parameters invented, return types fabricated. Advanced RAG against official docs eliminates this class of bug.
+
+
+## Phase 1 — Extract exact versions
+
+Read package manifests. For each lib in PROPOSED_APIS extract the pinned version:
+
+```bash
+# npm/yarn/pnpm
+jq -r '.dependencies + .devDependencies | to_entries[] | "\(.key) \(.value)"' package.json
+
+# go
+grep -E '^\s*<lib>' go.mod
+
+# python
+grep -E '^<lib>' requirements.txt pyproject.toml
+```
+
+Record as `{lib_name, pinned_version, source_file:line}`.
+
+If version is a range (`^1.2.0`) → resolve the actual installed version from lockfile (`package-lock.json`, `yarn.lock`, `uv.lock`, `Cargo.lock`). Never validate against a range.
+
+
+## Phase 3 — Validate each proposed API
+
+For each item in PROPOSED_APIS:
+
+1. **Fetch the official doc page** for that function/class.
+2. **Verify the signature matches** — function exists, parameter names and types match, return type matches.
+3. **Verify version availability** — "Added in vX.Y" metadata. If the pinned version < X.Y, the API doesn't exist in this project yet.
+4. **Capture citation** — URL + section header + (if possible) quoted signature.
+
+Output per API:
+```
+[VALID] lib.funcName(a: T1, b: T2): T3
+  Source: <URL>#section
+  Cited: "funcName(a, b) → T3 — Added in 1.4.0"
 
 ### evaluer-sizer
 
@@ -343,6 +472,49 @@ The feedback loop: task → reflection → Guard update or overlay rule. Without
 - User says "let's wrap up" or "what did we miss?"
 - After a significant failure or user correction
 
+### modern-patterns-checker
+
+
+# modern-patterns-checker — Don't ship 2019-era code in 2026
+
+LLMs over-weight patterns that dominated their training set years ago. Without a guardrail, React class components, callback-based async, and sync-APIs-in-async-codebases keep leaking into new PRs. ThoughtWorks 2026 calls this "cognitive debt from AI autocompletion."
+
+
+## Anti-pattern catalogue (2026)
+
+### TypeScript / JavaScript
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| `class Foo extends React.Component` | Functional component + hooks |
+| `componentDidMount / componentDidUpdate` | `useEffect` (or Server Component for data fetching) |
+| `.then().catch()` chains > 2 links | `async/await` with `try/catch` |
+| `require()` in a project with `"type":"module"` | `import` (ESM) |
+| `var` | `const` / `let` |
+| `null`-checks everywhere | Discriminated unions + `?.` / `??` |
+| `any` as escape hatch | `unknown` + narrowing, or proper type |
+| `lodash.get` / `lodash.set` | Optional chaining `?.` + `??` |
+| `fetch().then(r => r.json()).then(...)` | `await fetch()` + `await r.json()` |
+| `moment.js` | `Temporal` API (Node 22+) or `date-fns` |
+| Redux for local UI state | `useState` / `useReducer` / Zustand |
+| PropTypes | TypeScript types |
+
+### Python
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| `print` as debug | `logging` with structured fields |
+| `%`-format or `.format()` | f-strings |
+| `dict.has_key(k)` | `k in dict` |
+| Nested `if` guards | Early-return pattern |
+| Bare `except:` | `except SpecificError:` |
+| `os.path.join` | `pathlib.Path` |
+| Sync `requests` in async codebase | `httpx.AsyncClient` / `aiohttp` |
+| `dataclass` without `slots=True` | `@dataclass(slots=True)` (3.10+) |
+| `typing.List`, `typing.Dict` | Built-in `list`, `dict` (3.9+ PEP 585) |
+| `from typing import Optional` | `X \| None` (3.10+ PEP 604) |
+
+
 ### pattern-fitness-check
 
 
@@ -384,6 +556,49 @@ For impacted files, build a minimal map:
 - **HUB threshold**: 5+ importers is the default; adjust per project size. A core util imported by 50+ files is extremely high-ripple — needs cross-team coordination.
 - **Don't over-adapt**: if adaptation grows to > 50 lines different from the original, just write new code. Adapting is not saving effort.
 
+
+### playwright-visual-critic
+
+
+# playwright-visual-critic — See before shipping UI
+
+UI bugs invisible to code review: clipped text, contrast failures, broken focus order, mobile overflow. The 2026 pattern is NOT "screenshot → vision model"; it's "accessibility tree → structured critique", which is 20-50x cheaper and more accurate.
+
+
+## Inputs
+
+```
+TARGET_URL: [http://localhost:3000/page OR a deployed preview URL]
+VIEWPORT: [mobile | tablet | desktop | all]
+FOCUS_AREAS: [layout | contrast | keyboard-nav | responsive | all]
+RECENT_CHANGES: [components/pages modified in the current diff]
+```
+
+
+## Phase 2 — Capture via Playwright MCP
+
+Invoke Playwright MCP tools in this order:
+
+1. **`browser_navigate`** — `{ url: TARGET_URL }`
+2. **`browser_resize`** — for each viewport in VIEWPORT (375 mobile, 768 tablet, 1440 desktop)
+3. **`browser_snapshot`** — accessibility tree (returns structured YAML/JSON)
+4. **`browser_take_screenshot`** — only if VISUAL_REGRESSION=true (cost optimization)
+5. **`browser_console_messages`** — check for JS errors / a11y violations
+
+Save each snapshot to `/tmp/ciel-visual-<id>/<viewport>.yaml`.
+
+
+## Phase 4 — Visual critique checklist
+
+Critic must verify per viewport:
+
+### Layout
+- [ ] No horizontal overflow (accessibility tree has no element with `scrollable: true` on x-axis for main content)
+- [ ] No clipped text (elements with `hidden: true` while `expected: visible`)
+- [ ] No zero-size interactive elements (touch targets ≥ 24×24px per WCAG 2.5.8)
+
+### Contrast & color
+- [ ] Text contrast ≥ 4.5:1 (normal text) / 3:1 (large text) — report any `contrast_ratio < threshold` from the accessibility tree
 
 ### prouver-verifier
 
@@ -540,6 +755,49 @@ Diff scope: <N files, +X -Y lines>
 Any Critical → relire-critic must include as mandatory checklist item.
 ```
 
+### self-consistency-verifier
+
+
+# self-consistency-verifier — If three of you disagree, one of you is wrong
+
+A confident LLM that generates three semantically identical solutions is probably right. A confident LLM that generates three divergent solutions is the dangerous case — it'll ship whichever came out first. Self-consistency is the cheapest high-signal uncertainty estimator available (IdentityChain openreview caW7LdAALh).
+
+
+## Phase 1 — Generate 3 diverse solutions
+
+Re-prompt the LLM (or the current agent) 3 times with DIVERSIFYING seeds. The goal is divergent initial approaches, not different variable names.
+
+### Diversification strategies (pick 3 out of 5)
+
+1. **Constraint-reorder** — restate the problem with constraints in a different order
+2. **Language-shift** — ask for a 5-line pseudocode first, THEN translate to target language
+3. **Test-first** — ask for the test cases, THEN the implementation
+4. **Adversarial framing** — "what would break this naïve solution?" then write the robust version
+5. **Reference implementation** — "find the canonical pattern for this in the standard library" then adapt
+
+Record each solution as `solution_1.txt`, `solution_2.txt`, `solution_3.txt` in `/tmp/ciel-consistency-<id>/`.
+
+
+## Phase 3 — Interpret divergence
+
+When solutions diverge, the divergence itself is diagnostic:
+
+| Divergence type | Interpretation | Action |
+|---|---|---|
+| One solution handles edge case X, others don't | Missing explicit constraint | Add constraint, re-generate |
+| Solutions use different libraries | Library choice under-specified | Pin the lib, pick one, re-generate |
+| Solutions use different algorithms with different complexity | Performance under-specified | Add perf constraint |
+| Solutions have different error-handling | Error model under-specified | Specify what errors to surface |
+| Two solutions agree, one is outlier | Majority-vote the two, investigate outlier for missed insight | Use the majority |
+| All three disagree | Problem under-specified or too hard | Escalate to human |
+
+
+## Output format
+
+```
+## SELF-CONSISTENCY VERDICT
+
+
 ### stride-analyzer
 
 
@@ -582,6 +840,49 @@ IMPORTANT: <list or none>
 
 
 ## When triggered
+
+### test-strategy-vitest-playwright
+
+
+# test-strategy-vitest-playwright — Test pyramid, not ice-cream-cone
+
+The anti-pattern is 70% E2E Playwright, 5% unit — slow CI, flaky, expensive. The 2026 pyramid: most tests at the unit level, very few real-browser E2E, property-based for boundary conditions.
+
+
+## The 2026 pyramid (target ratios)
+
+```
+        ┌───────────────┐
+        │  E2E (10%)     │  Playwright — critical user paths only
+        ├───────────────┤
+        │  Integ (20%)   │  Vitest + MSW (no real network) OR test DB
+        ├───────────────┤
+        │                │
+        │  Unit (70%)    │  Vitest — pure logic, reducers, utils
+        │                │
+        └───────────────┘
+```
+
+Property-based (`fast-check`) crosscuts all levels for boundary conditions.
+
+
+## What to mock, what to hit real
+
+| System | Mock? | Rationale |
+|---|---|---|
+| External HTTP APIs | Yes (MSW) | Flaky, slow, rate-limited |
+| Internal microservices | Yes (MSW) for unit/integ; real for E2E | Keep blast radius small |
+| Database | Real (in-memory or container) | Too many bugs hide in ORM/raw-SQL mismatch |
+| Time (`Date.now`) | Yes (vi.useFakeTimers) | Non-determinism otherwise |
+| Randomness | Yes (seeded PRNG) | Same reason |
+| Filesystem | Real (temp dir) for integ; mock for unit | `memfs` is fine for pure tests |
+| Auth tokens | Real signed test token | Mocked tokens hide signature-validation bugs |
+| Third-party SDK | Mock at module boundary | Not at network level |
+
+
+## Guardrails
+
+- **Pyramid ratios are targets, not strict quotas** — a pure-UI feature may skew E2E higher; a pure-algorithm feature may be 95% unit.
 
 ---
 

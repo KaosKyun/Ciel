@@ -1,5 +1,54 @@
 # Ciel — Changelog
 
+## v2.1.0 — 2026-04-17 — 10 new skills + MCP opt-in + uninstall/update
+
+**Context** — v2.0.0 landed the skills-first architecture but left gaps in the reasoning coverage (no debugging RCA, no official-doc validator, no anti-pattern 2026 guardrail, no AI-failure-mode detector), did not exploit available MCP servers (Playwright for visual critique, Context7 for live docs), and the installer had no clean uninstall or update path. v2.1.0 closes all three gaps in one pass.
+
+### Added — 10 new skills
+
+- **`skills/workflow/debug-reasoning-rca/`** — Root-Cause Analysis with 3 parallel hypotheses, fault-type classification (model/context/orchestration/environment), semantic diff. Dispatched via `@ciel-critic`. 75% MTTR reduction target (STRATUS).
+- **`skills/workflow/doc-validator-official/`** — Fetches official docs for the pinned lib version, validates every proposed API call, rejects Stack Overflow as primary source. Flags cutoff-warning for libs post-January 2026. Dispatched via `@ciel-researcher`.
+- **`skills/workflow/modern-patterns-checker/`** — Detects obsolete patterns (React classes, Python 2, sync-in-async, CommonJS in ESM, old Go error handling) with 2026 canonical replacements. ThoughtWorks Technology Radar April 2026.
+- **`skills/workflow/ai-failure-modes-detector/`** — Six canonical LLM failure modes: invented APIs, hallucinated deps, version drift, async/sync mismatch, confident-wrong, extrinsic hallucination. Dispatched via `@ciel-explorer`.
+- **`skills/workflow/self-consistency-verifier/`** — IdentityChain pattern: 3 diverse solutions, AST compare, behavioral compare, consistency score. Dispatched via `@ciel-critic` for Critical tasks.
+- **`skills/workflow/test-strategy-vitest-playwright/`** — Pyramid 70/20/10 (unit/integration/E2E), Vitest + MSW + Playwright + fast-check. Accessibility-tree assertions over screenshots.
+- **`skills/workflow/playwright-visual-critic/`** — Wraps Playwright MCP: navigate → accessibility-tree snapshot → dispatch `@ciel-critic`. Requires `--with-mcp=playwright`. Documents OpenCode gap #2319.
+- **`skills/domain/cicd-security-hardener/`** — SLSA Level 3 baseline, Sigstore/Cosign keyless, ephemeral runners, SBOM, no long-lived cloud credentials, no `pull_request_target` with untrusted checkout.
+- **`skills/domain/accessibility-wcag-auditor/`** — WCAG 2.2 AA (legal baseline April 2026 via ADA Title II / EN 301 549). Focus Not Obscured 2.4.11, Target Size 2.5.8, Accessible Auth 3.3.8. Manual + automated layers.
+- **`skills/meta/skills-first-design-auditor/`** — Lints new skills against Anthropic's April 2026 skills guide (≤500 lines, 2-3 examples, executable checks, clear trigger). Dispatched via `@ciel-improver`.
+
+### Added — MCP integration
+
+- **`.mcp.json`** — project-scope template with `playwright` (@playwright/mcp) and `context7` (@upstash/context7-mcp). Opt-in only.
+- **`install.sh --with-mcp=playwright,context7`** — merges selected servers into `$PROJECT_ROOT/.mcp.json`. Backs up any existing file.
+- **AGENTS.md** (OpenCode) — documents MCP workflow and OpenCode gap #2319 (plugin hooks do NOT see MCP tool calls; `playwright-visual-critic` orchestrates the critic dispatch explicitly).
+
+### Added — installer uninstall / update
+
+- **`VERSION`** — root file holding `2.1.0`. Compared against GitHub main by `--check-update`.
+- **`~/.ciel/manifest.json`** — generated on every install. Lists version, installed_at, platforms, mcp servers, and the full list of tracked files. Enables clean uninstall.
+- **`install.sh --uninstall`** — iterates manifest `files[]`, prompts confirmation (skippable with `-y`), preserves whitelist (`.mcp.json`, `ciel-overlay.md`, `AGENTS.md`).
+- **`install.sh --check-update`** — non-blocking (`curl --max-time 5`) fetch of remote `VERSION`, compares, prints banner if newer.
+- **`install.sh --update`** — requires manifest, runs uninstall-then-reinstall from the latest main branch.
+- **`hooks/session-start.{sh,ps1}`** — throttled 24h update check (curl max 2s, silent on failure). Surfaces `[UPDATE] Ciel vX → vY available` banner in the session banner.
+- **`commands/ciel-update.md`** — rewritten to delegate to `install.sh --update` / `--check-update`.
+
+### Changed
+
+- **`scripts/build-platforms.sh`** — `LIMIT_opencode_agent` bumped from 49152 to 65536 (bundles now include 6 additional skills inline/compact across roles). Routing matrix adds: `doc-validator-official` → researcher (inline); `modern-patterns-checker` + `ai-failure-modes-detector` → explorer (inline); `test-strategy-vitest-playwright` + `playwright-visual-critic` → explorer (compact); `cicd-security-hardener` + `accessibility-wcag-auditor` → explorer domain (compact); `debug-reasoning-rca` + `self-consistency-verifier` → critic (inline); `skills-first-design-auditor` → improver (inline).
+- **`scripts/install.sh`** — refactored flag parser, added `INSTALLED_FILES` tracking, `_register_installed_files` post-install registry, `_install_mcp`, `_do_uninstall`, `_do_update`, `_check_update`, `_manifest_write`. Bumps banner to v2.1.0.
+
+### Removed
+
+- **`scripts/self-update.sh`** — deprecated in favor of `install.sh --update`. `gh` CLI no longer required for updates.
+
+### Follow-up
+
+- 5 platform issues (#2 Cursor, #3 Windsurf, #4 Codex, #5 Kilo, #6 LMStudio+Ollama) still open — when their native primitives are restored, they should bundle these 10 new skills as well.
+- MCP opt-in wiring for OpenCode (the project-level `.mcp.json` works for Claude Code; OpenCode reads its own `opencode.json` mcp block — users may mirror).
+
+---
+
 ## Unreleased — platforms: restore native OpenCode adaptation
 
 **Context** — v2.0.0 replaced all platform-native adaptations with a single 907-line compressed `AGENTS.md` dump. The pre-refactor OpenCode integration (plugin with pre/post-write hooks, 3 ciel-* subagents, 2 commands) was deleted in the process. This lot restores OpenCode's native primitives and updates them to the v2 4-agent + 33-skill model.
