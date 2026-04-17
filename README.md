@@ -86,6 +86,7 @@ The installer detects which AI tools are present and copies the right files for 
 /ciel-improve                     # Analyze recent sessions, propose skill improvements
 /ciel-create-skill <name> <purpose>   # Create a new skill
 /ciel-eval [skill-name]           # Run eval harness on one or all skills
+/ciel-audit                       # Audit current session, produce copy-paste report (hook-independent)
 /ciel-update                      # Self-update from GitHub
 ```
 

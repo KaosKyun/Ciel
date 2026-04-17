@@ -1,5 +1,31 @@
 # Ciel — Changelog
 
+## v2.2.1 — 2026-04-17 — `/ciel-audit` session post-mortem
+
+**Context** — User reported that `/ciel <task>` keeps working inline in the main session instead of dispatching `Task(subagent_type=ciel-*)` forks. Hypothesis: the dispatch rule in `skills/ciel/SKILL.md:201-273` is documented but not enforced, and the `UserPromptSubmit` / `PreToolUse` hooks that could remind the model are probably inactive because `settings.json` declares them with relative paths (`bash .claude/plugins/ciel/hooks/…`) that do not resolve when `claude` is launched from any CWD other than the plugin root.
+
+v2.2.1 adds a diagnostic command that does not depend on hooks being active.
+
+### Added
+
+- **`commands/ciel-audit.md`** — `/ciel-audit` audits the current Claude Code session by re-reading its own tool-use history. Checks six dimensions: dispatch discipline, hook activity (looks for `CIEL depth hint:` / `CIEL [CRITIQUE]` signatures), skill coverage vs depth, skill overlap (e.g., `relire-critic` + `critiquer-auditor` on same diff), agent report truncation, intent routing hits/misses. Produces a self-contained markdown report with `file:line` references and concrete proposed fixes. The user copies the report into a fresh Claude session with the prompt "Apply these Ciel fixes" to actually apply them — the report is mechanical enough for a cold session to execute without any transcript context.
+
+### Diagnosis
+
+First known usage will validate the hypothesis that hooks are inactive due to relative paths in `settings.json:8,19,31,42,54,65,76`. If confirmed, a separate v2.2.2 will fix hook paths (probably via `$CLAUDE_PLUGIN_ROOT/hooks/…`) — but that fix is out of scope of v2.2.1. `/ciel-audit` itself is hook-independent by design, so it remains useful even if hooks stay broken.
+
+### Intentional non-goals
+
+- Does not touch the orchestrator `skills/ciel/SKILL.md`.
+- Does not create or modify any hook.
+- Does not create or modify any skill.
+- Does not modify other commands.
+- Does not run eval harness or touch `evals/`.
+
+Strictly additive: one new command file, three documentation updates (README, PLUGIN.md, this CHANGELOG).
+
+---
+
 ## v2.2.0 — 2026-04-17 — GitHub workflow: issue → branch → PR → close
 
 **Context** — Ciel had the reasoning side solid (RCA, skills, dispatch) but left project management implicit. After a bug was diagnosed, Claude would jump straight to writing code with no issue tracker entry, no feature branch, no PR opened at the end. Traceability lost. v2.2.0 adds an opinionated workflow: issue first, branch next, commits reference issue, PR closes it, issue-closer adds evidence post-merge.

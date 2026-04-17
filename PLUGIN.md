@@ -42,7 +42,7 @@ v2.0.0 is a **total refactor** toward Anthropic's Skills-first paradigm (Barry Z
 - `hooks/subagent-stop.sh` — Agent report size logging
 - `hooks/stop.sh` — META-CRITIQUER dispatch
 
-### Commands (6)
+### Commands (7)
 
 - `/ciel <task>` — Main entry (classifies depth, routes)
 - `/ciel-recommend` — Community plugin discovery
@@ -50,6 +50,7 @@ v2.0.0 is a **total refactor** toward Anthropic's Skills-first paradigm (Barry Z
 - `/ciel-improve` — Analyze sessions, propose skill patches
 - `/ciel-create-skill <name> <purpose>` — Create new skill from conversation pattern
 - `/ciel-eval [skill-name]` — Run eval harness
+- `/ciel-audit` — Session post-mortem (hook-independent diagnostic, produces copy-paste report)
 
 ### Self-improvement subsystem
 
