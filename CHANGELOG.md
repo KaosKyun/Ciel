@@ -1,5 +1,53 @@
 # Ciel — Changelog
 
+## v2.2.0 — 2026-04-17 — GitHub workflow: issue → branch → PR → close
+
+**Context** — Ciel had the reasoning side solid (RCA, skills, dispatch) but left project management implicit. After a bug was diagnosed, Claude would jump straight to writing code with no issue tracker entry, no feature branch, no PR opened at the end. Traceability lost. v2.2.0 adds an opinionated workflow: issue first, branch next, commits reference issue, PR closes it, issue-closer adds evidence post-merge.
+
+### Added — 3 new utility skills
+
+- **`skills/utility/issue-creator/SKILL.md`** — `gh issue create` with a structured body (Problem / Repro / Root cause / Proposed fix / Acceptance criteria / Evidence) generated from RCA output or feature spec. Dupe detection against open issues. Mandatory on Critical (audit trail), default on Standard + bug intent, skippable on Trivial.
+- **`skills/utility/branch-setup/SKILL.md`** — creates `fix/<N>-<slug>` / `feat/<N>-<slug>` / `chore/<N>-<slug>` from fresh `origin/<default-branch>`. Preflight: clean working tree + issue number present. Writes `.git/ciel-work-context` so downstream skills (commit-writer, pr-opener) know the issue number.
+- **`skills/utility/pr-opener/SKILL.md`** — `gh pr create` with `Closes #<N>` auto-link, body composed by `pr-body-generator`, draft if CI not green, updates existing PR if one already open for the branch.
+
+### Changed — orchestrator pipeline
+
+`skills/ciel/SKILL.md` Standard pipeline now has 12 steps (was 9). Inserted after `avec-quoi-versioner`:
+
+- **Step 3** — Project management setup: `issue-creator` → `branch-setup`
+- **Step 7** — FAIRE now explicitly includes `commit-writer` with `Refs #<N>` footer
+- **Step 10** — `pr-opener` opens the PR with `Closes #<N>`
+- **Step 11** — `issue-closer` post-merge
+
+Intent routing table adds a new line: any "fix", "bug fix", "feature", "implement" intent OR any post-RCA action routes to the full GitHub workflow chain.
+
+Inline-OK skills list now includes the 6 GitHub utility skills (all inline — deterministic `gh` / `git`).
+
+### Skip paths
+
+- `--no-pm` flag or explicit "quick fix, no issue" → skip issue-creator + branch-setup (direct commit to branch)
+- Trivial depth → GitHub workflow off by default
+- No repo remote configured → issue-creator's preflight fails cleanly with a human-readable message
+
+### Effect
+
+Post-RCA (e.g., the `/opt/Neiyomi` library update bug), Ciel now:
+
+1. Returns RCA VERDICT
+2. `issue-creator` → files issue #N with Problem/RootCause/ProposedFix/Acceptance
+3. `branch-setup` → checks out `fix/N-library-update-db-timeout`
+4. FAIRE — writes code, commits use `Refs #N`
+5. `critic` (MODE=RELIRE) → 3 RISQUE, inline or fork based on depth
+6. `prouver-verifier` → staging evidence, CI gate
+7. `pr-opener` → `gh pr create` with `Closes #N`
+8. (user reviews, merges)
+9. `issue-closer` → adds evidence comment, closes issue
+10. `meta-critiquer` → 30s reflection
+
+Instead of: RCA → code → commit → push. Full audit trail maintained.
+
+---
+
 ## v2.1.7 — 2026-04-17 — hotfix: critic.md frontmatter missing
 
 **Context** — v2.1.6 was supposed to add YAML frontmatter to all 4 agents (`critic`, `explorer`, `researcher`, `improver`). Live test on `/opt/Neiyomi` revealed only 3 were registered — `ciel-critic` was MISSING from the Task tool's available subagents. Claude correctly tried `Task(subagent_type="ciel-critic", ...)` but got `Agent type 'ciel-critic' not found`.
