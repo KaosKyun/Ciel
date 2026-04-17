@@ -17,3 +17,6 @@
 
 # Ciel local manifest snapshots (for debugging)
 .ciel-manifest.debug.json
+
+# Project-level overlay created by install.sh (per-machine, not source of truth)
+ciel-overlay.md

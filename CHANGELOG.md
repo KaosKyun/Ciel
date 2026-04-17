@@ -1,5 +1,31 @@
 # Ciel — Changelog
 
+## v2.4.2 — 2026-04-17 — Remove `/ciel` and `/ciel-improve` command files
+
+**Context** — v2.4.1's "thin wrapper" fix reduced content duplication but both entries still appeared in the available-skills block (one as skill, one as command with the same name). The user reported "des doubles" — the visual duplicate name remained.
+
+Per Claude Code documented behavior: **when a skill and a command share the same name, the skill takes precedence, and typing `/name` routes to the skill automatically via the Skill tool** ("or one the user explicitly typed as `/<name>` in their message"). The command file is redundant when a same-named skill exists.
+
+### Removed
+
+- `commands/ciel.md` — the `ciel` skill (`skills/ciel/SKILL.md`) handles `/ciel <task>` invocations directly.
+- `commands/ciel-improve.md` — the `ciel-improve` skill (`skills/meta/ciel-improve/SKILL.md`) handles `/ciel-improve [scope]`.
+
+### Preserved
+
+- `commands/ciel-audit.md`, `ciel-create-skill.md`, `ciel-eval.md`, `ciel-init.md`, `ciel-recommend.md`, `ciel-update.md` — these have NO same-named skill, so there is no collision to dedupe. They remain as slash triggers.
+
+### User-visible effect
+
+- `/ciel <task>` and `/ciel-improve [scope]` continue to work. They now route directly to the skill with `$ARGUMENTS` treated as the task input.
+- The available-skills block no longer lists the same name twice.
+
+### Regenerated
+
+`platforms/opencode/.opencode/commands/` — `ciel.md` and `ciel-improve.md` removed. OpenCode users type `/ciel <task>` and OpenCode's native `skill` tool picks up the `ciel` skill from `./.claude/skills/ciel/` (cross-platform — OpenCode reads `.claude/skills/` natively per its docs).
+
+---
+
 ## v2.4.1 — 2026-04-17 — Orchestrator discipline + command-skill deduplication
 
 **Context** — Two issues surfaced right after v2.4.0: (a) a post-hoc audit of a real `/ciel` session found that `researcher` + `explorer` were never dispatched and `.github/workflows/` edits skipped `cicd-security-hardener`, despite both being mandatory; (b) on install, `commands/ciel.md` + `skills/ciel/SKILL.md` (and same for `ciel-improve`) showed up as two near-identical entries in the available-skills list — confusing, looks like duplication.
