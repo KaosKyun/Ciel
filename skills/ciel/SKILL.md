@@ -51,10 +51,16 @@ Invoke `depth-classifier` if classification is ambiguous (mechanical signals: `a
 6. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
 7. `faire-gatekeeper` during coding → `commit-writer` adds `Refs #<N>` footers
 8. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
-9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before ANY merge path** — `gh pr merge [--auto|--squash|--merge|--rebase]`, `git push` to the default branch with admin bypass, or clicking "Merge" in the GitHub UI. The evidence gate is the merge precondition, not a parallel shortcut. Mirror enforced in `skills/utility/pr-opener/SKILL.md` guardrails.
+9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before `gh pr merge --auto` — auto-merge is the consequence of this gate passing, not a parallel shortcut. Enabling auto-merge without first running prouver-verifier skips the evidence capture and blurs accountability when CI flakes mid-queue.**
 10. `pr-opener` — opens PR with `Closes #<N>`, body composed by `pr-body-generator`
-11. `issue-closer` — post-merge, adds evidence comment + closes issue
-12. `meta-critiquer`
+11. `ci-watcher` — streams CI for this PR, distinguishes flaky vs real failures (≥15% fail rate on main = flaky → `gh run rerun --failed`, else hand off to `debug-reasoning-rca`)
+12. `pr-review-responder` — if reviewers post comments (reviewDecision=CHANGES_REQUESTED), respond per thread (accept → fix + SHA ref, reject → rebuttal, clarify → defer), mark resolved, re-request review
+13. `pr-merger` — reads branch protection, flips draft→ready, picks squash/rebase/merge from repo settings, `gh pr merge --auto`. Blocked until `prouver-verifier` VERDICT=DONE + `ci-watcher` green + all threads resolved
+14. `issue-closer` — post-merge, adds evidence comment + closes issue
+15. `branch-cleaner` — deletes merged branch locally + prunes remote-tracking refs
+16. `changelog-updater` — on version-bump PRs, appends Keep-a-Changelog entry
+17. `release-publisher` — on version bump post-merge, creates signed tag + GitHub Release with auto-notes + Sigstore attestations (if `cicd-security-hardener` configured them)
+18. `meta-critiquer`
 
 ### Critical (all of Standard, PLUS)
 
@@ -72,11 +78,9 @@ For a PR/diff review specifically, dispatch the **critic agent** with MODE=CRITI
 
 ---
 
-## Intent routing — ALWAYS prefer Ciel skills over Claude Code natives
+## Intent routing (v2.1.0 skills) — ALWAYS prefer Ciel skills over Claude Code natives
 
 When the user's request matches any of these intents, invoke the **Ciel skill** named here explicitly — do NOT fall back to Claude Code built-in skills (`systematic-debugging`, etc). Ciel's discipline (evidence, alternatives, semver guards) is deliberately stricter.
-
-**Scan this table (a) at `/ciel <task>` invocation against the prompt text, AND (b) on every tool call that mutates a file (native `Edit`/`Write`/`MultiEdit`/`NotebookEdit`, `Bash` with output redirect/heredoc/`sed -i`/`tee`/`cp`/`mv`/`install`/`patch`/`git apply`/`git checkout -- <path>`, any MCP tool that writes) against the target file path.** A task that starts as "review PRs" can drift into "CI hardening" mid-session — re-scan on every file-targeting tool call so the routing table catches drift regardless of which tool the agent reached for.
 
 | Intent signal in user prompt | Ciel skill | Dispatcher |
 |---|---|---|
@@ -86,21 +90,28 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 | "is this correct?", "verify this implementation", Critical-stakes code | **`self-consistency-verifier`** | `@ciel-critic` |
 | "how should I test this", planning tests for a new feature | **`test-strategy-vitest-playwright`** | `@ciel-explorer` |
 | "review this UI", "critique this page", "visual regression", UI PRs | **`playwright-visual-critic`** (requires `--with-mcp=playwright`) | `@ciel-explorer` |
-| Changes to `.github/workflows/`, `.gitlab-ci.yml`, pipeline review | **`cicd-security-hardener`** | `@ciel-explorer` |
+| "create CI/CD", "set up pipeline", "add GitHub Actions", greenfield CI/CD, CI/CD migration | **`cicd-pipeline-designer`** → **`cicd-security-hardener`** (audit generated) | inline → `@ciel-explorer` |
+| Changes to `.github/workflows/`, `.gitlab-ci.yml`, pipeline review (existing) | **`cicd-security-hardener`** | `@ciel-explorer` |
 | "accessibility audit", WCAG, a11y, frontend PRs | **`accessibility-wcag-auditor`** | `@ciel-explorer` |
 | Changes to `skills/**/SKILL.md`, skill review | **`skills-first-design-auditor`** | `@ciel-improver` |
-| "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`issue-closer`** | inline (all utility skills) |
+| "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`ci-watcher`** → **`pr-merger`** → **`issue-closer`** → **`branch-cleaner`** | inline (all utility skills) |
+| "merge PR", "enable auto-merge", "land this PR", "squash and merge" | **`pr-merger`** (after `prouver-verifier` + `ci-watcher` green) | inline |
+| "respond to review", "reviewer commented", "CHANGES_REQUESTED", "address PR feedback" | **`pr-review-responder`** | inline |
+| "watch CI", "is CI green?", "CI is flaky", "rerun failed jobs", "CI stuck" | **`ci-watcher`** | inline |
+| "clean up branches", "delete merged branches", "prune stale branches" | **`branch-cleaner`** | inline |
+| "publish release", "create release", "tag v*", "ship the release", "release notes" | **`release-publisher`** (after `changelog-updater`) | inline |
 | "mcp server", "mcp config", ".mcp.json", "claude mcp", "serveurs mcp" | **`debug-reasoning-rca`** (config drift + failures) + `stride-analyzer` if secrets found | `@ciel-explorer` for config read → `@ciel-critic` MODE=RCA |
-| "are skills outdated", "refresh skills", "audit skill freshness", "check library versions in skills", stale URLs/citations | **`skill-freshness-auditor`** | `@ciel-improver` (via `/ciel-refresh`) |
 
-**Multiple intents can match** (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical). Queue every matching skill after `quoi-framer`.
+**Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
 
 **Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
 
-**Concrete mid-session examples**:
+**Mid-session re-routing rule** (added v2.4.1): the routing table above is **not one-shot at invocation**. Re-scan it on every `Edit` / `Write` tool call using the **target file path** as the signal (in addition to the prompt-text scan done at invocation). Examples:
 
-- First write (via `Edit` OR `Bash(cat > .github/workflows/ci.yml)`) targets `.github/workflows/` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing**, even if the original prompt was "review open PRs".
-- First write targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
+- First edit targets `.github/workflows/ci.yml` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing the edit**, even if the original prompt was "review open PRs".
+- First edit targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
+
+A task that **starts** as "PR review" can drift into "CI hardening" mid-session — the routing table must catch that drift. Not re-routing here is the failure mode documented in the 2026-04-17 audit (intent routing miss on `cicd-security-hardener`).
 
 ---
 
@@ -150,15 +161,15 @@ When asking, ask ONE specific question with 2-3 concrete options. Never ask open
 
 **Hard rule**: gather ONLY the inputs the target skill declares in its INPUTS section. As soon as all declared fields are filled (with `[ASSUMED]` or `[UNKNOWN]` markers where auto-inference failed), **IMMEDIATELY dispatch via the Task tool**. Further investigation belongs INSIDE the fork, not in the main session.
 
-**Budget**: max 5 Bash/Read/Grep calls OR 2 minutes of gathering — whichever comes first. On the 5th call, emit this block verbatim before any further tool call:
+**Budget**: max 5 Bash/Read/Grep calls OR 2 minutes of gathering — whichever comes first. Past that threshold, dispatch with whatever you have and let the fork drill down.
+
+**[DISPATCH GATE] hard-stop** (added v2.4.1 after PR-review audit): on the **5th** inline Bash/Read/Grep call of a Standard+ task, emit a visible checkpoint to the user:
 
 ```
 [DISPATCH GATE] Budget exhausted (5 inline calls). Dispatching @ciel-researcher + @ciel-explorer now with [ASSUMED] markers for unresolved inputs. Further investigation continues inside the forks.
 ```
 
-Then **immediately** issue the Task() dispatch on the same turn — no "one more check first", no "let me just verify X". Skipping this checkpoint on a Standard+ task is a dispatch-discipline failure and triggers the `Dispatch gate bypass` guard in `reference.md`.
-
-**Visible counter** — to prevent silent drift past 5, prefix every inline `Bash` / `Read` / `Grep` / `Glob` tool call's **`description`** field with `[CIEL N/5]` on any Standard+ task. The counter appears in the tool-call history so the model (on its next turn) can see how many calls it has already made without needing a separate running log. Example: `description="[CIEL 3/5] gh pr checks 1014"`. Does not apply to Task() calls themselves, to tool calls emitted during read-the-user's-question phases, or to any hooks' output. A mechanical hook-based counter is planned for a later release.
+Then **immediately** issue the Task() dispatches on the same turn. No "one more check first", no "let me just verify X" — those belong in the fork. Skipping this checkpoint on a Standard+ task is a dispatch-discipline failure and triggers the `Dispatch gate bypass` guard in `reference.md`.
 
 **Anti-pattern (observed in v2.1.5)**:
 ```
@@ -278,21 +289,13 @@ Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented for
   - `commit-writer` — conventional commits + `Refs #<N>` footer
   - `pr-opener` — `gh pr create` with `Closes #<N>`
   - `pr-body-generator` — composes the PR body from commits + evidence
+  - `ci-watcher` — `gh run watch` streaming + flaky vs real classification + auto-retry
+  - `pr-review-responder` — GraphQL review-thread listing + classify/reply/resolve + re-request review
+  - `pr-merger` — `gh pr merge --auto` with branch-protection awareness + draft→ready flip
   - `issue-closer` — `gh issue comment` with production evidence + close
-
-### Inline-OK ≠ pipeline-skip (added v2.5.0 after audit violation #2)
-
-Reading the list above and concluding "skill-creation tasks may skip dispatch entirely" is **wrong**. Inline-OK status applies to the **specific skill invocation** — not the surrounding pipeline.
-
-A Standard-depth task that uses `skill-creator` (inline) still owes:
-
-1. `quoi-framer` — frame the goal + NOT-X + done criteria.
-2. `@ciel-explorer` dispatched upfront to verify **no existing skill already covers the proposed scope** (scope-overlap check). Skipping this creates duplicate skills that compete.
-3. FAIRE — write the skill file.
-4. `@ciel-critic` MODE=RELIRE if the change touches 3+ files (new skill + command + routing + CHANGELOG + regen often does).
-5. `meta-critiquer` at end.
-
-The inline-OK list only means: the skill itself does not need its own fork. It does not authorize the main task to skip the Standard pipeline. Same applies to `skill-variant-evaluator`, `ciel-improve`, and the GitHub utility skills — they run inline but the pipeline around them still holds.
+  - `branch-cleaner` — `git branch --merged` delete + `git fetch --prune` + opt-in remote delete
+  - `changelog-updater` — appends Keep-a-Changelog entry on version bump
+  - `release-publisher` — `git tag -s` + `gh release create --generate-notes` + Sigstore attestations
 
 ### Anti-pattern to avoid
 
@@ -341,8 +344,7 @@ Observation masking: tool outputs from > 3 turns ago that weren't referenced →
 
 Ciel can create and improve its own skills through the `meta/` subsystem:
 
-- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite) — **transcript-driven** (catches failures Ciel experienced)
-- `/ciel-refresh [scope]` → invokes `improver` agent → `skill-freshness-auditor` skill → scans every SKILL.md for stale URLs, outdated library pins, superseded citations → freshness patch-set for user approval — **outside-world-driven** (catches drift Ciel has not yet tripped over)
+- `/ciel-improve` → invokes `improver` agent → `ciel-improve` skill → produces patch-set for user approval (never autonomous rewrite)
 - `/ciel-eval [skill-name]` → `skill-variant-evaluator` runs binary evals on 2-3 variants, winner = highest aggregate score (tiebreak: lowest token usage)
 - `/ciel-create-skill <name> <purpose>` → `skill-creator` generates a valid SKILL.md scaffold
 - Session-end hooks (`Stop`, `PreCompact`) → `learnings-capture` appends user corrections to `.claude/learnings.md` or `ciel-overlay.md`
