@@ -1,3 +1,7 @@
+---
+description: Ciel skills-first orchestrator — classifies task depth and routes to the correct pipeline with explicit intent matching for debugging/docs/testing/a11y/CI-CD/UI critique.
+---
+
 # /ciel — Main entry
 
 *Invokes the Ciel skills-first orchestrator to execute a coding task with depth-aware reasoning.*
@@ -9,12 +13,19 @@ Usage: `/ciel <task description>`
 ## What it does
 
 1. Loads the `ciel` orchestrator skill from `skills/ciel/SKILL.md`
-2. Invokes `depth-classifier` skill if task depth is ambiguous
-3. Routes to the correct pipeline based on depth:
+2. **Scans the task for intent signals** and queues matching v2.1.0 skills BEFORE depth classification:
+   - Debugging / incident / "why did X fail" → `debug-reasoning-rca` (NOT Claude's native `systematic-debugging`)
+   - Library/API usage → `doc-validator-official` (before coding)
+   - UI / frontend review → `accessibility-wcag-auditor` + optionally `playwright-visual-critic`
+   - CI/CD files → `cicd-security-hardener`
+   - LLM-authored code review → `modern-patterns-checker` + `ai-failure-modes-detector`
+   - Test planning → `test-strategy-vitest-playwright`
+3. Invokes `depth-classifier` if depth is ambiguous
+4. Routes to the correct pipeline based on depth:
    - **Trivial**: `quoi-framer` → `pattern-fitness-check` → `faire-gatekeeper` → `relire-critic` (inline) → push
    - **Standard**: dispatches `researcher` + `explorer` agents in parallel, then `faire-gatekeeper`, `critic` agent, `prouver-verifier`
    - **Critical**: Standard + `stride-analyzer` + `security-regression-check` (critic agent mandatory)
-4. Ends with `meta-critiquer` for post-task reflection
+5. Ends with `meta-critiquer` for post-task reflection
 
 ---
 

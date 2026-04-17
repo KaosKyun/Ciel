@@ -1,3 +1,7 @@
+---
+description: Generates a valid Ciel SKILL.md scaffold following Anthropic Skills-first rules (kebab-case ≤64, YAML description ≤1024, body ≤500 lines).
+---
+
 # /ciel-create-skill — Create a new Ciel skill
 
 *Generates a valid SKILL.md scaffold following Anthropic Skills-first rules (kebab-case name ≤64 chars, YAML frontmatter ≤1024-char description, ≤500-line body, progressive disclosure to one reference.md).*

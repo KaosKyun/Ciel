@@ -1,3 +1,7 @@
+---
+description: Runs the Ciel improver agent on recent session transcripts to detect failure modes and produce a patch-set of skill rewrites for user approval.
+---
+
 # /ciel-improve — Self-improvement pass
 
 *Analyzes recent session transcripts, detects repeated failure modes and user corrections, and proposes concrete skill improvements as a patch-set for user approval.*
