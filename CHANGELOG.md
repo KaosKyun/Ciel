@@ -1,5 +1,93 @@
 # Ciel — Changelog
 
+## Unreleased — platforms: restore native OpenCode adaptation
+
+**Context** — v2.0.0 replaced all platform-native adaptations with a single 907-line compressed `AGENTS.md` dump. The pre-refactor OpenCode integration (plugin with pre/post-write hooks, 3 ciel-* subagents, 2 commands) was deleted in the process. This lot restores OpenCode's native primitives and updates them to the v2 4-agent + 33-skill model.
+
+### Added
+
+- **`platforms/opencode/.opencode/plugins/ciel.ts`** — TypeScript plugin (port of `hooks/pre-tool-write.sh`, `post-tool-write.sh`, `user-prompt-submit.sh`). Fires on `tool.execute.before`, `tool.execute.after`, `chat.params`. Injects depth classification and FAIRE/RELIRE reminders. Pure TS, no shell dependency.
+- **`platforms/opencode/.opencode/agents/ciel-{researcher,explorer,critic,improver}.md`** — 4 subagents with OpenCode frontmatter (`mode: subagent`, scoped tool permissions). Skills they invoke (`research/*`, `workflow/*`, `domain/*`, `meta/*`) are bundled inline since OpenCode has no native skills primitive — agents are self-sufficient.
+- **`platforms/opencode/.opencode/commands/ciel*.md`** — 6 slash commands (`/ciel`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`) with OpenCode frontmatter (`agent`, `subtask`). Meta commands (`/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`) noted as degraded without `claude --print` headless mode.
+- **`build-platforms.sh`** — new helpers `bundle_skills_inline`, `emit_opencode_agent`, `emit_opencode_command`, `emit_opencode_plugin`, `emit_opencode_config`, `emit_opencode_agents_md`. Regex extracted as script-level variables (`CIEL_CRITICAL_FILE_RE`, `CIEL_CODE_EXT_RE`, etc.) — single source of truth shared with hooks.
+
+### Changed
+
+- **`platforms/opencode/AGENTS.md`** — reduced from 907-line dump (31KB) to a 3.5KB index pointing to the native primitives.
+- **`platforms/opencode/opencode.json`** — now registers the `ciel.ts` plugin alongside `AGENTS.md` instructions.
+- **`build-platforms.sh`** — converted `declare -A LIMITS` associative array to portable prefixed variables (`LIMIT_<name>`) for bash 3.2 compatibility (macOS default shell).
+
+### Unchanged
+
+No source-of-truth files (`skills/`, `agents/`, `hooks/`, `commands/`, `settings.json`) were modified — this lot only touches `platforms/opencode/` and `scripts/build-platforms.sh`.
+
+### Follow-up
+
+The 5 remaining platforms (Cursor, Windsurf, Codex, Kilo, LM Studio/Ollama) will each get a dedicated issue + PR restoring their native primitives. Current state on those platforms is still the compressed dump.
+
+---
+
+## v2.0.0 — 2026-04-17 — Skills-first total refactor
+
+**BREAKING — total architecture rewrite aligned with Anthropic's Skills-first paradigm.**
+
+### Context
+
+Barry Zhang and Mahesh Murag (Anthropic, AI Engineer Code Summit): *"Stop building agents. Build Skills."* v1.x's 455-line monolithic SKILL.md violated the paradigm directly — it couldn't be selectively invoked, improved at failure granularity, or evaluated per-step. Philosophy was sound; implementation was monolithic.
+
+### Added
+
+- **33 specialized skills** organized in 5 categories:
+  - `skills/workflow/` (13): `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `stride-analyzer`, `pattern-fitness-check`, `evaluer-sizer`, `flux-narrator`, `faire-gatekeeper`, `security-regression-check`, `relire-critic`, `prouver-verifier`, `critiquer-auditor`, `meta-critiquer`
+  - `skills/research/` (6): `research-web-sources`, `research-github-issues`, `research-forums`, `validate-source-credibility`, `synthesize-findings`, `fact-check-claims`
+  - `skills/domain/` (8): `frontend-mastery`, `backend-mastery`, `database-mastery`, `security-hardening`, `api-architecture`, `observability`, `performance-engineering`, `refactoring-patterns`
+  - `skills/utility/` (5): `commit-writer`, `pr-body-generator`, `issue-closer`, `changelog-updater`, `staging-verifier`
+  - `skills/meta/` (4): `ciel-improve`, `skill-creator`, `skill-variant-evaluator`, `learnings-capture`
+- **Self-improvement subsystem**: `/ciel-improve` analyses session transcripts → proposes patch-set for approval (never autonomous rewrite); `skill-variant-evaluator` runs binary evals via `claude --print`; `skill-creator` generates valid SKILL.md scaffolds
+- **Eval harness** under `evals/`: datasets (4 seed), runners (`skill-eval.sh`, `run-evals.sh`), results/
+- **Build-platforms script**: `scripts/build-platforms.sh` auto-generates Cursor/Windsurf/Codex/OpenCode/Kilo/Ollama/LM Studio artifacts from `skills/` — no more hand-maintaining per-platform files
+- **4 hook events added**: `SessionStart`, `UserPromptSubmit`, `PreCompact`, `SubagentStop`, `Stop` (in addition to `PreToolUse` / `PostToolUse`)
+- **3 new commands**: `/ciel-improve`, `/ciel-create-skill`, `/ciel-eval`
+- **New agent**: `agents/improver.md` — long-running self-improvement meta-agent
+- **New command**: `/ciel` (main entry point, was previously implicit)
+
+### Changed
+
+- **`skills/ciel/SKILL.md`**: rewritten from 455-line monolith to ~180-line orchestrator that routes to specialized skills. Full Guards table and extended philosophy moved to `skills/ciel/reference.md` (progressive disclosure).
+- **`agents/{researcher,explorer,critic}.md`**: rewritten as thin orchestrators (~60-80 lines each). They invoke specialized skills rather than duplicating logic inline.
+- **`hooks/pre-write-gate.sh`** → `hooks/pre-tool-write.sh` (renamed, updated to trigger `faire-gatekeeper` skill)
+- **`hooks/post-write-relire.sh`** → `hooks/post-tool-write.sh` (renamed, updated to trigger `relire-critic` skill)
+- **`settings.json`**: expanded to 7 hook events
+- **`.claude-plugin/plugin.json`** + **`marketplace.json`**: bumped to 2.0.0
+- **`PLUGIN.md`** + **`README.md`**: rewritten to document new architecture
+
+### Removed
+
+- **Old monolithic `skills/ciel/SKILL.md`** content (455 lines) — redistributed across 13 workflow skills + 6 research skills + reference.md
+- **`hooks/pre-write-gate.{sh,ps1}`** — replaced by `pre-tool-write.{sh,ps1}`
+- **`hooks/post-write-relire.{sh,ps1}`** — replaced by `post-tool-write.{sh,ps1}`
+- **All `platforms/*` files** — now auto-regenerated; editing `skills/` is the only source of truth
+
+### Migration (v1.x → v2.0.0)
+
+- `/ciel <task>` behaves the same user-visible (depth classification + pipeline routing)
+- `ciel-overlay.md` format unchanged — existing overlays work as-is
+- Agent input formats preserved (`TASK:`, `TECHNOLOGIES:`, etc.) for compat with existing prompts
+- Custom settings.json hooks require manual merge with new 7-event surface
+- Platform rule files: users who edited `platforms/*` manually will see overwrites on next `build-platforms.sh`
+
+### Metrics
+
+- **Baseline (v1.x)**: 62.8% fix/revert ratio on 675 commits with monolithic SKILL.md
+- **v2.0.0 target**: < 45% fix/revert (reference: SICA research, 17→53% improvement via self-edit + metrics)
+- Eval datasets seeded (depth-classification, research-gate, flux-narration, relire-3-risques); initial scoreboard will land in v2.0.1
+
+### Triggered by
+
+Direct user request for a total refactor aligned with Anthropic's Skills-first paradigm. Philosophy of Ciel (the Primordial Sage from Tensura — reason before act) is preserved; only the delivery mechanism changes.
+
+---
+
 ## v1.9.0 — 2026-04-05
 
 **Changements** : CRITIQUER overhaul — parité output gates avec CRÉER

@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "KaosKyun/Ciel",
-  "version": "1.5.0",
-  "description": "Ciel — Universal deep-reasoning workflow plugin",
+  "version": "2.0.0",
+  "description": "Ciel — Skills-first deep-reasoning workflow plugin",
   "owner": {
     "name": "KaosKyun",
     "email": "kaos_kyun@outlook.com"
@@ -10,15 +10,15 @@
   "plugins": [
     {
       "name": "ciel",
-      "description": "Universal deep-reasoning workflow for LLM-assisted development. CRÉER/CRITIQUER pipeline with isolated agents, deterministic hooks, TDD gates, and auto-update.",
+      "description": "Skills-first plugin for LLM-assisted development. 33 specialized skills across workflow/research/domain/utility/meta categories + 4 thin-orchestrator agents + self-improvement subsystem (meta-skill + eval-driven AutoResearch).",
       "source": "./",
-      "version": "1.5.0",
+      "version": "2.0.0",
       "category": "development",
       "author": {
         "name": "KaosKyun",
         "url": "https://github.com/KaosKyun"
       },
-      "keywords": ["reasoning", "workflow", "tdd", "security", "agents", "deep-reasoning", "ciel"]
+      "keywords": ["reasoning", "workflow", "skills-first", "tdd", "security", "agents", "self-improving", "deep-reasoning", "ciel"]
     }
   ]
 }

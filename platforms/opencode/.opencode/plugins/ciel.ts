@@ -1,92 +1,100 @@
-// Ciel — OpenCode Plugin
-// Replicates the pre-write-gate and post-write-relire hooks from Claude Code.
-// Installed automatically by the Ciel installer into .opencode/plugins/
+// Ciel — OpenCode plugin
+// Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
 //
-// Hooks:
-//   tool.execute.before (write/edit) — injects FLUX/SECURITE reminder on code files
-//   tool.execute.after  (write/edit) — injects RELIRE obligation on code files
+// Events handled:
+//   - tool.execute.before  (matcher: write|edit) → FAIRE gates reminder
+//   - tool.execute.after   (matcher: write|edit) → RELIRE dispatch reminder
+//   - chat.params                                → depth pre-classification hint
+//
+// Never blocks. Only injects reminders via output.metadata / context.
 
 import type { Plugin } from "@opencode-ai/plugin";
 
-interface WriteToolArgs {
-  filePath?: string;
-  file_path?: string;
-  path?: string;
-  content?: string;
-}
+const CODE_EXT_RE = /\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql)$/i;
+const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret)/;
+const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration.*schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
+const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b/i;
 
-interface ToolMetadata {
-  [key: string]: string | number | boolean;
-}
-
-const CODE_EXTENSIONS =
-  /\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte)$/;
-
-const CRITICAL_PATTERNS =
-  /(?:auth|security|route|service|controller|repository|gateway|middleware|proxy|token|session|password|secret)/i;
-
-function isCodeFile(filePath: string | undefined): boolean {
-  return !!filePath && CODE_EXTENSIONS.test(filePath);
-}
-
-function isCriticalFile(filePath: string): boolean {
-  return CRITICAL_PATTERNS.test(filePath);
-}
-
-function getFilePath(args: WriteToolArgs): string | undefined {
-  return args?.filePath || args?.file_path || args?.path;
-}
-
-export const id = "ciel";
-
-export const server: Plugin = async ({ client }) => {
-  const log = (message: string) =>
-    client.app.log({
-      body: { service: "ciel", level: "info", message },
-    });
+const ciel: Plugin = async ({ $ }) => {
+  // Track which files were already reminded this session to avoid duplicate
+  // reminders on repeated edits (each reminder = ~50 tokens in context).
+  const writtenFiles = new Set<string>();
+  const remindedFiles = new Set<string>();
+  let relireBlockDispatched = false;
 
   return {
-    // ── Pre-write gate ──────────────────────────────────────────────
-    // Before any write/edit tool, inject a FLUX/SECURITE reminder.
-    // Never blocks — informational only.
-    "tool.execute.before": async (
-      input: { tool: string; sessionID: string; callID: string },
-      output: { args: WriteToolArgs }
-    ) => {
-      if (input.tool !== "write" && input.tool !== "edit") return;
-
-      const filePath = getFilePath(output.args);
-      if (!isCodeFile(filePath)) return;
-
-      if (isCriticalFile(filePath!)) {
-        log(
-          `[CRITIQUE] ${filePath} — Before writing: (1) SECURITE STRIDE done? (2) FLUX narrated? (3) Dispatch @ciel-critic after FAIRE mandatory.`
-        );
-      } else {
-        log(
-          `${filePath} — FLUX narrated for this change? If Standard/Critical: @ciel-researcher + @ciel-explorer dispatched?`
-        );
+    event: async ({ event }) => {
+      if (event.type === "session.created") {
+        console.log("[CIEL] Session started — depth-aware reasoning active. Use /ciel, @ciel-researcher, @ciel-explorer, @ciel-critic.");
       }
     },
 
-    // ── Post-write relire ───────────────────────────────────────────
-    // After any write/edit on a code file, inject a RELIRE obligation
-    // into the tool output so the LLM sees it in context.
-    "tool.execute.after": async (
-      input: {
-        tool: string;
-        sessionID: string;
-        callID: string;
-        args: WriteToolArgs;
+    chat: {
+      // Only inject a depth hint when the classifier finds a signal (Critical or
+      // Trivial keyword). Skip the "Standard default" case — a neutral hint adds
+      // tokens without guiding the model.
+      params: async (input, output) => {
+        const last = input.message?.parts?.findLast?.((p: any) => p.type === "text");
+        const prompt: string = last?.text ?? "";
+        if (!prompt) return;
+
+        let depth: string | null = null;
+        let reason = "";
+        if (CRITICAL_KEYWORD_RE.test(prompt)) {
+          depth = "Critical";
+          reason = "auth/security/payment keyword detected";
+        } else if (TRIVIAL_KEYWORD_RE.test(prompt)) {
+          depth = "Trivial";
+          reason = "rename/typo/docs keyword detected";
+        }
+        if (!depth) return;
+
+        const hint = `[CIEL] Depth: ${depth} (${reason}). Route the pipeline accordingly.`;
+        if (output?.system && Array.isArray(output.system)) {
+          output.system.push(hint);
+        }
       },
-      output: { title: string; output: string; metadata: ToolMetadata }
-    ) => {
-      if (input.tool !== "write" && input.tool !== "edit") return;
+    },
 
-      const filePath = getFilePath(input.args);
-      if (!isCodeFile(filePath)) return;
+    tool: {
+      execute: {
+        // Pre-write reminder fires once per file. On non-critical files, a tight
+        // single-line hint; on critical files, the full STRIDE/FAIRE reminder.
+        before: async (input, output) => {
+          if (!["write", "edit"].includes(input.tool)) return;
+          const filePath: string = output?.args?.file_path ?? output?.args?.path ?? "";
+          if (!filePath || !CODE_EXT_RE.test(filePath)) return;
+          if (remindedFiles.has(filePath)) return;
+          remindedFiles.add(filePath);
 
-      output.output += `\n\n[CIEL RELIRE] ${filePath} was just written. Dispatch @ciel-critic now: MODE=RELIRE, CHANGED_FILES=[${filePath}], QUOI_GOAL=[objective], IMPLEMENTATION=[summary]. Do not continue before the verdict.`;
+          const isCritical = CRITICAL_FILE_RE.test(filePath);
+          const msg = isCritical
+            ? `[CIEL CRITIQUE] ${filePath} — FAIRE gates + stride-analyzer + flux-narrator + test-first (RED). Dispatch @ciel-critic MODE=RELIRE after this write.`
+            : `[CIEL] ${filePath} — FAIRE gates: alternatives, idiomatic, test-first. Ensure @ciel-researcher + @ciel-explorer ran.`;
+          console.log(msg);
+        },
+
+        // Post-write RELIRE reminder: emit AT MOST ONCE per session once the
+        // threshold is reached (3+ files or a critical file touched). Suppresses
+        // the per-file repeat noise that otherwise burns ~50 tokens × N writes.
+        after: async (input, output) => {
+          if (!["write", "edit"].includes(input.tool)) return;
+          const filePath: string = output?.args?.file_path ?? output?.args?.path ?? "";
+          if (!filePath || !CODE_EXT_RE.test(filePath)) return;
+
+          writtenFiles.add(filePath);
+          if (relireBlockDispatched) return;
+
+          const changed = Array.from(writtenFiles);
+          const relireRequired = changed.length >= 3 || CRITICAL_FILE_RE.test(filePath);
+          if (!relireRequired) return;
+
+          relireBlockDispatched = true;
+          console.log(`[CIEL RELIRE REQUIRED] ${changed.length} files changed (${changed.join(", ")}). Dispatch @ciel-critic MODE=RELIRE now — 3 RISQUES + FIX/ACCEPT/DEFER. Do not continue before verdict.`);
+        },
+      },
     },
   };
 };
+
+export default ciel;

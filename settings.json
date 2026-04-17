@@ -1,13 +1,35 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/session-start.sh",
+            "statusMessage": "Ciel: session starting..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/user-prompt-submit.sh",
+            "statusMessage": "Ciel: classifying depth..."
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/plugins/ciel/hooks/pre-write-gate.sh",
-            "statusMessage": "Ciel: vérification FLUX avant écriture..."
+            "command": "bash .claude/plugins/ciel/hooks/pre-tool-write.sh",
+            "statusMessage": "Ciel: FAIRE gates check..."
           }
         ]
       }
@@ -18,8 +40,41 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/plugins/ciel/hooks/post-write-relire.sh",
-            "statusMessage": "Ciel: injection RELIRE..."
+            "command": "bash .claude/plugins/ciel/hooks/post-tool-write.sh",
+            "statusMessage": "Ciel: RELIRE dispatch..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/pre-compact.sh",
+            "statusMessage": "Ciel: saving session progress..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/subagent-stop.sh",
+            "statusMessage": "Ciel: logging agent report size..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/stop.sh",
+            "statusMessage": "Ciel: META-CRITIQUER..."
           }
         ]
       }

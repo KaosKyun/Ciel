@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer v2
+# Ciel Universal Installer v2.0.0
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root]
 #        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
+#
+# v2.0.0 changes:
+#   - skills/ now contains 33 skills across workflow/research/domain/utility/meta categories
+#   - Hooks renamed: pre-write-gate → pre-tool-write, post-write-relire → post-tool-write
+#   - 5 new hook events wired: SessionStart, UserPromptSubmit, PreCompact, SubagentStop, Stop
+#   - Platforms/ is auto-regenerated from skills/ via scripts/build-platforms.sh
+#   - OpenCode: native primitives (plugin + subagents + commands) restored in .opencode/
 
 set -euo pipefail
 
@@ -122,8 +129,19 @@ install_claude() {
   info "Falling back to manual install..."
 
   mkdir -p "$HOME/.claude/skills"
+  # v2.0.0: copy all 33 skills across 5 categories + orchestrator
   cp -r "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/"
-  ok "skills/ciel -> ~/.claude/skills/ciel/"
+  ok "skills/ciel (orchestrator) -> ~/.claude/skills/ciel/"
+  for category in workflow research domain utility meta; do
+    if [ -d "$CIEL_DIR/skills/$category" ]; then
+      for skill_dir in "$CIEL_DIR/skills/$category"/*/; do
+        [ -d "$skill_dir" ] || continue
+        cp -r "$skill_dir" "$HOME/.claude/skills/"
+      done
+      count=$(find "$CIEL_DIR/skills/$category" -maxdepth 1 -type d | tail -n +2 | wc -l)
+      ok "skills/$category ($count skills) -> ~/.claude/skills/"
+    fi
+  done
 
   mkdir -p "$HOME/.claude/agents"
   cp "$CIEL_DIR/agents/"*.md "$HOME/.claude/agents/" 2>/dev/null && ok "agents/ -> ~/.claude/agents/"
@@ -149,10 +167,14 @@ _claude_hooks() {
     cp "$CIEL_DIR/settings.json" "$settings"
     ok "settings.json created with Ciel hooks"
   else
-    if grep -q "pre-write-gate" "$settings" 2>/dev/null; then
-      ok "Hooks already in settings.json"
+    if grep -qE "(pre-write-gate|pre-tool-write|post-write-relire|post-tool-write)" "$settings" 2>/dev/null; then
+      if grep -q "pre-write-gate\|post-write-relire" "$settings" 2>/dev/null; then
+        warn "settings.json references v1.x hook names (pre-write-gate, post-write-relire) — update to v2.0.0 names (pre-tool-write, post-tool-write) in $CIEL_DIR/settings.json"
+      else
+        ok "Hooks already in settings.json"
+      fi
     else
-      warn "settings.json exists — merge hooks manually from $CIEL_DIR/settings.json"
+      warn "settings.json exists — merge hooks manually from $CIEL_DIR/settings.json (7 events in v2.0.0)"
     fi
   fi
 }
@@ -161,7 +183,8 @@ install_cursor() {
   info "Cursor..."
   mkdir -p "$PROJECT_ROOT/.cursor/rules"
   cp "$PLATFORMS_DIR/cursor/.cursor/rules/ciel.mdc" "$PROJECT_ROOT/.cursor/rules/ciel.mdc"
-  ok "Copied .cursor/rules/ciel.mdc (4KB — under 6KB limit)"
+  local size; size=$(wc -c < "$PROJECT_ROOT/.cursor/rules/ciel.mdc")
+  ok "Copied .cursor/rules/ciel.mdc ($size bytes — under 6KB limit)"
   _install_overlay
 }
 
@@ -170,14 +193,6 @@ install_windsurf() {
   mkdir -p "$PROJECT_ROOT/.windsurf/rules"
   cp "$PLATFORMS_DIR/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
   ok "Copied .windsurf/rules/ciel.md (always_on rule)"
-  # Workflow: /ciel slash command
-  mkdir -p "$PROJECT_ROOT/.windsurf/workflows"
-  cp "$PLATFORMS_DIR/windsurf/.windsurf/workflows/ciel.md" "$PROJECT_ROOT/.windsurf/workflows/ciel.md"
-  ok "Copied .windsurf/workflows/ciel.md (/ciel command)"
-  # Skill: auto-invoked by Cascade on code tasks
-  mkdir -p "$PROJECT_ROOT/.windsurf/skills/ciel"
-  cp "$PLATFORMS_DIR/windsurf/.windsurf/skills/ciel/SKILL.md" "$PROJECT_ROOT/.windsurf/skills/ciel/SKILL.md"
-  ok "Copied .windsurf/skills/ciel/SKILL.md (auto-invoked skill)"
   _install_overlay
 }
 
@@ -193,41 +208,51 @@ install_opencode() {
   _purge_ciel_files "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
   _purge_ciel_files "$PROJECT_ROOT/.opencode/commands" "ciel*.md"
   _purge_ciel_files "$PROJECT_ROOT/.opencode/plugins" "ciel.*"
+
   cp "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
   ok "Copied AGENTS.md"
-  if [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
+
+  if [ -f "$PLATFORMS_DIR/opencode/opencode.json" ] && [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
     cp "$PLATFORMS_DIR/opencode/opencode.json" "$PROJECT_ROOT/opencode.json"
     ok "Copied opencode.json"
-  else
-    warn "opencode.json exists — merge /ciel command manually if needed"
+  elif [ -f "$PROJECT_ROOT/opencode.json" ]; then
+    warn "opencode.json exists — merge manually if needed (add plugin entry: ./.opencode/plugins/ciel.ts)"
   fi
-  # Install Ciel agents (auto-discovered by OpenCode from .opencode/agents/)
-  mkdir -p "$PROJECT_ROOT/.opencode/agents"
-  cp "$PLATFORMS_DIR/opencode/.opencode/agents/"*.md "$PROJECT_ROOT/.opencode/agents/"
-  ok "Copied .opencode/agents/ciel-{researcher,explorer,critic}.md"
-  # Install /ciel and /ciel-update commands (markdown format — fallback for opencode.json)
-  mkdir -p "$PROJECT_ROOT/.opencode/commands"
-  cp "$PLATFORMS_DIR/opencode/.opencode/commands/"*.md "$PROJECT_ROOT/.opencode/commands/"
-  ok "Copied .opencode/commands/ciel.md, ciel-update.md"
-  # Install Ciel plugin (pre-write-gate + post-write-relire hooks)
-  mkdir -p "$PROJECT_ROOT/.opencode/plugins"
-  cp "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
-  ok "Copied .opencode/plugins/ciel.ts (pre-write + post-write hooks)"
+
+  # Native primitives: plugin + 4 subagents + 6 slash commands
+  if [ -f "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" ]; then
+    mkdir -p "$PROJECT_ROOT/.opencode/plugins"
+    cp "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
+    ok "Copied .opencode/plugins/ciel.ts"
+  fi
+
+  if [ -d "$PLATFORMS_DIR/opencode/.opencode/agents" ]; then
+    mkdir -p "$PROJECT_ROOT/.opencode/agents"
+    cp "$PLATFORMS_DIR/opencode/.opencode/agents/"*.md "$PROJECT_ROOT/.opencode/agents/" 2>/dev/null
+    ok "Copied .opencode/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
+  fi
+
+  if [ -d "$PLATFORMS_DIR/opencode/.opencode/commands" ]; then
+    mkdir -p "$PROJECT_ROOT/.opencode/commands"
+    cp "$PLATFORMS_DIR/opencode/.opencode/commands/"*.md "$PROJECT_ROOT/.opencode/commands/" 2>/dev/null
+    ok "Copied .opencode/commands/ (ciel, ciel-improve, ciel-eval, ciel-create-skill, ciel-recommend, ciel-update)"
+  fi
+
   _install_overlay
 }
 
 install_kilocode() {
   info "Kilo Code..."
   _purge_ciel_files "$PROJECT_ROOT/.kilocode/rules" "ciel*.md"
-  _purge_ciel_files "$PROJECT_ROOT/.kilo/agents" "ciel-*.md"
-  # Workflow rules (legacy path — auto-loaded without kilo.jsonc)
+  _purge_ciel_files "$PROJECT_ROOT/.kilo/agents" "*.md"
   mkdir -p "$PROJECT_ROOT/.kilocode/rules"
   cp "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
   ok "Copied .kilocode/rules/ciel.md"
-  # Install Ciel agents (auto-discovered by Kilo Code from .kilo/agents/)
-  mkdir -p "$PROJECT_ROOT/.kilo/agents"
-  cp "$PLATFORMS_DIR/kilocode/.kilo/agents/"*.md "$PROJECT_ROOT/.kilo/agents/"
-  ok "Copied .kilo/agents/ciel-{researcher,explorer,critic}.md"
+  if [ -d "$PLATFORMS_DIR/kilocode/.kilo/agents" ]; then
+    mkdir -p "$PROJECT_ROOT/.kilo/agents"
+    cp "$PLATFORMS_DIR/kilocode/.kilo/agents/"*.md "$PROJECT_ROOT/.kilo/agents/" 2>/dev/null
+    ok "Copied .kilo/agents/ (researcher/explorer/critic/improver)"
+  fi
   _install_overlay
 }
 
@@ -256,34 +281,35 @@ install_lmstudio() {
 }
 
 # ─── Platform detection ───────────────────────────────────────────────────────
-declare -A DETECTED=()
-command -v claude &>/dev/null && DETECTED[claude]="Claude Code CLI"
-{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; } && DETECTED[cursor]="Cursor IDE"
-{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; } && DETECTED[windsurf]="Windsurf IDE"
-command -v codex &>/dev/null && DETECTED[codex]="Codex CLI"
-command -v opencode &>/dev/null && DETECTED[opencode]="OpenCode CLI"
+# Parallel indexed arrays (portable across bash 3.2 — no associative arrays)
+DETECTED_KEYS=()
+DETECTED_LABELS=()
+_add_detected() { DETECTED_KEYS+=("$1"); DETECTED_LABELS+=("$2"); }
+
+command -v claude &>/dev/null && _add_detected claude "Claude Code CLI"
+{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; } && _add_detected cursor "Cursor IDE"
+{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; } && _add_detected windsurf "Windsurf IDE"
+command -v codex &>/dev/null && _add_detected codex "Codex CLI"
+command -v opencode &>/dev/null && _add_detected opencode "OpenCode CLI"
 { [ -d "$PROJECT_ROOT/.kilocode" ] || \
   (command -v code &>/dev/null && code --list-extensions 2>/dev/null | grep -qi "kilocode"); } \
-  && DETECTED[kilocode]="Kilo Code"
-command -v ollama &>/dev/null && DETECTED[ollama]="Ollama"
-{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; } && DETECTED[lmstudio]="LM Studio"
+  && _add_detected kilocode "Kilo Code"
+command -v ollama &>/dev/null && _add_detected ollama "Ollama"
+{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; } && _add_detected lmstudio "LM Studio"
+
+DETECTED_COUNT=${#DETECTED_KEYS[@]}
 
 # ─── User selection ───────────────────────────────────────────────────────────
-if [ ${#DETECTED[@]} -eq 0 ]; then
+if [ "$DETECTED_COUNT" -eq 0 ]; then
   warn "No supported AI tool detected automatically."
   echo "  Available platforms: claude cursor windsurf codex opencode kilocode ollama lmstudio"
   read -rp "  Platforms to install (space-separated or 'all'): " RAW
   [ "$RAW" = "all" ] && RAW="claude cursor windsurf codex opencode kilocode ollama lmstudio"
   IFS=' ' read -ra PLATFORMS <<< "$RAW"
 else
-  # Build indexed array for selection
-  DETECTED_KEYS=("${!DETECTED[@]}")
-  DETECTED_COUNT=${#DETECTED_KEYS[@]}
-
   echo -e "${BOLD}Detected:${RESET}"
-  for i in "${!DETECTED_KEYS[@]}"; do
-    local_key="${DETECTED_KEYS[$i]}"
-    echo -e "  ${CYAN}[$((i+1))]${RESET} ${DETECTED[$local_key]} ${YELLOW}[$local_key]${RESET}"
+  for i in $(seq 0 $((DETECTED_COUNT - 1))); do
+    echo -e "  ${CYAN}[$((i+1))]${RESET} ${DETECTED_LABELS[$i]} ${YELLOW}[${DETECTED_KEYS[$i]}]${RESET}"
   done
   echo ""
   read -rp "  Install? [A]ll / numbers (e.g. 1,3) / [L]ist keys / [Q]uit: " ANS
