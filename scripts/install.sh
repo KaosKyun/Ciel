@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer v2.1.0
+# Ciel Universal Installer v2.1.1
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root] [flags]
 #        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
@@ -29,10 +29,12 @@ warn() { echo -e "  ${YELLOW}!${RESET} $1"; }
 
 # ─── Pipe/process-substitution detection ─────────────────────────────────────
 # bash <(curl ...) sets BASH_SOURCE[0] to /dev/fd/N.
-# Detect this BEFORE computing CIEL_DIR to avoid the broken path.
+# curl | bash -s -- leaves BASH_SOURCE[0] unset entirely, which trips `set -u`.
+# Guard with ${...:-} so both piping modes fall through to the tmp-clone path.
 CIEL_DIR=""
-if [[ "${BASH_SOURCE[0]}" != /dev/fd/* ]] && [[ "${BASH_SOURCE[0]}" != /proc/self/* ]]; then
-  _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_BSRC="${BASH_SOURCE[0]:-}"
+if [[ -n "$_BSRC" ]] && [[ "$_BSRC" != /dev/fd/* ]] && [[ "$_BSRC" != /proc/self/* ]]; then
+  _SCRIPT_DIR="$(cd "$(dirname "$_BSRC")" && pwd)"
   CIEL_DIR="$(cd "$_SCRIPT_DIR/.." && pwd)"
 fi
 
@@ -195,6 +197,10 @@ PY
 }
 
 # ─── Update-check (queries GitHub for latest VERSION) ────────────────────────
+# Exit codes:
+#   0 = up-to-date
+#   2 = update available  (distinct from 1 = error so _do_update can branch)
+#   1 = error (no manifest / network failure)
 _check_update() {
   local manifest; manifest="$(_manifest_path)"
   if [ ! -f "$manifest" ]; then
@@ -227,7 +233,7 @@ _check_update() {
   echo ""
   echo -e "  ${YELLOW}Update available:${RESET} v$local_version → v$remote_version"
   echo "  Run: bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update"
-  return 0
+  return 2
 }
 
 # ─── Uninstall (reads manifest, removes tracked files, preserves whitelist) ──
@@ -297,11 +303,32 @@ _do_update() {
     echo "  Run: bash scripts/install.sh  (fresh install)"
     return 1
   fi
-  _check_update || return 1
-  info "Proceeding with update..."
+
+  # Tri-state: 0 = up-to-date, 2 = update available, 1 = error
+  set +e
+  _check_update
+  local rc=$?
+  set -e
+
+  case "$rc" in
+    0)
+      ok "Already on the latest version — nothing to do."
+      return 0
+      ;;
+    1)
+      warn "Update check failed — refusing to proceed (your install stays intact)."
+      return 1
+      ;;
+    2)
+      info "Proceeding with update..."
+      ;;
+  esac
+
   FLAG_YES=true _do_uninstall
   info "Fetching latest installer..."
-  curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh | bash -s -- -y
+  # Use process substitution so BASH_SOURCE[0] is defined in the child shell.
+  # `bash -s --` leaves BASH_SOURCE unset which trips set -u on the re-entry.
+  bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) -y
 }
 
 # ─── Flag short-circuits (uninstall/check-update/update exit immediately) ────
@@ -326,9 +353,9 @@ IS_UPDATE=false
 [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
 
 if $IS_UPDATE; then
-  echo -e "\n${BOLD}Ciel Universal Installer v2.1.0${RESET} (${YELLOW}update detected${RESET})"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.1${RESET} (${YELLOW}update detected${RESET})"
 else
-  echo -e "\n${BOLD}Ciel Universal Installer v2.1.0${RESET}"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.1${RESET}"
 fi
 echo -e "Plugin : $CIEL_DIR"
 echo -e "Project: $PROJECT_ROOT\n"

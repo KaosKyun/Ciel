@@ -1,0 +1,19 @@
+# Local environment / config — never commit
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Temp
+*.tmp
+*.swp
+*~
+
+# Ciel local manifest snapshots (for debugging)
+.ciel-manifest.debug.json

@@ -1,5 +1,32 @@
 # Ciel — Changelog
 
+## v2.1.1 — 2026-04-17 — hotfix: `--update` flow
+
+**Context** — v2.1.0's `--update` had two production bugs surfaced on a live install:
+
+1. **`_check_update` return code was ambiguous** — it returned `0` whether you were up-to-date or a new version existed. `_do_update` therefore ran the uninstall + re-install cycle even when nothing had changed, destroying a perfectly good install.
+2. **`curl | bash -s --` tripped `set -u`** — the re-entry via `bash -s` leaves `BASH_SOURCE[0]` unset, and the tmp-clone guard read `${BASH_SOURCE[0]}` directly. Result: `unbound variable` exit, install left in a half-removed state.
+
+### Fixed
+
+- **`scripts/install.sh`** — `_check_update` now returns tri-state (`0`=up-to-date, `2`=update available, `1`=error). `_do_update` branches on this and short-circuits cleanly when already current.
+- **`scripts/install.sh`** — tmp-clone guard reads `${BASH_SOURCE[0]:-}` via an intermediate variable. Both `curl | bash -s` (stdin) and `bash <(curl ...)` (process substitution) now fall through to the clone path without crashing.
+- **`_do_update`** — re-entry now uses `bash <(curl ...)` instead of `curl | bash -s --`, ensuring `BASH_SOURCE[0]` is defined in the child shell.
+
+### Unchanged
+
+Everything else from v2.1.0 (10 skills, MCP opt-in, manifest, uninstall, SessionStart banner) is intact.
+
+### If you were bitten by the bug
+
+Your install was uninstalled but not re-installed. Restore with a fresh install:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
+```
+
+---
+
 ## v2.1.0 — 2026-04-17 — 10 new skills + MCP opt-in + uninstall/update
 
 **Context** — v2.0.0 landed the skills-first architecture but left gaps in the reasoning coverage (no debugging RCA, no official-doc validator, no anti-pattern 2026 guardrail, no AI-failure-mode detector), did not exploit available MCP servers (Playwright for visual critique, Context7 for live docs), and the installer had no clean uninstall or update path. v2.1.0 closes all three gaps in one pass.

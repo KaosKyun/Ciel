@@ -20,7 +20,7 @@ foreach ($candidate in @("$cwd/ciel-overlay.md", "$cwd/.claude/ciel-overlay.md")
 $traceId = (Get-Date -Format "yyyyMMddTHHmmssZ") + "-" + $PID
 $env:CIEL_TRACE_ID = $traceId
 
-$msg = "CIEL v2.1.0 — Skills-first deep-reasoning active. "
+$msg = "CIEL v2.1.1 — Skills-first deep-reasoning active. "
 if ($overlay) {
     $msg += "Overlay loaded: $overlay. "
 } else {
