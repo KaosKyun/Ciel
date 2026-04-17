@@ -1,31 +1,48 @@
-# /ciel-update — Update Ciel to latest version
+# /ciel-update — Update Ciel to the latest version
 
-Checks GitHub for a newer version of Ciel and hot-swaps local files.
-
-## What it updates
-- `~/.claude/skills/ciel/SKILL.md` — core workflow
-- `.claude/commands/ciel.md` — entry command
-- `~/.claude/plugins/ciel/hooks/` — pre/post write hooks
-
-## How to run
-
-```bash
-bash /root/.claude/plugins/ciel/scripts/self-update.sh
-```
-
-Then restart Claude Code to apply changes.
+Checks GitHub for a newer release and re-installs if available.
 
 ## How it works
 
-1. Fetches remote SKILL.md SHA from GitHub API via `gh` CLI
-2. Compares with stored SHA in `/root/.claude/plugins/ciel/.version`
-3. If different → downloads all updated files
-4. Stores new SHA → next run skips download if already current
+1. Compares your local manifest version (`~/.ciel/manifest.json`) with `VERSION` on the main branch.
+2. If newer, runs `install.sh --uninstall -y` to remove tracked files, then re-installs from latest.
+3. Preserves your `.mcp.json` and `ciel-overlay.md` (whitelisted).
 
-## Requirements
-- `gh` CLI installed and authenticated (`gh auth status`)
-- Private repo access (already configured if you installed Ciel)
+## Run
 
-## Frequency recommendation
-Run at the start of a new project or after a significant gap between sessions.
-Not needed every session — CHANGELOG.md lists what changed between versions.
+```bash
+# Check only (no changes)
+bash ~/.claude/plugins/ciel/scripts/install.sh --check-update
+
+# Apply update (uninstall + re-install from latest)
+bash ~/.claude/plugins/ciel/scripts/install.sh --update
+```
+
+If you installed from a repo clone rather than the global plugin dir, replace the path accordingly:
+
+```bash
+bash scripts/install.sh --check-update
+bash scripts/install.sh --update
+```
+
+## What's preserved
+
+- `.mcp.json` (project MCP config — you may have custom entries)
+- `.mcp.json.backup-*` (prior backups)
+- `ciel-overlay.md` (project-specific Ciel rules you customized)
+
+## What's replaced
+
+- All skills (`~/.claude/skills/ciel` + category dirs)
+- Agents (`~/.claude/agents/{researcher,explorer,critic,improver}.md`)
+- Commands (`~/.claude/commands/ciel*.md`)
+- Plugin hooks (`~/.claude/plugins/ciel/hooks/*`)
+- Platform-specific artifacts (`.opencode/`, `.cursor/`, `.windsurf/`, etc. — only Ciel's files)
+
+## Auto-notification
+
+The `SessionStart` hook checks for updates once per 24 hours and surfaces a `[UPDATE]` banner in the Claude Code session if a newer version exists. No network call happens on subsequent sessions within the window.
+
+## Frequency
+
+Run at the start of a project or when you see the `[UPDATE]` banner. CHANGELOG.md in the repo describes each release.

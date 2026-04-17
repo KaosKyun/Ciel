@@ -298,6 +298,387 @@ When <trigger>
 
 ---
 
+### Skill: `modern-patterns-checker`
+
+
+# modern-patterns-checker — Don't ship 2019-era code in 2026
+
+LLMs over-weight patterns that dominated their training set years ago. Without a guardrail, React class components, callback-based async, and sync-APIs-in-async-codebases keep leaking into new PRs. ThoughtWorks 2026 calls this "cognitive debt from AI autocompletion."
+
+---
+
+## Inputs
+
+```
+CODE_UNDER_REVIEW: [file paths OR diff hunk]
+TARGET_STACK: [language + framework + version — resolved from package manifests]
+```
+
+---
+
+## Anti-pattern catalogue (2026)
+
+### TypeScript / JavaScript
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| `class Foo extends React.Component` | Functional component + hooks |
+| `componentDidMount / componentDidUpdate` | `useEffect` (or Server Component for data fetching) |
+| `.then().catch()` chains > 2 links | `async/await` with `try/catch` |
+| `require()` in a project with `"type":"module"` | `import` (ESM) |
+| `var` | `const` / `let` |
+| `null`-checks everywhere | Discriminated unions + `?.` / `??` |
+| `any` as escape hatch | `unknown` + narrowing, or proper type |
+| `lodash.get` / `lodash.set` | Optional chaining `?.` + `??` |
+| `fetch().then(r => r.json()).then(...)` | `await fetch()` + `await r.json()` |
+| `moment.js` | `Temporal` API (Node 22+) or `date-fns` |
+| Redux for local UI state | `useState` / `useReducer` / Zustand |
+| PropTypes | TypeScript types |
+
+### Python
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| `print` as debug | `logging` with structured fields |
+| `%`-format or `.format()` | f-strings |
+| `dict.has_key(k)` | `k in dict` |
+| Nested `if` guards | Early-return pattern |
+| Bare `except:` | `except SpecificError:` |
+| `os.path.join` | `pathlib.Path` |
+| Sync `requests` in async codebase | `httpx.AsyncClient` / `aiohttp` |
+| `dataclass` without `slots=True` | `@dataclass(slots=True)` (3.10+) |
+| `typing.List`, `typing.Dict` | Built-in `list`, `dict` (3.9+ PEP 585) |
+| `from typing import Optional` | `X \| None` (3.10+ PEP 604) |
+
+### Go
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| `if err != nil { return err }` without wrapping | `fmt.Errorf("context: %w", err)` |
+| Bare `err == sql.ErrNoRows` | `errors.Is(err, sql.ErrNoRows)` |
+| Passing request context implicitly | Explicit `ctx context.Context` first arg |
+| `interface{}` | `any` (Go 1.18+), or typed interface |
+| `sync.Mutex` wrapping a slice | `sync.Map` or channel |
+
+### SQL
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| String concatenation for queries | Parameterized queries / prepared statements |
+| `SELECT *` in production queries | Explicit column list |
+| `N+1` loop queries | JOIN or batched `IN (...)` |
+| Missing indexes on FK | Index on every foreign key |
+
+### React (post-19)
+
+| Anti-pattern | Canonical 2026 replacement |
+|---|---|
+| `useEffect` for data fetching | Server Components, `use()`, or TanStack Query |
+| `useState` for derived values | `useMemo` or compute inline |
+| Prop-drilling > 3 levels | Context, composition, or state library |
+| Manual form state | `react-hook-form` or native `<form>` actions |
+
+---
+
+## Detection method
+
+1. **Regex pass** (fast) — grep for obvious markers: `extends Component`, `componentDidMount`, `require(`, `var `, `any`, `.then(.*).then(`, etc.
+2. **AST pass** (accurate, optional) — if `tsc` / `ruff` / `go vet` configured in the repo, run with strict rules.
+3. **Context pass** — read `tsconfig.json`, `pyproject.toml`, `go.mod` to confirm the stack is modern enough to allow the replacement. Don't suggest `Temporal` if Node is pinned to 18.
+
+---
+
+## Report format
+
+```
+## MODERN-PATTERNS VERDICT
+
+### Findings
+[BLOCK]  components/Profile.tsx:24 — class component
+         Replacement: functional + hooks
+         Migration: react.dev/reference/react/Component#alternatives
+
+[WARN]   lib/api.ts:55-70 — .then() chain (3 links)
+         Replacement: async/await
+         Rationale: readability + stack traces
+
+[INFO]   tests/user.test.ts:8 — `any` as escape hatch
+         Replacement: `unknown` + narrowing, or proper User type
+         Rationale: loses type safety in test-critical code
+
+### Stack-compatibility confirmed
+- Node: 22.3 ✓ allows Temporal
+- TS: 5.5 ✓ allows `satisfies` operator
+- React: 19.0.2 ✓ allows Server Components
+
+### Summary
+BLOCK: 1  (must fix)
+WARN:  1  (strongly advised)
+INFO:  1  (opportunistic)
+```
+
+---
+
+## Guardrails
+
+- **Verify stack before recommending** — suggesting `Temporal` on Node 18 wastes a review cycle.
+- **Don't aggregate-rewrite legacy** — flag, don't refactor wholesale. A single migration is a PR, not a silent edit.
+- **Repo-level opt-outs respected** — if `.eslintrc` deliberately allows `var` or a deprecated pattern (grandfather clause for a legacy module), note and skip.
+- **Citation required** — every suggestion links to the official migration doc or the MDN/React/Python guide. No link → drop the suggestion.
+- **BLOCK only for compile-breaking or security-sensitive** — class components don't BLOCK a working PR; a missing parameterized query DOES.
+- **Stop at 10 findings per file** — above 10, return "file needs a dedicated modernization task" rather than a linter dump.
+
+---
+
+## When triggered
+
+- CODEBASE step after `explorer` reads the target files
+- `@ciel-explorer` dispatched for PR review
+- Before accepting LLM-generated code in a legacy codebase (high drift risk)
+- After `@ciel-researcher` validates an API — this skill confirms the call site uses modern idioms
+
+---
+
+## References
+
+- ThoughtWorks Technology Radar April 2026 — "curated shared instructions" volume
+- React 19 migration guide — react.dev/blog/2024/04/25/react-19
+- PEP 585 / PEP 604 — Python builtin-generics + union syntax
+- Go 1.18 — `any` alias, generics
+- MDN Async/Await — developer.mozilla.org/en-US/docs/Learn/JavaScript/Asynchronous
+
+---
+
+### Skill: `ai-failure-modes-detector`
+
+
+# ai-failure-modes-detector — Catch confident-wrong before it lands
+
+LLM-generated code compiles more often than it's correct. Six failure modes account for >90% of post-merge incidents in agentic PRs (ISSTA 2025). This skill runs each check systematically.
+
+---
+
+## Inputs
+
+```
+CODE_UNDER_REVIEW: [file paths OR diff hunk]
+AUTHOR: [human | LLM | mixed]
+PROPOSED_DEPS: [new dependencies being added, if any]
+TEST_COVERAGE: [files that have tests | files without]
+```
+
+AUTHOR=human → optional check. AUTHOR=LLM or mixed → mandatory for Standard/Critical.
+
+---
+
+## The six failure modes
+
+### 1. Invented APIs
+
+Function/class/method that doesn't exist in the library at the pinned version.
+
+**Detection**:
+- Grep every import and every method call on imported symbols
+- Cross-reference with `node_modules/<pkg>/package.json` + type definitions
+- For dynamic imports (`await import()`), inspect at runtime if possible
+
+**Signal**: import resolves but `<symbol>` not in the `.d.ts` or `__init__.py`.
+
+### 2. Hallucinated dependencies
+
+`npm package` or `pip package` that doesn't exist on the registry (or typo-squat).
+
+**Detection**:
+- For each new dep in PROPOSED_DEPS: `npm view <pkg> --json` or `pip index versions <pkg>`
+- Check publisher reputation (weekly downloads, last publish date, repo link present)
+- Typo-squat check: Levenshtein distance ≤ 2 from a popular package name is SUSPICIOUS
+
+**Signal**: registry returns 404, or package has < 100 downloads/week with no repo.
+
+### 3. Version drift
+
+Code uses an API that exists but at a different version than pinned.
+
+**Detection**:
+- For each external API call, check "Added in vX.Y" / "Deprecated in vX.Y" metadata
+- Compare against pinned version in lockfile
+
+**Signal**: API exists in v2, code pins v1 — silently broken.
+
+### 4. Async/sync mismatch
+
+Sync call in an async codebase or a Promise-returning function not awaited.
+
+**Detection** (TS):
+- `@typescript-eslint/no-floating-promises`
+- Grep for `fetch(`, `fs.readFileSync` (sync in async) or unawaited `async` functions
+- Any `Promise<T>` returned from a function whose callers don't `await`
+
+**Detection** (Python):
+- Sync `requests.get()` inside an `async def`
+- `asyncio.run()` called inside an event loop
+
+**Signal**: type checker emits "Promise returned but not awaited" OR sync call blocks in async context.
+
+### 5. Confident-wrong logic
+
+Code is syntactically and typing-wise valid, passes linting, but is semantically wrong:
+- Off-by-one on pagination
+- Wrong operator (`>=` where `>` needed)
+- Negated boolean
+- Swapped arguments of same type
+
+**Detection**:
+- Run existing tests (if present) — failing tests is the first signal
+- Invariant check: can you state in 1 sentence what the code guarantees? Does it actually guarantee it?
+- For any numerical boundary, ask: "off-by-one in either direction — which breaks?"
+
+**Signal**: behavior divergence between stated goal and actual execution.
+
+### 6. Extrinsic hallucination
+
+Output is plausible but references facts outside the code that cannot be verified:
+- Cites a spec section that doesn't exist
+- Comments claim "per RFC 7231 §5.3" when section 5.3 doesn't cover that
+- Error codes invented (`ERR_USER_QUOTA_EXCEEDED` — is that really thrown?)
+
+**Detection**:
+- Every code comment with a source claim → spot-check
+- Every user-facing string (error codes, log messages) → grep for prior use in the codebase
+
+**Signal**: claim cannot be corroborated.
+
+---
+
+## Report format
+
+```
+## AI-FAILURE-MODES VERDICT
+
+### Author
+LLM  (auto-detected via commit message pattern | user-declared)
+
+### Findings by mode
+1. Invented APIs:
+   [BLOCK] src/auth.ts:42 — `jwt.verifyStrict()` not in jsonwebtoken@9.0.2 (use `verify()` with `algorithms` option)
+
+2. Hallucinated deps:
+   (none — all 3 new deps exist on npm, >10k weekly downloads)
+
+3. Version drift:
+   [WARN] src/db.ts:18 — `drizzle.innerJoin()` added in v0.30, pinned 0.29 — upgrade drizzle-orm
+
+4. Async/sync mismatch:
+   [BLOCK] src/upload.ts:55 — `fs.writeFileSync()` inside async handler — blocks event loop
+
+5. Confident-wrong:
+   [WARN] src/pagination.ts:22 — `offset = page * pageSize` — off-by-one on page=0
+
+6. Extrinsic:
+   [INFO] src/rate-limit.ts:10 — comment cites "per RFC 6585 §4" — RFC 6585 does not have §4; 429 is §4 of RFC 6585 (comment is right, citation format wrong)
+
+### Summary
+BLOCK: 2
+WARN:  2
+INFO:  1
+```
+
+---
+
+## Guardrails
+
+- **BLOCK means don't merge** — invented APIs, hallucinated deps, and async/sync mismatches are production-breaking.
+- **WARN means discuss in review** — not auto-blocking but requires human acknowledgment.
+- **Run against diff, not whole repo** — old code isn't the subject; the new change is.
+- **When tests are absent**, confidence in "confident-wrong" findings drops — request tests be added before clearing the review.
+- **Don't false-positive on stubs** — intentional mocks in `__mocks__/` or `test-helpers/` may reference not-yet-implemented APIs; verify context.
+- **Typo-squat false positives**: popular packages sometimes have close cousins (`request` vs `request-promise`) — check download count AND repo history before flagging.
+
+---
+
+## When triggered
+
+- Post-write hook when AUTHOR=LLM and task is Standard/Critical
+- Before any PR merge authored wholly or partially by an agent
+- After `@ciel-explorer` completes CODEBASE review
+- User command: "audit this code for AI mistakes"
+
+---
+
+## References
+
+- ISSTA 2025 — "LLM Hallucinations in Practical Code Generation: Phenomena, Mechanism, and Mitigation"
+- arxiv 2601.19106 — "Detecting and Correcting Hallucinations in LLM-Generated Code"
+- arxiv 2404.00971 — "Beyond Functional Correctness"
+- Anthropic 2604.08906 — agentic framework failure taxonomy
+
+---
+
+## Conditional workflow skills (compact — invoke when triggers match)
+
+
+---
+
+### Skill (compact): `test-strategy-vitest-playwright`
+
+
+**Purpose:** Designs the test strategy for a feature — which tests belong at which level (unit 70% / integration 20% / e2e 10%), which tooling fits (Vitest + MSW + Playwright + fast-check), what to mock vs what to hit real, and how to keep the suite fast. 2026 convention: browser-native runners, property-based for edge cases, accessibility-tree assertions over screenshots. Invoked during CRÉER step 4 (test planning) before code is written.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/test-strategy-vitest-playwright/`):
+
+
+
+The anti-pattern is 70% E2E Playwright, 5% unit — slow CI, flaky, expensive. The 2026 pyramid: most tests at the unit level, very few real-browser E2E, property-based for boundary conditions.
+
+---
+
+## Inputs
+
+```
+FEATURE_DESCRIPTION: [what the feature does, user-level]
+COMPONENTS_TOUCHED: [files / modules / routes]
+EXISTING_TESTS: [coverage map of the affected area]
+STACK: [TS/JS framework + test tooling currently used]
+```
+
+---
+
+## The 2026 pyramid (target ratios)
+
+```
+
+---
+
+### Skill (compact): `playwright-visual-critic`
+
+
+**Purpose:** Wraps Playwright MCP to give Ciel visual critique capability — launches the dev server, navigates to a target page, captures the accessibility tree and (optionally) a screenshot, then dispatches @ciel-critic to analyze layout, contrast, focus order, and responsive behavior. Prefers accessibility-tree analysis over pixel screenshots (deterministic, 2-5KB vs 100KB+). Requires Playwright MCP to be configured (install with `bash install.sh --with-mcp=playwright`).
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/playwright-visual-critic/`):
+
+
+
+UI bugs invisible to code review: clipped text, contrast failures, broken focus order, mobile overflow. The 2026 pattern is NOT "screenshot → vision model"; it's "accessibility tree → structured critique", which is 20-50x cheaper and more accurate.
+
+---
+
+## Prerequisites
+
+Playwright MCP must be installed and registered:
+
+```bash
+bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright
+
+claude mcp add playwright --transport stdio -- npx @playwright/mcp@latest
+```
+
+Verify with: `claude mcp list | grep playwright`.
+
+If not installed → STOP and instruct the user to run the command above. Do not attempt to critique without it.
+
+
+---
+
 ## Domain skills (compact — one is dispatched IN PARALLEL based on stack signals)
 
 > Each domain skill below is pre-compressed to its trigger signals + main checks.
@@ -547,3 +928,63 @@ When a block is used 2+ times OR has a clear single responsibility within a long
 
 Gradual replacement of legacy code:
 - Phase 1: put new code behind a feature flag, route a subset of traffic to it
+
+---
+
+### Skill (compact): `cicd-security-hardener`
+
+
+**Purpose:** Audits CI/CD pipelines (GitHub Actions primarily, GitLab CI / CircleCI secondarily) against 2026 supply-chain security baselines — SLSA Level 3+, Sigstore/Cosign keyless signing, ephemeral runners, SBOM generation, dependency pinning. Flags long-lived secrets, `pull_request_target` misuse, and missing attestations. Invoked when creating or reviewing `.github/workflows/*.yml` or equivalent.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/cicd-security-hardener/`):
+
+
+
+Supply-chain attacks moved from "rare incident" to "monthly news" (XZ, SolarWinds, CircleCI). The 2026 baseline is SLSA Level 3 + Sigstore keyless — not a wishlist, a minimum.
+
+---
+
+## Inputs
+
+```
+PIPELINE_FILES: [.github/workflows/*.yml | .gitlab-ci.yml | .circleci/config.yml]
+PROJECT_TYPE: [library | service | CLI | container-image]
+CURRENT_RELEASE_PROCESS: [manual | semantic-release | release-please | none]
+```
+
+---
+
+## The 2026 baseline checklist
+
+### 1. Source integrity
+
+
+---
+
+### Skill (compact): `accessibility-wcag-auditor`
+
+
+**Purpose:** Audits UI code and rendered output against WCAG 2.2 Level AA (2026 legal baseline — ADA Title II, EN 301 549). Covers the new 2.2 success criteria (Focus Not Obscured 2.4.11, Target Size 2.5.8, Accessible Authentication 3.3.8), plus contrast ratios, keyboard navigation, semantic HTML, ARIA correctness, and Core Web Vitals for accessibility (INP < 200ms). Runs via axe-core + manual review. Invoked on any frontend PR.
+
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/accessibility-wcag-auditor/`):
+
+
+
+Automated tools catch 30-57% of a11y violations (WAI; Deque). The other 40% require manual review of semantics, keyboard flow, and intent. This skill covers both.
+
+---
+
+## Inputs
+
+```
+FRONTEND_FILES: [components / pages / templates in the diff]
+RENDERED_URL: [if available — feeds playwright-visual-critic]
+INTERACTIVE_PATTERNS: [modals, menus, forms, tabs — which are in the diff?]
+```
+
+---
+
+## WCAG 2.2 AA — full criteria coverage
+
+### Perceivable
+

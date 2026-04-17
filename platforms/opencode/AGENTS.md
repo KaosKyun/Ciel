@@ -70,3 +70,15 @@ Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing co
 ## Automatic context injection (plugin hooks)
 
 The `ciel.ts` plugin injects depth classification on every user prompt and RELIRE reminders after every `Write`/`Edit` on code files. You don't need to remember to invoke Ciel — the plugin fires on the right events.
+
+---
+
+## MCP integration (opt-in)
+
+Ciel ships a `.mcp.json` template at the repo root with two opt-in servers: `playwright` (visual critique) and `context7` (live official docs). Register them via:
+
+```bash
+bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright,context7
+```
+
+**Important** — OpenCode issue #2319: plugin hooks (`tool.execute.before/after`) do NOT fire for MCP tool calls. The `playwright-visual-critic` skill orchestrates the flow explicitly (navigate → snapshot → dispatch `@ciel-critic`) rather than relying on auto-triggered hooks. When you use a visual-critique workflow, dispatch the critic agent yourself after capture.

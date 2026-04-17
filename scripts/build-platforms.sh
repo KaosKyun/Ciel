@@ -34,12 +34,12 @@ done
 # (Portable across bash 3.2 — no associative arrays)
 LIMIT_cursor=6144
 LIMIT_windsurf=6144
-LIMIT_codex=32768
+LIMIT_codex=65536
 LIMIT_opencode=32768
-LIMIT_kilo=32768
+LIMIT_kilo=65536
 LIMIT_opencode_agents_md=6144
 LIMIT_opencode_plugin=8192
-LIMIT_opencode_agent=49152
+LIMIT_opencode_agent=65536
 LIMIT_opencode_command=8192
 
 limit_for() {
@@ -482,15 +482,31 @@ emit_opencode_agent() {
           "$SKILLS/research/research-forums/SKILL.md" \
           "$SKILLS/research/validate-source-credibility/SKILL.md" \
           "$SKILLS/research/synthesize-findings/SKILL.md" \
-          "$SKILLS/research/fact-check-claims/SKILL.md"
+          "$SKILLS/research/fact-check-claims/SKILL.md" \
+          "$SKILLS/workflow/doc-validator-official/SKILL.md"
         ;;
       explorer)
-        # Full bundle for the 2 workflow skills explorer ALWAYS invokes.
+        # Full bundle for workflow skills explorer ALWAYS invokes (pattern-fit +
+        # flux) plus the two 2026 high-priority skills (modern-patterns, failure
+        # modes) — these fire on every Standard/Critical codebase review.
         bundle_skills_inline \
           "$SKILLS/workflow/pattern-fitness-check/SKILL.md" \
-          "$SKILLS/workflow/flux-narrator/SKILL.md"
+          "$SKILLS/workflow/flux-narrator/SKILL.md" \
+          "$SKILLS/workflow/modern-patterns-checker/SKILL.md" \
+          "$SKILLS/workflow/ai-failure-modes-detector/SKILL.md"
 
-        # Compact bundle for 8 domain skills — only 1-2 are relevant per task.
+        # Compact workflow skills — conditionally invoked (testing planning,
+        # visual critique on UI PRs). Full bodies stay on Claude Code.
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Conditional workflow skills (compact — invoke when triggers match)"
+        echo ""
+        bundle_skills_compact \
+          "$SKILLS/workflow/test-strategy-vitest-playwright/SKILL.md" \
+          "$SKILLS/workflow/playwright-visual-critic/SKILL.md"
+
+        # Compact bundle for 10 domain skills — only 1-2 are relevant per task.
         # Full loading wastes ~25KB / ~6250 tokens per dispatch.
         echo ""
         echo "---"
@@ -507,21 +523,26 @@ emit_opencode_agent() {
           "$SKILLS/domain/api-architecture/SKILL.md" \
           "$SKILLS/domain/observability/SKILL.md" \
           "$SKILLS/domain/performance-engineering/SKILL.md" \
-          "$SKILLS/domain/refactoring-patterns/SKILL.md"
+          "$SKILLS/domain/refactoring-patterns/SKILL.md" \
+          "$SKILLS/domain/cicd-security-hardener/SKILL.md" \
+          "$SKILLS/domain/accessibility-wcag-auditor/SKILL.md"
         ;;
       critic)
         bundle_skills_inline \
           "$SKILLS/workflow/relire-critic/SKILL.md" \
           "$SKILLS/workflow/critiquer-auditor/SKILL.md" \
           "$SKILLS/workflow/stride-analyzer/SKILL.md" \
-          "$SKILLS/workflow/security-regression-check/SKILL.md"
+          "$SKILLS/workflow/security-regression-check/SKILL.md" \
+          "$SKILLS/workflow/debug-reasoning-rca/SKILL.md" \
+          "$SKILLS/workflow/self-consistency-verifier/SKILL.md"
         ;;
       improver)
         bundle_skills_inline \
           "$SKILLS/meta/ciel-improve/SKILL.md" \
           "$SKILLS/meta/skill-creator/SKILL.md" \
           "$SKILLS/meta/skill-variant-evaluator/SKILL.md" \
-          "$SKILLS/meta/learnings-capture/SKILL.md"
+          "$SKILLS/meta/learnings-capture/SKILL.md" \
+          "$SKILLS/meta/skills-first-design-auditor/SKILL.md"
         echo ""
         echo "---"
         echo ""
@@ -654,6 +675,18 @@ Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing co
 ## Automatic context injection (plugin hooks)
 
 The `ciel.ts` plugin injects depth classification on every user prompt and RELIRE reminders after every `Write`/`Edit` on code files. You don't need to remember to invoke Ciel — the plugin fires on the right events.
+
+---
+
+## MCP integration (opt-in)
+
+Ciel ships a `.mcp.json` template at the repo root with two opt-in servers: `playwright` (visual critique) and `context7` (live official docs). Register them via:
+
+```bash
+bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright,context7
+```
+
+**Important** — OpenCode issue #2319: plugin hooks (`tool.execute.before/after`) do NOT fire for MCP tool calls. The `playwright-visual-critic` skill orchestrates the flow explicitly (navigate → snapshot → dispatch `@ciel-critic`) rather than relying on auto-triggered hooks. When you use a visual-critique workflow, dispatch the critic agent yourself after capture.
 EOF
 }
 

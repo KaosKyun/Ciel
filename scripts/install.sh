@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer v2.0.0
+# Ciel Universal Installer v2.1.0
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
-# Usage: bash scripts/install.sh [project-root]
+# Usage: bash scripts/install.sh [project-root] [flags]
 #        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
 #
-# v2.0.0 changes:
-#   - skills/ now contains 33 skills across workflow/research/domain/utility/meta categories
-#   - Hooks renamed: pre-write-gate → pre-tool-write, post-write-relire → post-tool-write
-#   - 5 new hook events wired: SessionStart, UserPromptSubmit, PreCompact, SubagentStop, Stop
-#   - Platforms/ is auto-regenerated from skills/ via scripts/build-platforms.sh
-#   - OpenCode: native primitives (plugin + subagents + commands) restored in .opencode/
+# Flags:
+#   --uninstall         Remove all files tracked in ~/.ciel/manifest.json
+#   --check-update      Query GitHub for newer VERSION and report
+#   --update            Uninstall + re-install latest from main
+#   --with-mcp=LIST     Register MCP servers from .mcp.json (CSV: playwright,context7)
+#   -y, --yes           Skip interactive confirmations
+#
+# v2.1.0 changes:
+#   - 10 new skills (debug-reasoning-rca, doc-validator-official, modern-patterns-checker,
+#     ai-failure-modes-detector, self-consistency-verifier, test-strategy-vitest-playwright,
+#     playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor,
+#     skills-first-design-auditor) — 46 total
+#   - ~/.ciel/manifest.json tracks installed files → enables clean --uninstall
+#   - --update / --check-update against github main VERSION
+#   - --with-mcp=playwright,context7 registers opt-in MCP servers into project .mcp.json
 
 set -euo pipefail
 
@@ -39,18 +48,287 @@ if [ -z "$CIEL_DIR" ] || [ ! -f "$CIEL_DIR/settings.json" ]; then
   CIEL_DIR="$TEMP_DIR"
 fi
 
-PROJECT_ROOT="${1:-$(pwd)}"
+# ─── Flag parsing ────────────────────────────────────────────────────────────
+FLAG_UNINSTALL=false
+FLAG_CHECK_UPDATE=false
+FLAG_UPDATE=false
+FLAG_YES=false
+MCP_LIST=""
+POSITIONAL=()
+for arg in "$@"; do
+  case "$arg" in
+    --uninstall)    FLAG_UNINSTALL=true ;;
+    --check-update) FLAG_CHECK_UPDATE=true ;;
+    --update)       FLAG_UPDATE=true ;;
+    --with-mcp=*)   MCP_LIST="${arg#*=}" ;;
+    -y|--yes)       FLAG_YES=true ;;
+    -h|--help)
+      sed -n '1,20p' "$0" | sed 's/^# \?//'
+      exit 0
+      ;;
+    -*) warn "Unknown flag: $arg (see --help)" ;;
+    *)  POSITIONAL+=("$arg") ;;
+  esac
+done
+
+PROJECT_ROOT="${POSITIONAL[0]:-$(pwd)}"
 PLATFORMS_DIR="$CIEL_DIR/platforms"
 PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
+
+# ─── Manifest helpers (track installed files for clean uninstall) ────────────
+INSTALLED_FILES=()
+_manifest_path() { echo "$HOME/.ciel/manifest.json"; }
+_manifest_append_file() { INSTALLED_FILES+=("$1"); }
+
+_manifest_read_version() {
+  local manifest; manifest="$(_manifest_path)"
+  [ -f "$manifest" ] || return 1
+  grep -oE '"version":[[:space:]]*"[^"]+"' "$manifest" | head -1 | sed 's/.*"\([^"]*\)".*/\1/'
+}
+
+_manifest_write() {
+  local manifest; manifest="$(_manifest_path)"
+  mkdir -p "$(dirname "$manifest")"
+  local version; version="$(cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')"
+  [ -z "$version" ] && version="2.1.0"
+  local now; now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+  {
+    printf '{\n'
+    printf '  "version": "%s",\n' "$version"
+    printf '  "installed_at": "%s",\n' "$now"
+    printf '  "last_update_check": "%s",\n' "$now"
+    printf '  "platforms": ['
+    local first=1
+    for p in "${INSTALLED[@]:-}"; do
+      [ -z "$p" ] && continue
+      if [ $first -eq 1 ]; then first=0; else printf ', '; fi
+      printf '"%s"' "$p"
+    done
+    printf '],\n'
+    printf '  "mcp": ['
+    first=1
+    if [ -n "$MCP_LIST" ]; then
+      IFS=',' read -ra _mcp_arr <<< "$MCP_LIST"
+      for m in "${_mcp_arr[@]}"; do
+        m="${m// /}"
+        [ -z "$m" ] && continue
+        if [ $first -eq 1 ]; then first=0; else printf ', '; fi
+        printf '"%s"' "$m"
+      done
+    fi
+    printf '],\n'
+    printf '  "files": ['
+    first=1
+    for f in "${INSTALLED_FILES[@]:-}"; do
+      [ -z "$f" ] && continue
+      if [ $first -eq 1 ]; then first=0; else printf ','; fi
+      printf '\n    "%s"' "$f"
+    done
+    printf '\n  ]\n}\n'
+  } > "$manifest"
+  ok "Wrote manifest: $manifest"
+}
+
+# ─── MCP installer (opt-in via --with-mcp=playwright,context7) ───────────────
+_install_mcp() {
+  local mcp_list="$1"
+  [ -z "$mcp_list" ] && return 0
+
+  local src_mcp="$CIEL_DIR/.mcp.json"
+  local dest_mcp="$PROJECT_ROOT/.mcp.json"
+
+  if [ ! -f "$src_mcp" ]; then
+    warn "No .mcp.json template in $CIEL_DIR — skipping MCP install"
+    return 0
+  fi
+  if ! command -v python3 &>/dev/null; then
+    warn "python3 not found — cannot merge .mcp.json. Copy $src_mcp manually."
+    return 0
+  fi
+
+  if [ -f "$dest_mcp" ]; then
+    local backup="$dest_mcp.backup-$(date +%Y%m%dT%H%M%S)"
+    cp "$dest_mcp" "$backup"
+    ok "Backed up existing .mcp.json → $backup"
+  fi
+
+  info "Merging MCP servers: $mcp_list"
+  python3 - "$src_mcp" "$dest_mcp" "$mcp_list" <<'PY'
+import json, sys, os
+src, dst, requested = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(src) as f:
+    template = json.load(f)
+servers = template.get("mcpServers", {})
+
+current = {"mcpServers": {}}
+if os.path.exists(dst):
+    try:
+        with open(dst) as f:
+            current = json.load(f)
+    except Exception:
+        pass
+current.setdefault("mcpServers", {})
+
+added = []
+skipped = []
+for name in [n.strip() for n in requested.split(",") if n.strip()]:
+    if name in servers:
+        current["mcpServers"][name] = servers[name]
+        added.append(name)
+    else:
+        skipped.append(name)
+
+current.pop("_comment", None)
+
+with open(dst, "w") as f:
+    json.dump(current, f, indent=2)
+    f.write("\n")
+
+if added:
+    print("  added: " + ", ".join(added))
+if skipped:
+    print("  not in template (skipped): " + ", ".join(skipped))
+PY
+
+  _manifest_append_file "$dest_mcp"
+}
+
+# ─── Update-check (queries GitHub for latest VERSION) ────────────────────────
+_check_update() {
+  local manifest; manifest="$(_manifest_path)"
+  if [ ! -f "$manifest" ]; then
+    warn "No manifest at $manifest — run a fresh install first"
+    return 1
+  fi
+  local local_version; local_version="$(_manifest_read_version)"
+  [ -z "$local_version" ] && { warn "Cannot read version from manifest"; return 1; }
+
+  info "Local version:  $local_version"
+  info "Checking GitHub..."
+  local remote_version
+  remote_version="$(curl -fsSL --max-time 5 \
+    https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION 2>/dev/null \
+    | tr -d '[:space:]')"
+  if [ -z "$remote_version" ]; then
+    warn "Could not fetch remote VERSION (network / GitHub unreachable)"
+    return 1
+  fi
+  info "Remote version: $remote_version"
+
+  # Record last check (enables SessionStart throttling)
+  mkdir -p "$HOME/.ciel"
+  touch "$HOME/.ciel/.last-update-check"
+
+  if [ "$local_version" = "$remote_version" ]; then
+    ok "Up to date."
+    return 0
+  fi
+  echo ""
+  echo -e "  ${YELLOW}Update available:${RESET} v$local_version → v$remote_version"
+  echo "  Run: bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update"
+  return 0
+}
+
+# ─── Uninstall (reads manifest, removes tracked files, preserves whitelist) ──
+_do_uninstall() {
+  local manifest; manifest="$(_manifest_path)"
+  if [ ! -f "$manifest" ]; then
+    warn "No manifest at $manifest — nothing to uninstall"
+    return 1
+  fi
+
+  local files
+  if command -v python3 &>/dev/null; then
+    files="$(python3 -c "import json,sys; print('\n'.join(json.load(open('$manifest')).get('files', [])))")"
+  else
+    files="$(grep -oE '"/[^"]+"' "$manifest" | sed 's/"//g')"
+  fi
+  [ -z "$files" ] && { warn "Manifest has no file entries"; return 1; }
+
+  local count; count="$(echo "$files" | grep -c . || true)"
+  info "Manifest lists $count files."
+
+  if ! $FLAG_YES; then
+    read -rp "  Delete these files? [y/N]: " ans
+    case "$ans" in
+      [Yy]*) ;;
+      *) echo "  Aborted."; return 0 ;;
+    esac
+  fi
+
+  # Whitelist: never auto-delete these (user data / user-scope configs)
+  local preserve_re='(\.mcp\.json(\.backup-|$)|ciel-overlay\.md$)'
+
+  local removed=0 preserved=0
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    if [[ "$f" =~ $preserve_re ]]; then
+      info "Preserved (whitelist): $f"
+      preserved=$((preserved + 1))
+      continue
+    fi
+    if [ -e "$f" ]; then
+      rm -rf "$f"
+      removed=$((removed + 1))
+    fi
+  done <<< "$files"
+
+  # Clean empty dirs (ignore failure — non-empty dirs stay)
+  for d in \
+    "$HOME/.claude/skills/ciel" \
+    "$HOME/.claude/plugins/ciel" \
+    "$HOME/.ciel/ollama" \
+    "$HOME/.ciel/lmstudio"; do
+    [ -d "$d" ] && rmdir "$d" 2>/dev/null || true
+  done
+
+  rm -f "$manifest" "$HOME/.ciel/.last-update-check"
+  rmdir "$HOME/.ciel" 2>/dev/null || true
+
+  ok "Removed $removed files (preserved $preserved)."
+}
+
+# ─── Update (uninstall + re-install from latest) ─────────────────────────────
+_do_update() {
+  local manifest; manifest="$(_manifest_path)"
+  if [ ! -f "$manifest" ]; then
+    warn "No manifest — cannot --update (not installed via v2.1.0+)"
+    echo "  Run: bash scripts/install.sh  (fresh install)"
+    return 1
+  fi
+  _check_update || return 1
+  info "Proceeding with update..."
+  FLAG_YES=true _do_uninstall
+  info "Fetching latest installer..."
+  curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh | bash -s -- -y
+}
+
+# ─── Flag short-circuits (uninstall/check-update/update exit immediately) ────
+if $FLAG_UNINSTALL; then
+  echo -e "\n${BOLD}Ciel Uninstall${RESET}"
+  _do_uninstall
+  exit $?
+fi
+if $FLAG_CHECK_UPDATE; then
+  echo -e "\n${BOLD}Ciel Update Check${RESET}"
+  _check_update
+  exit $?
+fi
+if $FLAG_UPDATE; then
+  echo -e "\n${BOLD}Ciel Update${RESET}"
+  _do_update
+  exit $?
+fi
 
 # ─── Detect existing install ─────────────────────────────────────────────────
 IS_UPDATE=false
 [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
 
 if $IS_UPDATE; then
-  echo -e "\n${BOLD}Ciel Universal Installer v2${RESET} (${YELLOW}update detected${RESET})"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.0${RESET} (${YELLOW}update detected${RESET})"
 else
-  echo -e "\n${BOLD}Ciel Universal Installer v2${RESET}"
+  echo -e "\n${BOLD}Ciel Universal Installer v2.1.0${RESET}"
 fi
 echo -e "Plugin : $CIEL_DIR"
 echo -e "Project: $PROJECT_ROOT\n"
@@ -63,7 +341,7 @@ detect_skills() {
   { [ -f "$root/requirements.txt" ] || [ -f "$root/pyproject.toml" ] || [ -f "$root/go.mod" ] || [ -f "$root/Cargo.toml" ]; } && skills+=("backend-mastery")
   { [ -d "$root/supabase/migrations" ] || [ -d "$root/prisma" ] || find "$root" -name "*.sql" -maxdepth 4 2>/dev/null | grep -q .; } && skills+=("database-mastery")
   find "$root" -type d \( -name "auth" -o -name "security" \) -maxdepth 5 2>/dev/null | grep -q . && skills+=("security-hardening")
-  printf '%s\n' "${skills[@]}" | sort -u
+  printf '%s\n' "${skills[@]:-}" | sort -u
 }
 
 # Remove old Ciel files from a directory (only ciel-* prefixed files, safe for user's own files)
@@ -112,6 +390,63 @@ _purge_manual_install() {
   fi
 }
 
+# ─── Post-install file registry (populates INSTALLED_FILES for manifest) ────
+# Runs once after all install_* functions complete. Enumerates paths that
+# are known Ciel outputs; [ -e ... ] filters to what actually got created.
+_register_installed_files() {
+  # Claude Code — skills (orchestrator + categorized)
+  [ -d "$HOME/.claude/skills/ciel" ] && _manifest_append_file "$HOME/.claude/skills/ciel"
+  for cat in workflow research domain utility meta; do
+    [ -d "$CIEL_DIR/skills/$cat" ] || continue
+    for s in "$CIEL_DIR/skills/$cat"/*/; do
+      [ -d "$s" ] || continue
+      local name; name=$(basename "$s")
+      [ -d "$HOME/.claude/skills/$name" ] && _manifest_append_file "$HOME/.claude/skills/$name"
+    done
+  done
+  # Agents + commands + plugin dir
+  for a in researcher explorer critic improver; do
+    [ -f "$HOME/.claude/agents/$a.md" ] && _manifest_append_file "$HOME/.claude/agents/$a.md"
+  done
+  for c in "$HOME/.claude/commands/"ciel*.md; do
+    [ -f "$c" ] && _manifest_append_file "$c"
+  done
+  [ -d "$HOME/.claude/plugins/ciel" ] && _manifest_append_file "$HOME/.claude/plugins/ciel"
+
+  # Project-scope overlay (whitelist preserves on uninstall)
+  [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && _manifest_append_file "$PROJECT_ROOT/ciel-overlay.md"
+
+  # Cursor / Windsurf / Kilo
+  [ -f "$PROJECT_ROOT/.cursor/rules/ciel.mdc" ] && _manifest_append_file "$PROJECT_ROOT/.cursor/rules/ciel.mdc"
+  [ -f "$PROJECT_ROOT/.windsurf/rules/ciel.md" ] && _manifest_append_file "$PROJECT_ROOT/.windsurf/rules/ciel.md"
+  [ -f "$PROJECT_ROOT/.kilocode/rules/ciel.md" ] && _manifest_append_file "$PROJECT_ROOT/.kilocode/rules/ciel.md"
+  if [ -d "$PROJECT_ROOT/.kilo/agents" ]; then
+    for f in "$PROJECT_ROOT/.kilo/agents/"*.md; do
+      [ -f "$f" ] && _manifest_append_file "$f"
+    done
+  fi
+
+  # Codex / OpenCode (AGENTS.md is whitelisted in uninstall — user-owned risk)
+  [ -f "$PROJECT_ROOT/AGENTS.md" ] && _manifest_append_file "$PROJECT_ROOT/AGENTS.md"
+  [ -f "$PROJECT_ROOT/opencode.json" ] && _manifest_append_file "$PROJECT_ROOT/opencode.json"
+  [ -f "$PROJECT_ROOT/.opencode/plugins/ciel.ts" ] && _manifest_append_file "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
+  if [ -d "$PROJECT_ROOT/.opencode/agents" ]; then
+    for f in "$PROJECT_ROOT/.opencode/agents/"ciel-*.md; do
+      [ -f "$f" ] && _manifest_append_file "$f"
+    done
+  fi
+  if [ -d "$PROJECT_ROOT/.opencode/commands" ]; then
+    for f in "$PROJECT_ROOT/.opencode/commands/"ciel*.md; do
+      [ -f "$f" ] && _manifest_append_file "$f"
+    done
+  fi
+
+  # Ollama / LM Studio (home-scope)
+  [ -f "$HOME/.ciel/ollama/Modelfile" ] && _manifest_append_file "$HOME/.ciel/ollama/Modelfile"
+  [ -f "$HOME/.ciel/lmstudio/system-prompt.md" ] && _manifest_append_file "$HOME/.ciel/lmstudio/system-prompt.md"
+  return 0
+}
+
 # ─── Platform installers ──────────────────────────────────────────────────────
 install_claude() {
   info "Claude Code..."
@@ -136,7 +471,9 @@ install_claude() {
     if [ -d "$CIEL_DIR/skills/$category" ]; then
       for skill_dir in "$CIEL_DIR/skills/$category"/*/; do
         [ -d "$skill_dir" ] || continue
-        cp -r "$skill_dir" "$HOME/.claude/skills/"
+        # Strip trailing slash so BSD cp (macOS) copies the dir itself,
+        # not just its contents onto the destination root.
+        cp -r "${skill_dir%/}" "$HOME/.claude/skills/"
       done
       count=$(find "$CIEL_DIR/skills/$category" -maxdepth 1 -type d | tail -n +2 | wc -l)
       ok "skills/$category ($count skills) -> ~/.claude/skills/"
@@ -369,7 +706,21 @@ if [ -d "$PLUGIN_DIR" ] && [ -f "$PLUGIN_DIR/overlay-template.md" ]; then
   fi
 fi
 
+# ─── MCP opt-in + manifest write ──────────────────────────────────────────────
+if [ -n "$MCP_LIST" ]; then
+  echo ""
+  info "Installing MCP servers..."
+  _install_mcp "$MCP_LIST"
+fi
+
+echo ""
+_register_installed_files
+_manifest_write
+
+echo ""
 echo -e "${BOLD}Done.${RESET} Installed: ${INSTALLED[*]:-none}"
 echo ""
 echo "Edit ciel-overlay.md to set stack versions, CI config, and project rules."
-echo "Full docs: https://github.com/KaosKyun/Ciel"
+echo "Uninstall:     bash scripts/install.sh --uninstall"
+echo "Check update:  bash scripts/install.sh --check-update"
+echo "Full docs:     https://github.com/KaosKyun/Ciel"
