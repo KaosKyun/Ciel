@@ -4,20 +4,24 @@
   "plugin": ["./.opencode/plugins/ciel.ts"],
   "agent": {
     "ciel-critic": {
+      "name": "ciel-critic",
       "mode": "subagent",
-      "prompt": "{file:./.opencode/agents/ciel-critic.md}"
+      "model": "anthropic/claude-sonnet-4-6"
     },
     "ciel-explorer": {
+      "name": "ciel-explorer",
       "mode": "subagent",
-      "prompt": "{file:./.opencode/agents/ciel-explorer.md}"
+      "model": "anthropic/claude-sonnet-4-6"
     },
     "ciel-researcher": {
+      "name": "ciel-researcher",
       "mode": "subagent",
-      "prompt": "{file:./.opencode/agents/ciel-researcher.md}"
+      "model": "anthropic/claude-haiku-4-5-20251001"
     },
     "ciel-improver": {
+      "name": "ciel-improver",
       "mode": "subagent",
-      "prompt": "{file:./.opencode/agents/ciel-improver.md}"
+      "model": "anthropic/claude-sonnet-4-6"
     }
   }
 }
