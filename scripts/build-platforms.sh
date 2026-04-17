@@ -377,19 +377,30 @@ emit_opencode_agent() {
   desc=$(head -1 "$src" | sed 's/^# *//')
   [[ -z "$desc" ]] && desc="Ciel $role — isolated-context subagent"
 
+  # Per-role model choice:
+  #   researcher/explorer → Sonnet 4.6 (fast, cheap, strong for research + code exploration)
+  #   critic/improver     → Opus 4.7 (deep reasoning, blind-spot hunting, self-improvement)
+  #
+  # OpenCode users can override any of these via .opencode/agents/ciel-*.md
+  # (uncomment or change the `model:` line after install).
   local tools_block=""
+  local model_id=""
   case "$role" in
     researcher)
       tools_block=$'tools:\n  write: false\n  edit: false\n  webfetch: true\n  bash: true'
+      model_id="anthropic/claude-sonnet-4-6"
       ;;
     explorer)
       tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  webfetch: false'
+      model_id="anthropic/claude-sonnet-4-6"
       ;;
     critic)
       tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  webfetch: false'
+      model_id="anthropic/claude-opus-4-7"
       ;;
     improver)
       tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  webfetch: true'
+      model_id="anthropic/claude-opus-4-7"
       ;;
   esac
 
@@ -397,7 +408,7 @@ emit_opencode_agent() {
     echo "---"
     echo "description: $desc"
     echo "mode: subagent"
-    echo "model: anthropic/claude-sonnet-4-5"
+    echo "model: $model_id"
     echo "temperature: 0.2"
     echo "$tools_block"
     echo "---"

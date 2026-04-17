@@ -1,7 +1,7 @@
 ---
 description: Ciel Critic
 mode: subagent
-model: anthropic/claude-sonnet-4-5
+model: anthropic/claude-opus-4-7
 temperature: 0.2
 tools:
   write: false
