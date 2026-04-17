@@ -58,42 +58,14 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
     event: async ({ event }) => {
       if (event.type === "session.created") {
         sessionStartTime = Date.now();
-        console.log("[CIEL] Session started — depth-aware reasoning active. Use /ciel, @ciel-researcher, @ciel-explorer, @ciel-critic.");
+        console.log("[CIEL] Session active — /ciel for orchestrator");
       }
 
-      // FIX #1: Stop hook parity — session.idle is the closest equivalent
-      // Fires when session goes idle (user stops interacting)
+      // Session idle — compact meta-critiquer (single line to avoid overflow)
       if (event.type === "session.idle") {
-        const sessionDuration = Math.round((Date.now() - sessionStartTime) / 1000);
-        const changedFiles = Array.from(writtenFiles);
-        
-        console.log(`[CIEL META-CRITIQUER] Session idle after ${sessionDuration}s`);
-        console.log(`[CIEL META-CRITIQUER] Files changed: ${changedFiles.length}`);
-        console.log(`[CIEL META-CRITIQUER] Inline calls made: ${inlineCallCount}`);
-        
-        if (changedFiles.length > 0) {
-          console.log(`[CIEL META-CRITIQUER] Changed: ${changedFiles.join(", ")}`);
-          
-          // Check if RELIRE was dispatched
-          if (!relireSticky) {
-            console.log("[CIEL META-CRITIQUER] ⚠️ Files changed but RELIRE not triggered — check pipeline compliance");
-          } else {
-            console.log("[CIEL META-CRITIQUER] ✓ RELIRE sticky active — verify @ciel-critic dispatched");
-          }
-        }
-        
-        // Release gate check (simplified — just log for now)
-        if (worktree) {
-          try {
-            const gitCmd = await $`git -C ${worktree} log --oneline --since="1 hour ago" | wc -l`.text();
-            const recentCommits = parseInt(gitCmd.trim()) || 0;
-            if (recentCommits >= 3) {
-              console.log(`[CIEL RELEASE-GATE] ${recentCommits} commits since last hour — consider versioning`);
-            }
-          } catch {
-            // Silent fail if git not available
-          }
-        }
+        const changed = writtenFiles.size;
+        const status = relireSticky ? "RELIRE✓" : "RELIRE✗";
+        console.log(`[CIEL] META-CRITIQUER: ${changed} files, ${inlineCallCount} inline calls, ${status}`);
       }
     },
 
@@ -107,9 +79,8 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
       }
       
       if (relireSticky) {
-        const changed = Array.from(writtenFiles);
         output.system.push(
-          `[CIEL RELIRE REQUIRED] ${changed.length} code files changed this session (${changed.slice(0, 6).join(", ")}${changed.length > 6 ? ", ..." : ""}). Dispatch @ciel-critic MODE=RELIRE — 3 RISQUES + FIX/ACCEPT/DEFER. Do not declare done before verdict.`
+          `[CIEL] ${writtenFiles.size} files changed — dispatch @ciel-critic MODE=RELIRE`
         );
       }
     },
@@ -140,13 +111,7 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
       const { depth, reason } = classifyDepth(prompt);
       
       if (depth) {
-        lastDepthHint = `[CIEL] Depth: ${depth} (${reason}). Route the pipeline accordingly.`;
-        
-        // Attempt immediate injection if output.system is available
-        // This ensures the hint is visible on the CURRENT turn, not next turn
-        if (Array.isArray((output as any).system)) {
-          (output as any).system.push(lastDepthHint);
-        }
+        lastDepthHint = `[CIEL] Depth: ${depth}`;
       } else {
         lastDepthHint = null;
       }
@@ -163,7 +128,7 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
           const count = dispatchCounter.get(sid) ?? 0;
           if (count < 5) return;
 
-          const msg = `[CIEL HARD-STOP] Dispatch gate exceeded (${count} inline calls without a Task() on a Standard+ task). Dispatch @ciel-researcher / @ciel-explorer / @ciel-critic now with [ASSUMED] markers for unresolved inputs. Further investigation belongs INSIDE the fork, not in the main session.`;
+          const msg = `[CIEL] HARD-STOP: ${count} inline calls — dispatch @ciel-researcher/@ciel-explorer now`;
           console.error(msg);
           
           if (output && typeof output === "object") {
@@ -201,14 +166,20 @@ const ciel: Plugin = async ({ $, directory, worktree }) => {
           if (remindedFiles.has(filePath)) return;
           remindedFiles.add(filePath);
 
+          // Compact reminders (single line to avoid terminal overflow)
           const reminder = isCritical
-            ? `\n\n[CIEL CRITIQUE] ${filePath} — FAIRE gates + stride-analyzer + flux-narrator + test-first (RED). Dispatch @ciel-critic MODE=RELIRE before declaring done.`
-            : `\n\n[CIEL] ${filePath} — FAIRE gates: alternatives, idiomatic, test-first. Ensure @ciel-researcher + @ciel-explorer ran.`;
+            ? `\n\n[CIEL] ${filePath} — CRITICAL: FAIRE + STRIDE + RELIRE required`
+            : `\n\n[CIEL] ${filePath} — FAIRE gates: check alternatives, idiomatic, tests`;
 
           if (typeof output?.output === "string") {
             output.output += reminder;
           } else if (output) {
             (output as any).output = reminder.trimStart();
+          }
+          
+          // Trigger meta-critiquer after 3+ files changed (task boundary simulation)
+          if (writtenFiles.size >= 3 && !relireSticky) {
+            console.log(`[CIEL] META-CRITIQUER triggered: ${writtenFiles.size} files changed — dispatch @ciel-critic MODE=RELIRE`);
           }
         },
       },
