@@ -36,5 +36,13 @@ else
   MSG="CIEL ${FILE_PATH} — Invoke faire-gatekeeper skill for FAIRE gates (alternatives, idiomatic, quality, removal, test-first, chunked validation). If Standard/Critical: ensure researcher + explorer agents dispatched."
 fi
 
-echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"$MSG\"}}"
+# PreToolUse hookSpecificOutput only accepts permissionDecision fields, not
+# additionalContext. Forcing permissionDecision="allow" would bypass the
+# user's default permission mode (security regression for ask-mode users), so
+# we surface the reminder via top-level systemMessage — valid on every event,
+# non-modifying to permissions.
+python3 -c "
+import json, sys
+print(json.dumps({'systemMessage': sys.argv[1]}))
+" "$MSG"
 exit 0

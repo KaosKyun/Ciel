@@ -28,10 +28,9 @@ if ($critical) {
     $msg = "CIEL $filePath — Invoke faire-gatekeeper skill for FAIRE gates (alternatives, idiomatic, quality, removal, test-first, chunked validation). If Standard/Critical: ensure researcher + explorer agents dispatched."
 }
 
+# PreToolUse hookSpecificOutput only accepts permissionDecision fields; use
+# top-level systemMessage to surface the reminder without altering permissions.
 @{
-    hookSpecificOutput = @{
-        hookEventName = "PreToolUse"
-        additionalContext = $msg
-    }
+    systemMessage = $msg
 } | ConvertTo-Json -Compress
 exit 0

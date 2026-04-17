@@ -9,5 +9,10 @@ CWD=$(echo "$INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).g
 
 MSG="CIEL PRE-COMPACT — Invoke learnings-capture skill NOW to persist any user corrections + failure modes from this session. Then write .claude/session-progress.md with: current status, completed tasks, **failed approaches + why they failed**, known limitations, next steps. Failed approaches field is critical — prevents dead-end loops in next session."
 
-echo "{\"hookSpecificOutput\": {\"hookEventName\": \"PreCompact\", \"additionalContext\": \"$MSG\"}}"
+# PreCompact has no documented context-injection field. Use top-level
+# systemMessage — valid for every hook, surfaces the reminder to the user.
+python3 -c "
+import json, sys
+print(json.dumps({'systemMessage': sys.argv[1]}))
+" "$MSG"
 exit 0

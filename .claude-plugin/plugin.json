@@ -1,6 +1,6 @@
 {
   "name": "ciel",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Skills-first deep-reasoning plugin for LLM-assisted development. Library of 33 specialized skills + 4 thin-orchestrator agents + self-improvement subsystem. Named after the Primordial Sage from Tensura.",
   "author": {
     "name": "KaosKyun",
