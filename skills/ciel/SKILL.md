@@ -89,6 +89,78 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 
 ---
 
+## Autonomy protocol — gather before asking
+
+**Principle**: Ciel agents are autonomous. Ask the user ONLY when a critical input cannot be obtained from available sources.
+
+### Before any user-facing question, exhaust these sources (in order)
+
+1. **User's original prompt** — re-read it. Intents are often explicit but buried ("ça n'a pas marché en production" implies SCOPE=production, SYMPTOM=failure, REPRO=whatever triggered the attempt).
+2. **ciel-overlay.md** — project-specific stack, CI config, conventions.
+3. **Git state** — `git log --since="7 days ago"`, `git blame <file>`, `git status`, `git diff`. Recent changes often = recent bug cause.
+4. **Filesystem** — `package.json`, `go.mod`, `requirements.txt`, lock files → versions. `.env.example`, `README.md`, `CHANGELOG.md` → conventions.
+5. **Tool invocations** — for any running system: `curl`, `docker ps`, `systemctl status`, log tail via Monitor. Read BEFORE asking the user to paste them.
+6. **MCP servers** if configured — Playwright for UI state, Context7 for live docs, Sentry for errors, GitHub for issues/PRs.
+7. **Codebase grep** — look for usage patterns, existing helpers, similar past incidents.
+
+### State assumptions explicitly
+
+Every dispatch must state what was inferred vs what was given. Format:
+
+```
+[ASSUMED from <source>]
+- SYMPTOM: <inferred> (from: last user message + error log at /var/log/X)
+- REPRO: <inferred> (from: package.json scripts + git log)
+- SCOPE: <inferred> (from: git blame on recently-changed auth/ files)
+
+[GIVEN by user]
+- None explicitly — all inferred
+
+[UNKNOWN — would need user input if critical]
+- Timing of failure (last deploy vs later): not in logs I can access
+```
+
+Proceed with inferences. Flag uncertainty in the output. DO NOT ask unless truly blocking.
+
+### When to ask (last resort)
+
+Ask ONLY if ALL of the following:
+- Input is genuinely critical (blocking the skill from producing useful output)
+- None of sources 1-7 yielded it
+- You cannot proceed with a reasonable default + "confidence: low" flag
+
+When asking, ask ONE specific question with 2-3 concrete options. Never ask open-ended "tell me more".
+
+### Example contrast
+
+**Wrong (interrogative mode):**
+```
+User: /ciel my library update broke production
+Ciel: Can you tell me:
+  - What library?
+  - What error?
+  - What command did you run?
+  - Is there a repro?
+[waits for human]
+```
+
+**Right (autonomous mode):**
+```
+User: /ciel my library update broke production
+Ciel:
+  [ASSUMED]
+  - Recent change: npm up landed 2h ago in commit a1b2c3 (from git log)
+  - Broken lib: @auth/core bumped 3.1 → 4.0 (breaking change per changelog)
+  - Error: production logs show "useAuth is not a function" 1243 times since deploy
+  - Repro: curl -X POST https://api.../login returns 500
+  [UNKNOWN]
+  - None — proceeding with RCA
+
+  Task(@ciel-critic, "MODE=RCA SYMPTOM=useAuth undefined post @auth/core v4 upgrade REPRO=curl ... SCOPE=src/auth/")
+```
+
+---
+
 ## Dispatch directive — Skill tool vs Task tool
 
 **MANDATORY**: before invoking a Ciel skill, check its frontmatter.

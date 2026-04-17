@@ -12,12 +12,19 @@ LLMs over-weight patterns that dominated their training set years ago. Without a
 
 ---
 
-## Inputs
+## Inputs (infer before asking — see orchestrator's Autonomy protocol)
 
 ```
 CODE_UNDER_REVIEW: [file paths OR diff hunk]
 TARGET_STACK: [language + framework + version — resolved from package manifests]
 ```
+
+### Auto-inference sources (exhaust BEFORE asking the user)
+
+- **CODE_UNDER_REVIEW** → `git diff main...HEAD` for the branch under review; fall back to `git diff HEAD~1` for the latest commit; or the user-named file(s).
+- **TARGET_STACK** → read `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml`; derive framework from dependencies (`react`, `vue`, `svelte`, `fastapi`, `django`, etc.). Read `tsconfig.json` / `pyproject.toml` for strictness settings. Cross-check with `ciel-overlay.md`.
+
+Never ask the user for either. Both are deterministically inferable.
 
 ---
 

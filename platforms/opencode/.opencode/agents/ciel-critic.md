@@ -608,7 +608,7 @@ Default LLM failure mode when debugging: jump to the first plausible fix. That's
 
 ---
 
-## Inputs
+## Inputs (infer before asking — see orchestrator's Autonomy protocol)
 
 ```
 SYMPTOM: [user-visible or log-visible failure — 1 sentence]
@@ -617,7 +617,23 @@ SCOPE: [file paths / module / service suspected — or "unknown"]
 RECENT_CHANGES: [commits / PRs landed in the last 7 days for the scope]
 ```
 
-If REPRO is missing → STOP. You can't RCA a bug you can't trigger. First task: establish a deterministic repro (see §Repro-first rule).
+### Auto-inference sources (exhaust BEFORE asking the user)
+
+- **SYMPTOM** → grep last error in user's prompt; tail `/var/log/<service>`; check `journalctl -u <service> -n 100` if systemd; read recent PR descriptions
+- **REPRO** → read `package.json` scripts, `Makefile`, `README.md#usage`, test files, CI workflow for the command that failed; re-run the user's stated action via Bash if safe; use Playwright MCP to replay UI if configured
+- **SCOPE** → `git diff HEAD~10 --stat` then rank by overlap with SYMPTOM keywords; `git blame` the top lines from the error trace
+- **RECENT_CHANGES** → `git log --since="7 days ago" --oneline -- <scope>`; `gh pr list --state=merged --limit 10` if `gh` available
+
+State the inferred values under `[ASSUMED from <source>]` at the top of the RCA. Only flag as `[UNKNOWN]` and pause if a critical input cannot be gathered after exhausting sources.
+
+### Repro-first rule (autonomous variant)
+
+If you cannot establish a deterministic repro after auto-inference:
+1. Document the non-determinism (e.g., "triggers ~1/N runs based on logs showing 3/1000 occurrences")
+2. Proceed with RCA on the most-likely hypothesis weighted by evidence frequency
+3. Mark VERDICT with `confidence: LOW` and suggest adding telemetry before final fix
+
+Do NOT bail out demanding a repro. Partial information + explicit uncertainty > zero progress.
 
 ---
 
