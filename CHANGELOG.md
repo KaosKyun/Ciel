@@ -1,5 +1,38 @@
 # Ciel — Changelog
 
+## v2.6.0 — 2026-04-17 — GitHub workflow + CI/CD skills + install.ps1 parity
+
+**Context** — Release discipline drift caught by user observation: v2.0 → v2.5.1 shipped 20+ `feat:` commits with zero git tags and zero GitHub releases. `release-publisher` + `changelog-updater` skills exist in orchestrator pipeline steps 16-17 but were never triggered because no one created the version-bump commit. v2.6.0 is the rattrapage: one release PR covering three commits on `main` that post-date the v2.5.1 CHANGELOG entry.
+
+### Added — 6 new skills (commit 37ec823, PR #16)
+
+- **`pr-merger`** — safe `gh pr merge --auto` with branch-protection awareness, draft→ready flip, strategy (squash/rebase/merge) from repo config. Gated by `prouver-verifier` VERDICT=DONE.
+- **`pr-review-responder`** — GraphQL review-thread list, classify accept/reject/clarify, apply fixes, resolve threads, re-request review. Invoked on `CHANGES_REQUESTED`.
+- **`ci-watcher`** — `gh run watch` streaming, flaky classification (≥15% main fail rate → auto `gh run rerun --failed`), real failure → `debug-reasoning-rca` handoff.
+- **`branch-cleaner`** — `git branch --merged` local delete, `git fetch --prune` stale refs, opt-in `git push origin --delete` per-branch.
+- **`release-publisher`** — signed tag (`git tag -s`) + `gh release create --generate-notes` + Sigstore attestations + pre-release auto-detect (`-rc` / `-beta` / `-alpha` suffix).
+- **`cicd-pipeline-designer`** — greenfield CI/CD generator for Node/Go/Python/Kotlin/Rust with OIDC, build matrix, caching, test pyramid, deployment strategies, monorepo, SLSA L3. Ships with 614-line `reference.md`.
+
+### Changed — `skills/ciel/SKILL.md` orchestrator pipeline
+
+Standard pipeline extended with steps 11-17 (ci-watcher → pr-review-responder → pr-merger → issue-closer → branch-cleaner → changelog-updater → release-publisher). Intent routing table gained 6 new rows (`merge PR`, `respond to review`, `watch CI`, `clean up branches`, `publish release`, plus CI/CD workflow rows). Inline-OK skills list extended with all workflow utility skills.
+
+### Fixed — `scripts/install.ps1` parity (commit 1ed1d34)
+
+PowerShell installer caught up with `install.sh` v2.4.0 feature set — `--update` flag, `ciel-update` support, preserve-list for user-customized files, semver guard against CDN-stale downgrade loop.
+
+### Chore — `.gitignore` (commit d29f691)
+
+Added `.claude/session-progress.md` — project-scope session state should not be version-controlled.
+
+### Known non-goals
+
+- `release-publisher` was documented but never *tested* end-to-end on this repo until now. v2.6.0 is its first real invocation — the tag + release creation step validates the skill on the production repo.
+- No CI workflow exists in `.github/workflows/` yet — `ci-watcher` skill is ready but has nothing to watch. A future release will add `cicd-pipeline-designer` output (lint + shellcheck for hooks + skill-frontmatter validator).
+- Automation of the release trigger itself is deferred to **v2.7.0** (Stop-hook `release-gate` that nags when `feat:`/`fix:` commits exist past the last-tagged VERSION).
+
+---
+
 ## v2.5.1 — 2026-04-17 — OpenCode dispatch-gate counter port + README refresh
 
 **Context** — v2.5.0 shipped the mechanical dispatch-gate counter as shell hooks (Claude Code only). User asked whether everything differs between Claude and OpenCode, and flagged that README still described v2.0.0 architecture. v2.5.1 closes the biggest parity gap and refreshes the README.
