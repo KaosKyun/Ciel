@@ -1,3 +1,5 @@
+# Ciel — Rules (Windsurf)
+
 # Ciel — Deep-reasoning workflow (compressed)
 
 Principle: "Understand before generating. Verify before claiming done."

@@ -1,5 +1,38 @@
 # Ciel — Changelog
 
+## v2.9.0 — 2026-04-18 — Phase 2 platform restorations: Windsurf, Codex, Kilo, LM Studio/Ollama
+
+Closes #3 (Windsurf), #4 (Codex), #5 (Kilo Code), #6 (LM Studio + Ollama).
+
+### Added
+
+- **Windsurf native** — `.windsurf/skills/` (ciel + 4 agent skills), `.windsurf/workflows/` (ciel wrapper + all commands + ciel-improve), `.windsurf/rules/ciel.md` (≤4KB). New helpers: `emit_windsurf_ciel_skill`, `emit_windsurf_agent_skill`, `emit_windsurf_workflow`, `emit_windsurf_workflow_wrapper`, `check_total_size`.
+- **Codex native** — `.codex/hooks.json` (verified 3-level schema: openai.com/codex/hooks) + `user-prompt-submit.sh` (depth classification → `additionalContext` JSON), `.codex/commands/`, `.codex/agents/ciel-*.md`. New helpers: `emit_codex_agents_md`, `emit_codex_hooks`, `emit_codex_agent`.
+- **Kilo Code native** — Compact `AGENTS.md` (≤6KB), `.kilocode/rules/ciel.md` (principle + Top-10 guards + prose hooks ≤6KB), `.kilo/agents/ciel-*.md` (ciel-prefixed, skills bundled). New helpers: `emit_kilo_agents_md`, `emit_kilo_rules`, `emit_kilo_agent`. `kilo` target no longer depends on `build_codex`.
+- **LM Studio preset** — `ciel.preset.json` in verified LM Studio 0.3.x format (`operation.fields[]` with `llm.prediction.systemPrompt`). Updated `system-prompt.md` with v2 4-agent + `/ciel` semantics.
+- **Ollama** — enriched SYSTEM block with 10-step pipeline, 4-agent model (`@ciel-researcher/explorer/critic/improver`), simulate instructions.
+- **`_emit_agent_bundled_skills <role>`** — shared helper extracted from `emit_opencode_agent`; all 4 platform emitters call it (eliminates 4×100-line duplication).
+
+### Fixed
+
+- **LM Studio preset schema** — issue spec had wrong key (`systemPrompt`) and wrong path (`~/.config/lmstudio/presets/`). Verified from local device: `operation.fields[]` + `llm.prediction.systemPrompt` + `~/.lmstudio/config-presets/`.
+- **Kilo Code broken agent pointers** — pre-v2.9 copied raw `{researcher,explorer,critic,improver}.md` (no prefix, no bundled skills → broken on Kilo). Now emits `ciel-*.md` with bundled skills; installer purges old unprefixed files.
+- **`--check` mode** — updated to validate new per-primitive file trees for all 4 platforms.
+
+### Changed
+
+- `LIMIT_windsurf=6144` → `LIMIT_windsurf_skill/workflow/rule/rules_total`.
+- `LIMIT_codex=65536` → `32768` (compact AGENTS.md).
+- `LIMIT_kilo=65536` → `LIMIT_kilo_agents_md=6144` + `LIMIT_kilo_rule=6144` + `LIMIT_kilo_agent=65536`.
+- `install_windsurf/codex/kilocode/lmstudio` updated for new file trees.
+
+### Metrics
+
+- 53/53 size checks pass; 0 failures; OpenCode build unaffected.
+- DRY: 4×100-line bundle duplication → 1 `_emit_agent_bundled_skills` helper.
+
+---
+
 ## v2.8.0 — 2026-04-17 — OpenCode parity Phase 1: double-frontmatter fix + skills native path
 
 **Context** — Phase 0 research (ciel-researcher dispatch) confirmed: `experimental.session.compacting` is CONFIRMED awaitable; `session.idle` is PARTIAL (fire-and-forget, promise dropped); subagent-stop hooks bypass subagent tool calls (known bug); `tool.execute.before` blocking is CONFIRMED via `throw Error`; OpenCode has native `.opencode/skills/<name>/SKILL.md` filesystem skills (no programmatic API needed). Phase 1 ships the foundational fixes that unblock OpenCode functionality.
