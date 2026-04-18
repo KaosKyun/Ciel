@@ -38,10 +38,16 @@ For full philosophy, guards table, and the research basis behind Ciel, see `refe
 6. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
 7. `faire-gatekeeper` during coding → `commit-writer` adds `Refs #<N>` footers
 8. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
-9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier
+9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before `gh pr merge --auto` — auto-merge is the consequence of this gate passing, not a parallel shortcut. Enabling auto-merge without first running prouver-verifier skips the evidence capture and blurs accountability when CI flakes mid-queue.**
 10. `pr-opener` — opens PR with `Closes #<N>`, body composed by `pr-body-generator`
-11. `issue-closer` — post-merge, adds evidence comment + closes issue
-12. `meta-critiquer`
+11. `ci-watcher` — streams CI for this PR, distinguishes flaky vs real failures (≥15% fail rate on main = flaky → `gh run rerun --failed`, else hand off to `debug-reasoning-rca`)
+12. `pr-review-responder` — if reviewers post comments (reviewDecision=CHANGES_REQUESTED), respond per thread (accept → fix + SHA ref, reject → rebuttal, clarify → defer), mark resolved, re-request review
+13. `pr-merger` — reads branch protection, flips draft→ready, picks squash/rebase/merge from repo settings, `gh pr merge --auto`. Blocked until `prouver-verifier` VERDICT=DONE + `ci-watcher` green + all threads resolved
+14. `issue-closer` — post-merge, adds evidence comment + closes issue
+15. `branch-cleaner` — deletes merged branch locally + prunes remote-tracking refs
+16. `changelog-updater` — on version-bump PRs, appends Keep-a-Changelog entry
+17. `release-publisher` — on version bump post-merge, creates signed tag + GitHub Release with auto-notes + Sigstore attestations (if `cicd-security-hardener` configured them)
+18. `meta-critiquer`
 
 ### Critical (all of Standard, PLUS)
 
@@ -62,14 +68,28 @@ When the user's request matches any of these intents, invoke the **Ciel skill** 
 | "is this correct?", "verify this implementation", Critical-stakes code | **`self-consistency-verifier`** | `@ciel-critic` |
 | "how should I test this", planning tests for a new feature | **`test-strategy-vitest-playwright`** | `@ciel-explorer` |
 | "review this UI", "critique this page", "visual regression", UI PRs | **`playwright-visual-critic`** (requires `--with-mcp=playwright`) | `@ciel-explorer` |
-| Changes to `.github/workflows/`, `.gitlab-ci.yml`, pipeline review | **`cicd-security-hardener`** | `@ciel-explorer` |
+| "create CI/CD", "set up pipeline", "add GitHub Actions", greenfield CI/CD, CI/CD migration | **`cicd-pipeline-designer`** → **`cicd-security-hardener`** (audit generated) | inline → `@ciel-explorer` |
+| Changes to `.github/workflows/`, `.gitlab-ci.yml`, pipeline review (existing) | **`cicd-security-hardener`** | `@ciel-explorer` |
 | "accessibility audit", WCAG, a11y, frontend PRs | **`accessibility-wcag-auditor`** | `@ciel-explorer` |
 | Changes to `skills/**/SKILL.md`, skill review | **`skills-first-design-auditor`** | `@ciel-improver` |
-| "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`issue-closer`** | inline (all utility skills) |
+| "fix", "bug fix", "feature", "implement", after any RCA verdict | **`issue-creator`** → **`branch-setup`** → (FAIRE work) → **`pr-opener`** → **`ci-watcher`** → **`pr-merger`** → **`issue-closer`** → **`branch-cleaner`** | inline (all utility skills) |
+| "merge PR", "enable auto-merge", "land this PR", "squash and merge" | **`pr-merger`** (after `prouver-verifier` + `ci-watcher` green) | inline |
+| "respond to review", "reviewer commented", "CHANGES_REQUESTED", "address PR feedback" | **`pr-review-responder`** | inline |
+| "watch CI", "is CI green?", "CI is flaky", "rerun failed jobs", "CI stuck" | **`ci-watcher`** | inline |
+| "clean up branches", "delete merged branches", "prune stale branches" | **`branch-cleaner`** | inline |
+| "publish release", "create release", "tag v*", "ship the release", "release notes" | **`release-publisher`** (after `changelog-updater`) | inline |
+| "mcp server", "mcp config", ".mcp.json", "claude mcp", "serveurs mcp" | **`debug-reasoning-rca`** (config drift + failures) + `stride-analyzer` if secrets found | `@ciel-explorer` for config read → `@ciel-critic` MODE=RCA |
 
 **Routing rule**: on every `/ciel <task>` invocation, scan the task text for these intent signals BEFORE classifying depth. If an intent matches, queue the corresponding skill(s) to dispatch after `quoi-framer`. Multiple intents can match (e.g., "debug the auth flow in production" → `debug-reasoning-rca` + `security-regression-check` + STRIDE on Critical).
 
 **Anti-collision rule with Claude Code natives**: the phrases "systematic debugging", "root cause analysis", "bug investigation" MUST route to `debug-reasoning-rca`, never to `systematic-debugging` (native). Ciel's RCA is more structured (3 hypotheses, fault-type taxonomy, semantic diff) and the user's `/ciel` invocation explicitly opted in to Ciel discipline.
+
+**Mid-session re-routing rule** (added v2.4.1): the routing table above is **not one-shot at invocation**. Re-scan it on every `Edit` / `Write` tool call using the **target file path** as the signal (in addition to the prompt-text scan done at invocation). Examples:
+
+- First edit targets `.github/workflows/ci.yml` → row 7 matches → dispatch `cicd-security-hardener` via `@ciel-explorer` **before writing the edit**, even if the original prompt was "review open PRs".
+- First edit targets `skills/**/SKILL.md` → row 9 matches → dispatch `skills-first-design-auditor` via `@ciel-improver` before writing.
+
+A task that **starts** as "PR review" can drift into "CI hardening" mid-session — the routing table must catch that drift. Not re-routing here is the failure mode documented in the 2026-04-17 audit (intent routing miss on `cicd-security-hardener`).
 
 
 ## Dispatch directive — Skill tool vs Task tool
@@ -135,7 +155,13 @@ Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented for
   - `commit-writer` — conventional commits + `Refs #<N>` footer
   - `pr-opener` — `gh pr create` with `Closes #<N>`
   - `pr-body-generator` — composes the PR body from commits + evidence
+  - `ci-watcher` — `gh run watch` streaming + flaky vs real classification + auto-retry
+  - `pr-review-responder` — GraphQL review-thread listing + classify/reply/resolve + re-request review
+  - `pr-merger` — `gh pr merge --auto` with branch-protection awareness + draft→ready flip
   - `issue-closer` — `gh issue comment` with production evidence + close
+  - `branch-cleaner` — `git branch --merged` delete + `git fetch --prune` + opt-in remote delete
+  - `changelog-updater` — appends Keep-a-Changelog entry on version bump
+  - `release-publisher` — `git tag -s` + `gh release create --generate-notes` + Sigstore attestations
 
 ### Anti-pattern to avoid
 
@@ -362,9 +388,16 @@ Gatekeeper skill at the entry of every Ciel workflow. Wrong classification = wro
 ### Standard if ANY match (and not Critical):
 
 - Path patterns: `routes/`, `controllers/`, `services/`, `components/`, `hooks/`
+- **CI/CD & pipeline files**: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/`, `Dockerfile`, `docker-compose*.yml`, `Jenkinsfile`, `.buildkite/`, `.drone.yml`
+- **PR-review signals**:
+  - Prompt contains a PR number (`#\d+`, `PR \d+`, `pull request \d+`) OR phrases "open PR", "review PR", "fix PR", "merge PR"
+  - Planned tool calls include `gh pr list`, `gh pr view`, `gh pr checks`, `gh pr review`, `gh pr merge` (any variant: `--auto`, `--squash`, `--merge`, `--rebase`)
+  - Planned edits touch any CI/CD pipeline file (see row above)
 - Diff scope (estimated): > 1 file OR > 50 lines change
 - Code patterns: `validate`, `sanitize`, `rateLimit`, route handlers, state management
 - Task keywords: "add endpoint", "new component", "refactor", "extract helper", "feature", "integration"
+
+**Floor rule**: if ANY PR-review signal OR any CI/CD-file signal is present, depth is **at minimum Standard** — Trivial is disqualified even if the diff is small. PR review plus CI fix is never "just a one-line change".
 
 ### Trivial otherwise:
 
@@ -376,13 +409,6 @@ Gatekeeper skill at the entry of every Ciel workflow. Wrong classification = wro
 
 If unsure → **Standard**. If touching user data or auth → **Critical**.
 
-
-## Output format
-
-```
-## DEPTH CLASSIFICATION
-
-Depth: **Trivial | Standard | Critical**
 
 ### doc-validator-official
 

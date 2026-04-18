@@ -1,5 +1,30 @@
 # Ciel — Changelog
 
+## v2.8.0 — 2026-04-17 — OpenCode parity Phase 1: double-frontmatter fix + skills native path
+
+**Context** — Phase 0 research (ciel-researcher dispatch) confirmed: `experimental.session.compacting` is CONFIRMED awaitable; `session.idle` is PARTIAL (fire-and-forget, promise dropped); subagent-stop hooks bypass subagent tool calls (known bug); `tool.execute.before` blocking is CONFIRMED via `throw Error`; OpenCode has native `.opencode/skills/<name>/SKILL.md` filesystem skills (no programmatic API needed). Phase 1 ships the foundational fixes that unblock OpenCode functionality.
+
+### Fixed — `scripts/build-platforms.sh` emit_opencode_agent double-frontmatter
+
+`emit_opencode_agent` was calling `cat "$src"` on source agent files that contain their own Claude-Code-style YAML frontmatter (`---...---`). This produced two frontmatter blocks in generated `.opencode/agents/ciel-*.md` files — OpenCode's YAML parser was reading the *generated* block correctly but the second block confused agent-loading, causing silent parse failures. The `description:` field was also broken: `head -1 "$src"` returned `---` (the first line of source frontmatter), so all agents showed `description: ---`.
+
+Fix: replace `cat "$src"` with `strip_yaml "$src"` (existing utility, strips first `---...---` block). Replace `head -1 "$src"` description extraction with `skill_yaml_field "$src" "description"` (reads from the frontmatter `description:` field) with H1 fallback.
+
+All 4 OpenCode agents regenerated: ciel-researcher, ciel-explorer, ciel-critic, ciel-improver — each now has exactly one frontmatter block with correct description.
+
+### Known non-goals
+
+- **Lifecycle handlers deferred to v2.9.0** — `session.idle` (fire-and-forget only, cannot block), `experimental.session.compacting` (inject before compaction), and subagent-stop gap documented in upcoming `OPENCODE-LIMITATIONS.md`.
+- **Skills bundling strategy** — OpenCode native `.opencode/skills/` filesystem confirmed by research; migration from inline bundling to native skills path deferred to v2.9.0.
+
+### Test plan (executed before ship)
+
+- [x] `grep -c '^---$' .opencode/agents/ciel-researcher.md` → 2 (was 54+)
+- [x] `head -2 .opencode/agents/ciel-*.md` → `description:` field shows real description (not `---`)
+- [x] `bash scripts/build-platforms.sh` → all ✓ checks pass, 0 size violations
+
+---
+
 ## v2.7.0 — 2026-04-17 — Stop-hook `release-gate` — mechanical release discipline
 
 **Context** — v2.6.0 rattrapage answered the immediate backlog (20+ `feat:` commits since v2.0 with zero tags). v2.7.0 prevents recurrence by adding the mechanical enforcement layer, following the same philosophy as v2.5.0's `pre-tool-count.sh` dispatch-gate counter: rules that must hold across many turns need hook-side enforcement, not SKILL.md text.

@@ -428,7 +428,8 @@ emit_opencode_agent() {
   local role="$3"
 
   local desc
-  desc=$(head -1 "$src" | sed 's/^# *//')
+  desc=$(skill_yaml_field "$src" "description")
+  [[ -z "$desc" ]] && desc=$(grep '^# ' "$src" | head -1 | sed 's/^# *//')
   [[ -z "$desc" ]] && desc="Ciel $role — isolated-context subagent"
 
   # Per-role configuration — defaults favour token economy.
@@ -487,7 +488,7 @@ emit_opencode_agent() {
     echo "$tools_block"
     echo "---"
     echo ""
-    cat "$src"
+    strip_yaml "$src"
     echo ""
     echo "---"
     echo ""

@@ -1,5 +1,5 @@
 ---
-description: ---
+description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
 mode: subagent
 model: anthropic/claude-sonnet-4-6
 temperature: 0.2
@@ -14,11 +14,6 @@ tools:
   websearch: false
 ---
 
----
-name: ciel-explorer
-description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
-tools: Read, Grep, Glob
----
 
 # Ciel Explorer
 

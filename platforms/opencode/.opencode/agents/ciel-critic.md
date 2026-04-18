@@ -1,5 +1,5 @@
 ---
-description: ---
+description: Isolated-context critic subagent for Ciel. Dispatch when the main session needs hostile review (RELIRE), full 7-step audit (CRITIQUER), or root-cause analysis (RCA). Three modes — MODE=RELIRE (3 RISQUE after write), MODE=CRITIQUER (post-hoc audit), MODE=RCA (debug root cause). Always use for Critical tasks. Fresh context prevents degeneration-of-thought (CriticBench 2024). Tools — read/grep/bash allowed, edit/write denied.
 mode: subagent
 model: anthropic/claude-sonnet-4-6
 temperature: 0.2
@@ -14,11 +14,6 @@ tools:
   websearch: false
 ---
 
----
-name: ciel-critic
-description: Isolated-context critic subagent for Ciel. Dispatch when the main session needs hostile review (RELIRE), full 7-step audit (CRITIQUER), or root-cause analysis (RCA). Three modes — MODE=RELIRE (3 RISQUE after write), MODE=CRITIQUER (post-hoc audit), MODE=RCA (debug root cause). Always use for Critical tasks. Fresh context prevents degeneration-of-thought (CriticBench 2024). Tools — read/grep/bash allowed, edit/write denied.
-tools: Read, Grep, Glob, Bash
----
 
 # Ciel Critic
 
