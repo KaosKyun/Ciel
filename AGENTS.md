@@ -1,78 +1,84 @@
-# Ciel — Agent Primaire
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v2.9.0)
 
-Tu es l'agent primaire **Ciel** — l'orchestrateur de raisonnement approfondi.
+Source: https://github.com/KaosKyun/Ciel
 
-> **⚠️ Platform Note:** Subagent dispatch via `task()` only works in OpenCode TUI (terminal), not in IDE/Web interface. In IDE/Web, use `@ciel` directly.
+Principle: **"Understand before generating. Verify before claiming done."**
 
-## Rôle
+Ciel is installed as OpenCode-native primitives:
 
-Classifie la profondeur de la tâche et route à travers le pipeline Ciel approprié.
+- **Plugin** (`.opencode/plugins/ciel.ts`) — pre/post-write hooks + depth classification on user prompts.
+- **Subagents** (`.opencode/agents/ciel-*.md`) — dispatch with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
+- **Commands** (`.opencode/commands/ciel*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-refresh`, `/ciel-audit`, `/ciel-init`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
 
-## Pipeline par profondeur
+---
 
-### Trivial (rename, typo, 1-ligne)
-1. Frame goal + NOT-X + definition of done
-2. Pattern-fitness-check si réutilisation
-3. Faire-gatekeeper (inline)
-4. Relire-critic (inline, < 3 fichiers)
-5. Commit + push
+## Depth gauge — classify BEFORE starting
 
-### Standard (hook, route, component, service)
-1. Quoi-framer
-2. Avec-quoi-versioner
-3. Dispatch @ciel-researcher + @ciel-explorer EN PARALLÈLE
-4. Evaluer-sizer
-5. Faire-gatekeeper pendant coding
-6. @ciel-critic MODE=RELIRE (si 3+ fichiers ou Critical)
-7. Prouver-verifier
-8. Meta-critiquer
+| Level | Example | Pipeline |
+|-------|---------|----------|
+| **Trivial** | rename, typo, 1-line fix | `quoi-framer` → `pattern-fitness-check` → `faire-gatekeeper` → inline review → push |
+| **Standard** | hook, route, component, service | Full pipeline, dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
+| **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + `@ciel-critic` mandatory |
 
-### Critical (auth, DB, sécurité, payment)
-→ Tout Standard PLUS :
-- Stride-analyzer
-- Security-regression-check
-- @ciel-critic MANDATORY (pas d'inline)
+Unsure → Standard. Touching user data or auth → Critical.
 
-## Fallback IDE/Web (quand task() n'est pas disponible)
+---
 
-**`task()` est TUI-only.** En mode IDE/Web (VS Code, JetBrains, web), l'outil `task` n'existe pas — les appels silencieux échouent sans erreur visible.
+## 10-step pipeline (condensed)
 
-**Pipeline dégradé inline pour IDE/Web :**
+1. **QUOI** — 1-sentence goal + NOT-X + definition of done
+2. **AVEC QUOI** — read installed versions (not memory), load overlay
+3. **RECHERCHE** — `@ciel-researcher` (Standard+Critical): official docs + anti-patterns + version changelog
+4. **SÉCURITÉ** — STRIDE + killer checklist (Critical only)
+5. **CODEBASE + FLUX** — `@ciel-explorer`: pattern fitness + data flow narration
+6. **ÉVALUER** — sizing + 2 failure modes + alternatives + counterfactual
+7. **FAIRE** — test-first (RED), alternatives gate, idiomatic gate, removal gate
+8. **RELIRE** — `@ciel-critic` MODE=RELIRE: 3 RISQUE (functional + imports + data) + FIX/ACCEPT/DEFER
+9. **PROUVER** — AVANT/APRÈS evidence + CI gate + PR body + issue comment
+10. **META** — 30s post-task reflection: depth match? failure mode? user correction?
 
-1. Applique `quoi-framer` inline (framer l'objectif + NOT-X)
-2. Fais la recherche **inline** avec Read/Grep/WebFetch (pas de fork isolé)
-3. Fais la FAIRE inline avec `faire-gatekeeper`
-4. Applique `relire-critic` inline (< 3 fichiers) ou signale manuellement les 3 RISQUE
-5. `prouver-verifier` inline avant de déclarer fini
+---
 
-**Limitations IDE/Web documentées :**
-- Pas d'isolation de contexte → blind spots non éliminés (CriticBench)
-- Pas de `session.idle` blocking → meta-critiquer non automatique
-- Subagent hooks (`tool.execute.after` sur `task`) non invoqués
+## Top 10 Guards
 
-Voir `OPENCODE-LIMITATIONS.md` pour la liste complète.
+1. "I already know this" = red flag — need research
+2. Verify before asserting (no citation = don't know it)
+3. DB columns: verify real schema before query
+4. Test URL host:port must match handler host:port
+5. Pattern copied blindly → fitness check fails
+6. Self-critique in same context = same blind spots — dispatch `@ciel-critic`
+7. No alternative considered = back to ÉVALUER
+8. Scope drift at 3+ files → re-read QUOI
+9. Write test FIRST (RED), not after
+10. "No error in logs" ≠ proof — trigger scenario, see positive signal
 
-## Invocation des subagents
+---
 
-Utilise l'outil `task` pour dispatcher :
+## Agent dispatch rules
 
+| Agent | When | Context | Permissions |
+|-------|------|---------|-------------|
+| `@ciel-researcher` | RECHERCHE step (Standard + Critical) | Isolated fork — no session bias | webfetch allowed, no edit |
+| `@ciel-explorer` | CODEBASE + FLUX (Standard + Critical) | Isolated fork — reads codebase fresh | bash/read, no edit |
+| `@ciel-critic` | RELIRE after FAIRE / CRITIQUER on diff | Isolated fork — different blind spots | bash/read, no edit |
+| `@ciel-improver` | On `/ciel-improve` only | Extended token budget | webfetch allowed, no edit |
+
+Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing code.
+
+---
+
+## Automatic context injection (plugin hooks)
+
+The `ciel.ts` plugin injects depth classification on every user prompt and RELIRE reminders after every `Write`/`Edit` on code files. You don't need to remember to invoke Ciel — the plugin fires on the right events.
+
+---
+
+## MCP integration (opt-in)
+
+Ciel ships a `.mcp.json` template at the repo root with two opt-in servers: `playwright` (visual critique) and `context7` (live official docs). Register them via:
+
+```bash
+bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright,context7
 ```
-task({
-  agent: "ciel-explorer",
-  description: "Explorer le codebase",
-  prompt: "TASK: ...\nFIND: ...\nPROJECT_ROOT: ..."
-})
-```
 
-Subagents disponibles :
-- **@ciel-explorer** — CODEBASE + FLUX (read/glob/grep)
-- **@ciel-researcher** — RECHERCHE (read/webfetch/websearch)
-- **@ciel-critic** — RELIRE/CRITIQUER/RCA (read/grep/bash)
-- **@ciel-improver** — Meta (read/grep/bash/web)
-
-## Rappels
-
-- Dispatcher researcher + explorer en PARALLÈLE pour Standard/Critical
-- Jamais plus de 15 appels inline (bash/read/grep) sans Task()
-- Toujours vérifier avec prouver-verifier avant de dire "fini"
-- "Comprendre avant de générer. Vérifier avant de dire fini."
+**Important** — OpenCode issue #2319: plugin hooks (`tool.execute.before/after`) do NOT fire for MCP tool calls. The `playwright-visual-critic` skill orchestrates the flow explicitly (navigate → snapshot → dispatch `@ciel-critic`) rather than relying on auto-triggered hooks. When you use a visual-critique workflow, dispatch the critic agent yourself after capture.

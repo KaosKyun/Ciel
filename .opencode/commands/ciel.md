@@ -1,30 +1,13 @@
 ---
-description: Trigger the Ciel agent for deep-reasoning workflow
+description: Slash trigger for the Ciel orchestrator skill on OpenCode.
 ---
 
-# /ciel — Trigger Ciel Agent
+Invoke the `ciel` skill via the Skill tool with the user's arguments:
 
-**OpenCode users:** This command loads the Ciel skill, but to use the full Ciel agent with subagent dispatch, use:
-```
-@ciel $ARGUMENTS
-```
-
-## Instructions
-
-If user typed `/ciel`, explain:
-1. On Claude Code: loads skill and orchestrates inline
-2. On OpenCode: use `@ciel` instead to activate the primary agent
-
-**For OpenCode**: Switch to the Ciel agent or invoke it directly:
-- Press `Tab` and select "ciel" agent
-- Or type: `@ciel $ARGUMENTS`
-
-**For Claude Code**: Load the skill:
-```
-skill({ name: "ciel" })
-```
-
-User's input:
 ```
 $ARGUMENTS
 ```
+
+If `$ARGUMENTS` is empty, invoke the skill with no argument — it will classify the current context and prompt for a task if needed.
+
+The full logic (depth classifier, intent routing, pipeline selection, agent dispatch rules) lives in the `ciel` skill itself. This command file is a thin trigger; modify the skill, not this file, to change behavior.

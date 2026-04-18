@@ -71,6 +71,29 @@ If nothing is found → stop and tell the user to install Ciel first:
 bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
 ```
 
+### Step 1b — Verify hooks are physically present
+
+After resolving `$CIEL_DIR`, check that `$CIEL_DIR/hooks/` contains all 9 required scripts:
+
+```
+session-start.sh  user-prompt-submit.sh  pre-tool-write.sh  pre-tool-count.sh
+post-tool-write.sh  post-tool-count.sh  stop.sh  subagent-stop.sh  pre-compact.sh
+```
+
+Run: `ls "$CIEL_DIR/hooks/"*.sh 2>/dev/null | wc -l`
+
+If the count is < 9 (directory absent or scripts missing):
+
+1. Locate the Ciel source repo by checking these candidates in order:
+   - `find "$HOME" -maxdepth 7 -path '*/Ciel/hooks/session-start.sh' 2>/dev/null | head -1` → strip `/hooks/session-start.sh` suffix
+2. If a source directory is found: `mkdir -p "$CIEL_DIR/hooks" && cp "<source>/hooks/"*.sh "$CIEL_DIR/hooks/"`
+3. If no source found: stop and tell the user to reinstall Ciel:
+   ```
+   bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
+   ```
+
+Report any hooks that were copied during this repair step in the Step C5/O6 summary.
+
 ### Step 2 — Branch on platform
 
 Jump to **Claude branch** or **OpenCode branch** below.
@@ -104,7 +127,7 @@ Using `$CIEL_DIR`, the canonical Ciel hooks block is:
   ],
   "PostToolUse": [
     { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] },
-    { "matcher": "Bash|Read|Grep|Glob|Task", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-count.sh", "statusMessage": "Ciel: counter increment..." } ] }
+    { "matcher": "Bash|Read|Grep|Glob|Task|Agent", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-count.sh", "statusMessage": "Ciel: counter increment..." } ] }
   ],
   "Stop": [
     { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/stop.sh", "statusMessage": "Ciel: META-CRITIQUER..." } ] }

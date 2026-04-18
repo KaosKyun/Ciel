@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (Codex, v2.9.0)
+# AGENTS.md — Ciel deep-reasoning workflow (Codex, v3.0.0)
 
 Source: https://github.com/KaosKyun/Ciel
 
