@@ -42,6 +42,16 @@
             "statusMessage": "Ciel: dispatch gate check..."
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/plugins/ciel/hooks/pre-agent-gate.sh",
+            "statusMessage": "Ciel: agent type gate..."
+          }
+        ]
       }
     ],
     "PostToolUse": [

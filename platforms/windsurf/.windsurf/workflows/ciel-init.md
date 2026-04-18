@@ -123,7 +123,8 @@ Using `$CIEL_DIR`, the canonical Ciel hooks block is:
   ],
   "PreToolUse": [
     { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-write.sh", "statusMessage": "Ciel: FLUX check..." } ] },
-    { "matcher": "Bash|Read|Grep|Glob", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-count.sh", "statusMessage": "Ciel: dispatch gate check..." } ] }
+    { "matcher": "Bash|Read|Grep|Glob", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-count.sh", "statusMessage": "Ciel: dispatch gate check..." } ] },
+    { "matcher": "Agent", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-agent-gate.sh", "statusMessage": "Ciel: agent type gate..." } ] }
   ],
   "PostToolUse": [
     { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] },

@@ -1,5 +1,31 @@
 # Ciel — Changelog
 
+## v3.2.0 — 2026-04-18 — Dispatch gate soft warning: replace hard-stop deny
+
+### Changed
+
+- **`pre-tool-count.sh`** — removed `permissionDecision: deny` hard-block. Counter now emits `systemMessage` only (advisory). Hard deny proved too fragile: Agent `tool_name` varies by platform/session, reset never fired reliably → permanent deadlocks requiring manual `rm` intervention every session.
+
+### Rationale
+
+Discipline enforced by SKILL.md instruction + visible counter is sufficient. Mechanical hard-gates that depend on fragile reset signals create more disruption than they prevent.
+
+---
+
+## v3.1.0 — 2026-04-18 — Agent type gate: block non-Ciel agent dispatches
+
+### Added
+
+- **`pre-agent-gate.sh`** — PreToolUse hook on `Agent`: blocks any dispatch where `subagent_type` is absent or not prefixed `ciel-*`. Generic agents bypass Haiku model, call caps, and researcher waterfall early-exit, costing 20K-160K tokens vs ~5K for a Ciel agent. Escape hatch: add `[CIEL_GATE_BYPASS]` to the prompt for legitimate non-Ciel dispatches.
+- **Guard #42** in `skills/ciel/reference.md` — "Agent dispatch without subagent_type": documents the cost impact and points to `pre-agent-gate.sh` as the enforcement mechanism.
+
+### Changed
+
+- `settings.json` (root + `Ciel/` + `~/.claude/`) — new `PreToolUse` entry for `Agent` matcher → `pre-agent-gate.sh`
+- `ciel-init.md` (all platforms) — Step C2 template and Step 1b count updated to include the new hook
+
+---
+
 ## v3.0.0 — 2026-04-18 — Dispatch gate deadlock fix: `Agent` tool name in PostToolUse matcher
 
 ### Fixed

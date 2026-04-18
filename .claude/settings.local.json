@@ -34,7 +34,39 @@
       "Bash(curl -sL \"https://opencode.ai/docs/sitemap-0.xml\" -A \"Mozilla/5.0\")",
       "Bash(curl -sL https://unpkg.com/@opencode-ai/plugin/dist/index.d.ts)",
       "Bash(curl -sL \"https://unpkg.com/@opencode-ai/plugin/\")",
-      "Bash(bash scripts/build-platforms.sh --target=opencode)"
+      "Bash(bash scripts/build-platforms.sh --target=opencode)",
+      "WebFetch(domain:unpkg.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(grep *)",
+      "Bash(bash scripts/build-platforms.sh)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); hooks=d.get\\('hooks',{}\\); [print\\(k,v\\) for k,vs in hooks.items\\(\\) for v in vs]\")",
+      "Bash(cp /Users/neikyun/Documents/Projet/Ciel/Ciel/hooks/pre-tool-count.sh /Users/neikyun/.claude/plugins/ciel/hooks/pre-tool-count.sh)",
+      "Bash(cp /Users/neikyun/Documents/Projet/Ciel/Ciel/hooks/post-tool-count.sh /Users/neikyun/.claude/plugins/ciel/hooks/post-tool-count.sh)",
+      "Skill(meta-critiquer)",
+      "Bash(git commit *)",
+      "Bash(git pull *)",
+      "Bash(git tag *)",
+      "Bash(gh release *)",
+      "Bash(git rm *)",
+      "Bash(gh pr *)",
+      "Bash(git stash *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(gh issue *)",
+      "Bash(bash *)",
+      "Skill(changelog-updater)",
+      "Bash(awk '{print $1}')",
+      "Bash(find *)",
+      "Skill(commit-writer)",
+      "Skill(pr-merger)",
+      "Bash(mkdir -p /Users/neikyun/.claude/plugins/ciel/hooks)",
+      "Bash(cp /Users/neikyun/Documents/Projet/Ciel/Ciel/hooks/*.sh /Users/neikyun/.claude/plugins/ciel/hooks/)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "playwright",
+    "context7"
+  ]
 }
