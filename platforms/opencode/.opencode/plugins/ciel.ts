@@ -1,4 +1,4 @@
-// Ciel — OpenCode plugin (v2.8.0)
+// Ciel — OpenCode plugin (v2.9.0)
 // Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
@@ -170,7 +170,7 @@ const ciel: Plugin = async ({ $ }) => {
           writtenFiles.add(filePath);
 
           const isCritical = CRITICAL_FILE_RE.test(filePath);
-          if (writtenFiles.size >= 3 || isCritical) {
+          if (writtenFiles.size >= 5 || isCritical) {
             relireSticky = true;
           }
 

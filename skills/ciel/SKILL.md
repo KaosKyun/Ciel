@@ -331,6 +331,7 @@ Each agent dispatch costs ~850K tokens on average — reserve accordingly.
 |-------|--------|--------|
 | < 50% | Comfortable | Normal depth |
 | 50–70% | Caution | Prefer `grep`/signatures over full file reads |
+| Post-agent-dispatch + >50% | Proactive | Suggest `/compact` before next task (non-blocking) |
 | > 70% | Pressure | No new agents; compress agent prompts |
 | > 85% | Critical | Finish current step, commit, open new session |
 

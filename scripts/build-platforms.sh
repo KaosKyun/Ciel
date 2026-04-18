@@ -533,7 +533,11 @@ emit_opencode_agent() {
   #                            reasoning; ~3x cheaper than Sonnet, ~15x
   #                            cheaper than Opus; dispatched on every
   #                            Standard+ task so savings compound)
-  #   explorer   → Sonnet 4.6 (flux-narrator needs call-graph tracing)
+  #   explorer   → Haiku 4.5  (flux-narrator uses explicit grep commands —
+  #                            structured retrieval, not chain-of-thought.
+  #                            Override to sonnet-4-6 for highly abstract/
+  #                            dynamic codebases where flux-narrator produces
+  #                            wrong boundary inference.)
   #   critic     → Sonnet 4.6 (blind-spot hunting — keep a safety margin;
   #                            override to Opus 4.7 for audit-critical work)
   #   improver   → Sonnet 4.6 (long-running aggregation; override to Opus
@@ -562,6 +566,11 @@ emit_opencode_agent() {
       ;;
     explorer)
       # Codebase-only: no web, no shell. Read+glob+grep for navigation.
+      # Haiku 4.5: grep-based call-graph tracing + pattern-fitness is
+      # retrieval/template, not chain-of-thought. Override to sonnet-4-6
+      # for highly abstract/dynamic codebases where flux-narrator produces
+      # wrong boundary inference.
+      model_id="anthropic/claude-haiku-4-5-20251001"
       tools_block=$'tools:\n  write: false\n  edit: false\n  bash: false\n  read: true\n  glob: true\n  grep: true\n  webfetch: false\n  websearch: false'
       ;;
     critic)
@@ -970,7 +979,7 @@ const ciel: Plugin = async ({ \$ }) => {
           writtenFiles.add(filePath);
 
           const isCritical = CRITICAL_FILE_RE.test(filePath);
-          if (writtenFiles.size >= 3 || isCritical) {
+          if (writtenFiles.size >= 5 || isCritical) {
             relireSticky = true;
           }
 

@@ -72,6 +72,10 @@ Test level: [unit | integration | E2E] — [justification]
 
 ## Rules
 
+- **Hard call budget**: total tool calls across all steps ≤ 10. At 10 calls, move immediately to merge + return — do not invoke further steps.
+- **Read discipline**: max 4 full-file Read calls per invocation. Before reading a file, always grep signatures first (`grep -n "^fun \|^class \|^interface \|^export \|^def \|^type "` on the file). Only Read if a relevant signature is found. No signature match → skip.
+- **Grep discipline**: grep context max `-A 2 -B 2` on initial sweeps. Widen to `-A 5` only on confirmed matches. Avoid large `--context` values on sweeps.
+- **Domain skill gate**: skip domain skill parallel dispatch if TASK contains rename/typo/comment/1-line signals (Trivial depth). Domain skill adds 5-15K tokens to internal context — justify before dispatching.
 - **Always invoke fitness-check FIRST**: copying a pattern without fitness = top Ciel failure mode
 - **Never narrate FLUX from memory**: grep the actual call graph. Pattern-matching produces plausible but wrong narrations.
 - **Domain skill parallel**: when stack is clearly detected, dispatching a domain skill in parallel adds expert pattern library. Don't dispatch if stack is unclear — wait for `avec-quoi-versioner`.

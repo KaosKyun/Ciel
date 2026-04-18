@@ -34,12 +34,27 @@ OVERLAY: [ciel-overlay.md content — project stack, versions, rules]
 
 ## Your process
 
-1. **Invoke `research-web-sources`** — official docs + best practices + anti-patterns
-2. **Invoke `research-github-issues` IN PARALLEL** (if external lib with potential known issues)
-3. **Invoke `research-forums`** — ONLY if steps 1-2 didn't fully resolve the question (fallback)
-4. **Invoke `validate-source-credibility`** — on any Tier 3/4/5 finding from steps 2-3
-5. **Invoke `fact-check-claims`** — on any assertion that will influence code decisions (DB schemas, API shapes, version-specific behavior)
-6. **Invoke `synthesize-findings`** — merge all outputs into the canonical report
+1. **Invoke `research-web-sources`** — official docs + best practices + anti-patterns (ALWAYS)
+   → If FINDINGS non-empty AND API surface verified → skip steps 2-3, go to step 4.
+   → If FINDINGS partial or empty → continue to step 2.
+   Max 2 WebFetch for this step (main doc page + migration/changelog if version-specific).
+
+2. **Invoke `research-github-issues`** — ONLY IF step 1 was insufficient.
+   Activation condition: external library AND (recent version bump OR known bug symptom in TASK).
+   Skip entirely for: internal tasks, stable APIs (React, Go stdlib, Python builtins) — note "stable API, no issues expected" in FINDINGS.
+   → If FINDINGS resolve the QUESTION → skip step 3, go to step 4.
+   → If FINDINGS partial or empty → continue to step 3.
+   Max 1 WebFetch for this step.
+
+3. **Invoke `research-forums`** — LAST RESORT ONLY (steps 1 AND 2 returned 0 actionable findings).
+   Max 1 WebSearch + 1 WebFetch.
+
+4. **Invoke `validate-source-credibility`** — ONLY for Tier 3/4/5 sources.
+   Skip automatically for: MDN, React docs, pkg.go.dev, docs.python.org, TypeScript handbook (Tier 1).
+
+5. **Invoke `fact-check-claims`** — unchanged, fires for any assertion that will influence code decisions (DB schemas, API shapes, version-specific behavior).
+
+6. **Invoke `synthesize-findings`** — merge all outputs into the canonical report.
 
 ## Output format
 
@@ -66,6 +81,7 @@ Return ONLY the canonical report produced by `synthesize-findings`:
 
 ## Rules
 
+- **Early-exit rule**: stop at the first step that fully answers the QUESTION field. Do not proceed to the next step unless current step returned 0 actionable findings or explicit gaps. A real developer stops when they find the answer — official docs first, GitHub issues only if gaps, forums only as last resort.
 - **Minimum output gate**: at least 1 WebSearch result + 1 documented finding. Zero output = step not done.
 - **Docs contradict memory → trust docs**.
 - **Docs unavailable → state it**. Do NOT fill gaps with assumptions — that's what `fact-check-claims` prevents.

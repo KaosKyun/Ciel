@@ -43,7 +43,9 @@ gh issue list --state closed --limit 10 --json number,comments
 Any issue closed with 0 comments? → missing evidence comment → add it NOW before next task. Invoke `issue-closer` skill to add structured closure comment.
 
 ### 6. Context health?
-- After Critical task or 3+ agent dispatches: consider `/compact` or open a new session
+- Context >50% after any agent dispatch round → recommend `/compact` to user (parenthetical, non-blocking)
+- Context >70% → recommend new session
+- Two Critical tasks in same context → mandatory new session recommendation
 - Stacking Critical tasks in one context window degrades output quality
 
 ### 7. Session progress file
