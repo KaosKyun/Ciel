@@ -1,18 +1,13 @@
 #!/bin/bash
 # Ciel — PreToolUse hook for Bash|Read|Grep|Glob (dispatch-gate counter)
 # Trigger: PreToolUse on Bash|Read|Grep|Glob
-# Purpose: mechanically enforce the 5-inline-call dispatch gate from
-#          skills/ciel/SKILL.md. Under budget → surface counter via
-#          systemMessage (visibility). At budget → deny via
-#          permissionDecision (the only schema-valid hard-block on
-#          PreToolUse — verified against @opencode-ai/plugin .d.ts
-#          + Anthropic hook docs).
+# Purpose: surface the inline-call count via systemMessage so the model
+#          knows when to dispatch Task(). Advisory only — no hard-block.
+#          Hard deny was removed (v3.2.0): reset mechanism proved too fragile
+#          (Agent tool_name varies by platform/session), causing permanent
+#          deadlocks. Discipline is enforced by SKILL.md instruction, not gate.
 #
-# Per-session counter stored at /tmp/ciel-counter-${session_id}. Missing
-# file = 0 (implicit reset on new session). The sibling post-tool-count.sh
-# increments this file on every matched tool, and resets it to 0 on Task
-# dispatch (so a fork dispatch refills the budget for the main session to
-# process the fork's report).
+# Per-session counter stored at /tmp/ciel-counter-${session_id}.
 
 set -euo pipefail
 
@@ -39,28 +34,22 @@ if [ -f "$counter_file" ]; then
     count=$(cat "$counter_file" 2>/dev/null || echo 0)
 fi
 
-# Sanity: treat non-numeric as 0
 case "$count" in ''|*[!0-9]*) count=0 ;; esac
 
-if [ "$count" -ge 15 ]; then
-    # Hard-block the 16th+ inline tool call. The model will see the reason.
+next=$((count + 1))
+
+if [ "$next" -ge 15 ]; then
     python3 -c "
 import json
 print(json.dumps({
-    'hookSpecificOutput': {
-        'hookEventName': 'PreToolUse',
-        'permissionDecision': 'deny',
-        'permissionDecisionReason': '[CIEL HARD-STOP] Dispatch gate exceeded ($count inline calls without a Task() on a Standard+ task). Emit Task(subagent_type=\"ciel-researcher\"|\"ciel-explorer\"|\"ciel-critic\") now with [ASSUMED] markers for unresolved inputs. Further investigation belongs INSIDE the fork, not in the main session. This is the mechanical enforcement of skills/ciel/SKILL.md dispatch-gate. To opt out for a genuine inline task (Trivial depth), dispatch a no-op Task() first to reset the counter, or delete /tmp/ciel-counter-$session_id.'
-    }
+    'systemMessage': '[CIEL COUNTER: $next] ⚠ inline calls high — dispatch Task(subagent_type=\"ciel-explorer\"|\"ciel-researcher\"|\"ciel-critic\") now if still investigating. Mechanical work (commit, tag, build) is exempt.'
 }))"
-    exit 0
-fi
-
-# Under budget — inject counter so the model sees the running total
-next=$((count + 1))
-python3 -c "
+else
+    python3 -c "
 import json
 print(json.dumps({
-    'systemMessage': f'[CIEL COUNTER: $next/15] inline Bash/Read/Grep/Glob call — on 15/15 the next non-Task tool call will be hard-stopped. Dispatch Task() now if input-gathering is complete.'
+    'systemMessage': '[CIEL COUNTER: $next/15] inline Bash/Read/Grep/Glob call — dispatch Task() when input-gathering is complete.'
 }))"
+fi
+
 exit 0

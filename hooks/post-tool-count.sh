@@ -1,11 +1,13 @@
 #!/bin/bash
-# Ciel — PostToolUse hook for Bash|Read|Grep|Glob|Task (counter maintenance)
-# Trigger: PostToolUse on Bash|Read|Grep|Glob|Task
+# Ciel — PostToolUse hook for Bash|Read|Grep|Glob|Task|Agent (counter maintenance)
+# Trigger: PostToolUse on Bash|Read|Grep|Glob|Task|Agent
 # Purpose: sibling to pre-tool-count.sh.
 #   - On Bash/Read/Grep/Glob → increment counter (the call that just
-#     succeeded counts against the 5-call budget).
-#   - On Task → reset counter to 0 (dispatch happened; the main session
-#     earned a fresh budget to process the fork's report).
+#     succeeded counts against the budget).
+#   - On Task or Agent → reset counter to 0 (dispatch happened; the main
+#     session earned a fresh budget to process the fork's report).
+#     NOTE: Claude Code uses "Agent" as tool_name; OpenCode uses "Task".
+#     Both are handled here.
 #
 # Never blocks. Writes only to /tmp/ciel-counter-${session_id}.
 
@@ -33,7 +35,7 @@ tool_name="${parsed#*$'\t'}"
 
 counter_file="/tmp/ciel-counter-${session_id}"
 
-if [ "$tool_name" = "Task" ]; then
+if [ "$tool_name" = "Task" ] || [ "$tool_name" = "Agent" ]; then
     # Dispatch happened — budget refreshes for the main session's
     # post-dispatch processing of the fork's report.
     rm -f "$counter_file"
