@@ -42,8 +42,8 @@ fi
 # Sanity: treat non-numeric as 0
 case "$count" in ''|*[!0-9]*) count=0 ;; esac
 
-if [ "$count" -ge 5 ]; then
-    # Hard-block the 6th+ inline tool call. The model will see the reason.
+if [ "$count" -ge 15 ]; then
+    # Hard-block the 16th+ inline tool call. The model will see the reason.
     python3 -c "
 import json
 print(json.dumps({
@@ -61,6 +61,6 @@ next=$((count + 1))
 python3 -c "
 import json
 print(json.dumps({
-    'systemMessage': f'[CIEL COUNTER: $next/5] inline Bash/Read/Grep/Glob call — on 5/5 the next non-Task tool call will be hard-stopped. Dispatch Task() now if input-gathering is complete.'
+    'systemMessage': f'[CIEL COUNTER: $next/15] inline Bash/Read/Grep/Glob call — on 15/15 the next non-Task tool call will be hard-stopped. Dispatch Task() now if input-gathering is complete.'
 }))"
 exit 0
