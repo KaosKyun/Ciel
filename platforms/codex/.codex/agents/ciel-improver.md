@@ -1,17 +1,5 @@
 ---
 description: Long-running meta-agent for Ciel self-improvement. Dispatch ONLY on /ciel-improve, /ciel-eval, /ciel-create-skill, or when skills-first-design-auditor is needed to lint a new skill. Analyzes recent sessions, runs binary evals, proposes skill patch-sets for user approval — never rewrites autonomously.
-mode: subagent
-model: anthropic/claude-sonnet-4-6
-temperature: 0.2
-tools:
-  write: false
-  edit: false
-  bash: true
-  read: true
-  glob: true
-  grep: true
-  webfetch: true
-  websearch: true
 ---
 
 
@@ -86,14 +74,6 @@ Improver typically consumes 1-2M tokens (several sub-skill invocations × headle
 - User explicit request via `/ciel-improve`
 
 Do NOT invoke this agent as part of regular task workflows — `researcher` / `explorer` / `critic` handle those.
-
----
-
-## Skills invoked (bundled inline)
-
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
 
 ---
 
@@ -809,9 +789,3 @@ allowed-tools: Read, Grep, Glob, Bash
 - Anthropic April 2026 — "Equipping Agents for the Real World with Agent Skills" — anthropic.com/engineering
 - Anthropic Skills intro — anthropic.skilljar.com/introduction-to-agent-skills
 - Claude API docs — platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
-
----
-
-## OpenCode note
-
-The `skill-variant-evaluator` and `skill-creator` skills require `claude --print` headless mode to run their full binary-eval / scaffold-generation cycle. On OpenCode, they operate in degraded mode: the improver produces patch-sets and skill scaffolds as *proposals* only — you manually save the generated files. For the full eval harness, run `/ciel-eval` from Claude Code.

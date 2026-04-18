@@ -602,16 +602,59 @@ install_cursor() {
 
 install_windsurf() {
   info "Windsurf..."
+  _purge_ciel_files "$PROJECT_ROOT/.windsurf/workflows" "ciel*.md"
+  _purge_ciel_files "$PROJECT_ROOT/.windsurf/rules" "ciel*.md"
+
+  # Skills — copy entire ciel* skill directories
+  if [ -d "$PLATFORMS_DIR/windsurf/.windsurf/skills" ]; then
+    mkdir -p "$PROJECT_ROOT/.windsurf/skills"
+    for skill_dir in "$PLATFORMS_DIR/windsurf/.windsurf/skills"/ciel*/; do
+      [ -d "$skill_dir" ] || continue
+      local sname; sname=$(basename "$skill_dir")
+      rm -rf "$PROJECT_ROOT/.windsurf/skills/$sname"
+      cp -r "$skill_dir" "$PROJECT_ROOT/.windsurf/skills/$sname"
+    done
+    ok "Copied .windsurf/skills/ (ciel, ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
+  fi
+
+  # Workflows
+  if [ -d "$PLATFORMS_DIR/windsurf/.windsurf/workflows" ]; then
+    mkdir -p "$PROJECT_ROOT/.windsurf/workflows"
+    cp "$PLATFORMS_DIR/windsurf/.windsurf/workflows/"*.md "$PROJECT_ROOT/.windsurf/workflows/" 2>/dev/null || true
+    ok "Copied .windsurf/workflows/ (/ciel and all ciel-* commands)"
+  fi
+
+  # Rules (always-on)
   mkdir -p "$PROJECT_ROOT/.windsurf/rules"
   cp "$PLATFORMS_DIR/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
-  ok "Copied .windsurf/rules/ciel.md (always_on rule)"
+  ok "Copied .windsurf/rules/ciel.md (always-on)"
+
   _install_overlay
 }
 
 install_codex() {
   info "Codex CLI..."
   cp "$PLATFORMS_DIR/codex/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
-  ok "Copied AGENTS.md (full workflow, ~27KB, under 32KB limit)"
+  ok "Copied AGENTS.md (compact orchestrator)"
+
+  if [ -d "$PLATFORMS_DIR/codex/.codex" ]; then
+    mkdir -p "$PROJECT_ROOT/.codex/hooks" "$PROJECT_ROOT/.codex/commands" "$PROJECT_ROOT/.codex/agents"
+
+    cp "$PLATFORMS_DIR/codex/.codex/hooks.json" "$PROJECT_ROOT/.codex/hooks.json"
+    ok "Copied .codex/hooks.json (UserPromptSubmit depth gate)"
+
+    cp "$PLATFORMS_DIR/codex/.codex/hooks/"*.sh "$PROJECT_ROOT/.codex/hooks/" 2>/dev/null || true
+    chmod +x "$PROJECT_ROOT/.codex/hooks/"*.sh 2>/dev/null || true
+    ok "Copied .codex/hooks/ (user-prompt-submit.sh)"
+
+    cp "$PLATFORMS_DIR/codex/.codex/commands/"*.md "$PROJECT_ROOT/.codex/commands/" 2>/dev/null || true
+    ok "Copied .codex/commands/ (ciel-*.md)"
+
+    _purge_ciel_files "$PROJECT_ROOT/.codex/agents" "ciel-*.md"
+    cp "$PLATFORMS_DIR/codex/.codex/agents/"*.md "$PROJECT_ROOT/.codex/agents/" 2>/dev/null || true
+    ok "Copied .codex/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
+  fi
+
   _install_overlay
 }
 
@@ -687,15 +730,28 @@ PY
 install_kilocode() {
   info "Kilo Code..."
   _purge_ciel_files "$PROJECT_ROOT/.kilocode/rules" "ciel*.md"
-  _purge_ciel_files "$PROJECT_ROOT/.kilo/agents" "*.md"
+  # Purge old unprefixed agent files (pre-v2.9 broken pointers — no skills bundled)
+  for old_agent in researcher.md explorer.md critic.md improver.md; do
+    rm -f "$PROJECT_ROOT/.kilo/agents/$old_agent"
+  done
+  _purge_ciel_files "$PROJECT_ROOT/.kilo/agents" "ciel-*.md"
+
+  # AGENTS.md at project root (compact orchestrator ≤6KB)
+  if [ -f "$PLATFORMS_DIR/kilocode/AGENTS.md" ]; then
+    cp "$PLATFORMS_DIR/kilocode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
+    ok "Copied AGENTS.md (compact orchestrator, ≤6KB)"
+  fi
+
   mkdir -p "$PROJECT_ROOT/.kilocode/rules"
   cp "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
   ok "Copied .kilocode/rules/ciel.md"
+
   if [ -d "$PLATFORMS_DIR/kilocode/.kilo/agents" ]; then
     mkdir -p "$PROJECT_ROOT/.kilo/agents"
-    cp "$PLATFORMS_DIR/kilocode/.kilo/agents/"*.md "$PROJECT_ROOT/.kilo/agents/" 2>/dev/null
-    ok "Copied .kilo/agents/ (researcher/explorer/critic/improver)"
+    cp "$PLATFORMS_DIR/kilocode/.kilo/agents/ciel-"*.md "$PROJECT_ROOT/.kilo/agents/" 2>/dev/null || true
+    ok "Copied .kilo/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
   fi
+
   _install_overlay
 }
 
@@ -718,9 +774,18 @@ install_lmstudio() {
   mkdir -p "$TARGET"
   cp "$PLATFORMS_DIR/lmstudio/system-prompt.md" "$TARGET/system-prompt.md"
   ok "Copied system-prompt.md to $TARGET/"
+
+  # Preset file — LM Studio 0.3.x format (operation.fields[] with dot-notation keys)
+  if [ -f "$PLATFORMS_DIR/lmstudio/ciel.preset.json" ]; then
+    cp "$PLATFORMS_DIR/lmstudio/ciel.preset.json" "$TARGET/ciel.preset.json"
+    ok "Copied ciel.preset.json to $TARGET/"
+  fi
+
   echo ""
-  echo "    Next step: copy the prompt from $TARGET/system-prompt.md"
-  echo "    into LM Studio -> Settings -> System Prompt -> Save preset 'Ciel'"
+  echo "    Next steps:"
+  echo "    1. In LM Studio → top-right preset selector → Import preset → $TARGET/ciel.preset.json"
+  echo "       OR manually paste from $TARGET/system-prompt.md into Settings → System Prompt"
+  echo "    2. Select 'Ciel' preset before starting a session"
 }
 
 # ─── Platform detection ───────────────────────────────────────────────────────

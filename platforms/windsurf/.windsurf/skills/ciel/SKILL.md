@@ -3,6 +3,7 @@ name: ciel
 description: Deep-reasoning orchestrator for coding tasks. Classifies task depth (Trivial/Standard/Critical) and routes to specialized skills across workflow/research/domain/utility categories. Use when starting any non-trivial coding task, when the user types /ciel, or when depth-aware reasoning is needed before implementing. Enforces "Understand before generating. Verify before claiming done."
 ---
 
+
 # Ciel — Skills-first Orchestrator
 
 Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the advisor who reasons at infinite speed before Rimuru acts.

@@ -1,17 +1,7 @@
 ---
 description: Isolated-context researcher subagent for Ciel. Dispatch for RECHERCHE step (Standard + Critical tasks) — official docs, anti-patterns, framework philosophy, version changelog, source credibility. Also owns doc-validator-official (anti-hallucination API check). WebFetch + WebSearch enabled, no write/edit/bash.
 mode: subagent
-model: anthropic/claude-haiku-4-5-20251001
-temperature: 0.2
-tools:
-  write: false
-  edit: false
-  bash: false
-  read: true
-  glob: false
-  grep: false
-  webfetch: true
-  websearch: true
+step_limits: 20
 ---
 
 
@@ -93,14 +83,6 @@ Return ONLY the canonical report produced by `synthesize-findings`:
 
 Target: ≤ 500 tokens for the final report.
 Internal skills can produce more; `synthesize-findings` compresses.
-
----
-
-## Skills invoked (bundled inline)
-
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
 
 ---
 
