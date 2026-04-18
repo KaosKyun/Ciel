@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout *)",
+      "WebFetch(domain:docs.cursor.com)",
+      "WebFetch(domain:docs.windsurf.com)",
+      "WebFetch(domain:developers.openai.com)",
+      "WebFetch(domain:opencode.ai)",
+      "WebFetch(domain:kilocode.ai)",
+      "WebFetch(domain:lmstudio.ai)",
+      "WebFetch(domain:cursor.com)",
+      "WebFetch(domain:kilo.ai)",
+      "WebSearch",
+      "WebFetch(domain:docs.ollama.ai)",
+      "Bash(grep -v \"^$\")",
+      "Bash(xargs dirname *)",
+      "Bash(xargs basename *)",
+      "Bash(grep -E \"\\(^---$|allowed-tools:\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(ssh *)",
+      "Bash(bash stop.sh)",
+      "Bash(python3 -m json.tool)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(bash pre-compact.sh)",
+      "Bash(bash pre-tool-write.sh)",
+      "Bash(scp stop.sh stop.ps1 pre-compact.sh pre-compact.ps1 pre-tool-write.sh pre-tool-write.ps1 root@srv-neiyomi-01:/root/.claude/plugins/ciel/hooks/)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\"; head -1 {}')",
+      "Bash(curl -sL https://opencode.ai/docs/ -A \"Mozilla/5.0\")",
+      "Bash(xargs -I {} basename {})",
+      "Bash(curl -sL https://opencode.ai/docs/config/ -A \"Mozilla/5.0\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -sL \"https://opencode.ai/docs/sitemap-0.xml\" -A \"Mozilla/5.0\")",
+      "Bash(curl -sL https://unpkg.com/@opencode-ai/plugin/dist/index.d.ts)",
+      "Bash(curl -sL \"https://unpkg.com/@opencode-ai/plugin/\")",
+      "Bash(bash scripts/build-platforms.sh --target=opencode)"
+    ]
+  }
+}

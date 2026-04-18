@@ -1,0 +1,91 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "plugin": ["./.opencode/plugins/ciel.ts"],
+  "permission": {
+    "task": {
+      "*": "allow"
+    }
+  },
+  "agent": {
+    "ciel": {
+      "description": "Ciel deep-reasoning orchestrator. Classify task depth and route through the Ciel pipeline. Use for any non-trivial coding task.",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "You are the Ciel Orchestrator. Load and follow the Ciel skill instructions. Classify task depth (Trivial/Standard/Critical) and route through the appropriate pipeline. You can dispatch subagents: @ciel-explorer for CODEBASE, @ciel-researcher for RECHERCHE, @ciel-critic for RELIRE/CRITIQUER, @ciel-improver for meta-tasks.",
+      "temperature": 0.2,
+      "permission": {
+        "task": {
+          "ciel-explorer": "allow",
+          "ciel-researcher": "allow",
+          "ciel-critic": "allow",
+          "ciel-improver": "allow"
+        }
+      }
+    },
+    "ciel-explorer": {
+      "description": "Isolated-context explorer for CODEBASE + FLUX steps. Dispatch for pattern-fitness-check, flux-narrator, domain mastery.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "{file:./.opencode/agents/ciel-explorer.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    },
+    "ciel-critic": {
+      "description": "Isolated-context critic for RELIRE, CRITIQUER, or RCA. Dispatch with MODE=RELIRE after writes, MODE=CRITIQUER for audits, MODE=RCA for debugging.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "{file:./.opencode/agents/ciel-critic.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
+    },
+    "ciel-researcher": {
+      "description": "Isolated-context researcher for RECHERCHE step. Dispatch for official docs, anti-patterns, version changelog.",
+      "mode": "subagent",
+      "model": "anthropic/claude-haiku-4-5-20251001",
+      "prompt": "{file:./.opencode/agents/ciel-researcher.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": false,
+        "grep": false,
+        "webfetch": true,
+        "websearch": true,
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    },
+    "ciel-improver": {
+      "description": "Long-running meta-agent for Ciel self-improvement. Dispatch on /ciel-improve, /ciel-eval, /ciel-create-skill.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-6",
+      "prompt": "{file:./.opencode/agents/ciel-improver.md}",
+      "temperature": 0.2,
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "bash": true,
+        "webfetch": true,
+        "websearch": true,
+        "write": false,
+        "edit": false
+      }
+    }
+  }
+}
