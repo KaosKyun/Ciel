@@ -1,5 +1,24 @@
 # Ciel — Changelog
 
+## v2.10.0 — 2026-04-18 — Cost optimization: Haiku agents, RELIRE 5-file threshold, call caps
+
+### Changed
+- **Explorer model** — Sonnet 4.6 → Haiku 4.5 (grep-based retrieval + pattern-fitness is structured retrieval, not chain-of-thought; ~5x cost reduction per explorer dispatch)
+- **Researcher model** — Sonnet 4.6 → Haiku 4.5 (WebSearch + WebFetch structured retrieval; already in place, confirmed in build)
+- **RELIRE dispatch threshold** — 3 → 5 non-critical files; `isCritical` path (auth/security/service/controller files) unchanged; ~40% fewer critic dispatches on Standard tasks
+- **Explorer call discipline** — hard budget ≤ 10 tool calls per invocation; Read max 4 full-file reads; grep-first discipline (`-A 2 -B 2` on sweeps); domain skill gate skipped for Trivial signals
+- **Researcher early-exit** — waterfall with skip conditions between steps 1-3; stops at first step that fully answers QUESTION; WebFetch caps (2/1/1 per step); Tier-1 sources skip credibility validation
+- **Context budget table** — new row: post-agent-dispatch + >50% → suggest `/compact` (non-blocking)
+- **meta-critiquer item 6** — graduated thresholds: >50% after dispatch → recommend `/compact`; >70% → recommend new session; 2× Critical tasks → mandatory new session recommendation
+
+### Metrics
+- Estimated token reduction: ~40-50% on subagent-heavy Standard tasks
+- Explorer: ~5x model cost reduction + 20-30% internal call reduction
+- Researcher: ~5x model cost reduction + early-exit skips 2-4 unconditional WebFetches on simple tasks
+- Critic dispatches: ~40% fewer on Standard tasks (non-critical-path files)
+
+---
+
 ## v2.9.0 — 2026-04-18 — Phase 2 platform restorations: Windsurf, Codex, Kilo, LM Studio/Ollama
 
 Closes #3 (Windsurf), #4 (Codex), #5 (Kilo Code), #6 (LM Studio + Ollama).
