@@ -1,5 +1,22 @@
 # Ciel — Changelog
 
+## v3.0.0 — 2026-04-18 — Dispatch gate deadlock fix: `Agent` tool name in PostToolUse matcher
+
+### Fixed
+
+- **Dispatch gate permanent deadlock** — PostToolUse matcher was `"Bash|Read|Grep|Glob|Task"`. Claude Code uses `Agent` as the tool name (OpenCode uses `Task`); because `Agent` was absent, `post-tool-count.sh` never fired after an agent dispatch, so the counter never reset. Once the gate hit 15 it locked forever — including blocking the `rm /tmp/ciel-counter-*` Bash call documented as the escape hatch, forcing manual user intervention every session. Fixed by adding `Agent` to the matcher: `"Bash|Read|Grep|Glob|Task|Agent"`. Applied to `settings.json` (root), `Ciel/settings.json`, and `~/.claude/settings.json`.
+
+### Added
+
+- **Guard #40** in `skills/ciel/reference.md` — "PostToolUse matcher missing `Agent` tool name": documents root cause, manifestation (permanent deadlock + blocked rm escape), and guard (matcher must include both `Task` and `Agent`; verify on every hook maintenance change).
+
+### Metrics
+
+- Sessions affected: every Standard+ session since v2.5.0 (dispatch gate introduction)
+- Fix blast radius: 3 `settings.json` files, 1 new Guard entry
+
+---
+
 ## v2.10.0 — 2026-04-18 — Cost optimization: Haiku agents, RELIRE 5-file threshold, call caps
 
 ### Changed

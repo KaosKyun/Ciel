@@ -56,7 +56,7 @@
         ]
       },
       {
-        "matcher": "Bash|Read|Grep|Glob|Task",
+        "matcher": "Bash|Read|Grep|Glob|Task|Agent",
         "hooks": [
           {
             "type": "command",
