@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer v2.4.0
+# Ciel Universal Installer — version read dynamically from $CIEL_DIR/VERSION
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root] [flags]
 #        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
@@ -401,9 +401,9 @@ IS_UPDATE=false
 [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
 
 if $IS_UPDATE; then
-  echo -e "\n${BOLD}Ciel Universal Installer v2.4.0${RESET} (${YELLOW}update detected${RESET})"
+  echo -e "\n${BOLD}Ciel Universal Installer v$(cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')${RESET} (${YELLOW}update detected${RESET})"
 else
-  echo -e "\n${BOLD}Ciel Universal Installer v2.4.0${RESET}"
+  echo -e "\n${BOLD}Ciel Universal Installer v$(cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')${RESET}"
 fi
 echo -e "Plugin : $CIEL_DIR"
 echo -e "Project: $PROJECT_ROOT\n"
@@ -536,7 +536,7 @@ install_claude() {
     return
   fi
 
-  info "Falling back to manual install..."
+  info "Copying Ciel files..."
 
   mkdir -p "$HOME/.claude/skills"
   # v2.0.0: copy all 33 skills across 5 categories + orchestrator
@@ -575,19 +575,58 @@ _claude_hooks() {
   [ -d "$hooks_dir" ] && chmod +x "$hooks_dir/"*.sh 2>/dev/null && ok "Hooks set executable"
 
   local settings="$HOME/.claude/settings.json"
+  local canonical="$CIEL_DIR/settings.json"
+
   if [ ! -f "$settings" ]; then
-    cp "$CIEL_DIR/settings.json" "$settings"
+    cp "$canonical" "$settings"
     ok "settings.json created with Ciel hooks"
+    return
+  fi
+
+  cp "$settings" "$settings.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null
+
+  python3 - "$settings" "$canonical" "$hooks_dir" <<'PY'
+import json, os, sys
+target, canonical_path, hooks_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(target) as f: current = json.load(f)
+with open(canonical_path) as f: canonical = json.load(f)
+
+current_hooks = current.get("hooks", {})
+canonical_hooks = canonical.get("hooks", {})
+
+# For each event, drop ANY entry whose command references plugins/ciel/hooks/
+# (stale paths, removed hooks like pre-tool-count). Keep everything else.
+# Then append the canonical Ciel entries with absolute hooks_dir path.
+def is_ciel_entry(entry):
+    for h in entry.get("hooks", []):
+        cmd = h.get("command", "")
+        if "plugins/ciel/hooks/" in cmd:
+            return True
+    return False
+
+merged = dict(current_hooks)
+for event, entries in canonical_hooks.items():
+    existing = merged.get(event, [])
+    kept = [e for e in existing if not is_ciel_entry(e)]
+    for entry in entries:
+        new_entry = json.loads(json.dumps(entry))
+        for h in new_entry.get("hooks", []):
+            cmd = h.get("command", "")
+            h["command"] = cmd.replace(".claude/plugins/ciel/hooks/", hooks_dir.rstrip("/") + "/")
+        kept.append(new_entry)
+    merged[event] = kept
+
+current["hooks"] = merged
+with open(target, "w") as f:
+    json.dump(current, f, indent=2)
+    f.write("\n")
+PY
+
+  if python3 -m json.tool < "$settings" > /dev/null 2>&1; then
+    ok "settings.json merged with canonical Ciel hooks (non-Ciel entries preserved)"
   else
-    if grep -qE "(pre-write-gate|pre-tool-write|post-write-relire|post-tool-write)" "$settings" 2>/dev/null; then
-      if grep -q "pre-write-gate\|post-write-relire" "$settings" 2>/dev/null; then
-        warn "settings.json references v1.x hook names (pre-write-gate, post-write-relire) — update to v2.0.0 names (pre-tool-write, post-tool-write) in $CIEL_DIR/settings.json"
-      else
-        ok "Hooks already in settings.json"
-      fi
-    else
-      warn "settings.json exists — merge hooks manually from $CIEL_DIR/settings.json (7 events in v2.0.0)"
-    fi
+    warn "settings.json merge produced invalid JSON — restore from $settings.bak-*"
   fi
 }
 
