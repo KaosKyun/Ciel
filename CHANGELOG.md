@@ -21,6 +21,12 @@ Mechanical counting hooks were always advisory since v3.2.0 (hard-stop removed) 
 
 Users running `/ciel-update` get the cleaned-up install automatically. Stale `/tmp/ciel-counter-*` files can be left alone — nothing reads them anymore.
 
+### OpenCode parity (follow-up)
+
+- `platforms/opencode/.opencode/plugins/ciel.ts` — removed `dispatchCounter` Map, `INLINE_GATHER_TOOLS` set, `getSessionKey` helper, and the whole `tool.execute.before` hook. Only the `tool.execute.after` Write/Edit FAIRE/RELIRE reminder path remains.
+- `scripts/build-platforms.sh` — source of truth updated to match.
+- `platforms/opencode/.opencode/commands/ciel-init.md` — already carried the 8-hook list + `pre-agent-gate`, no counter references.
+
 ---
 
 ## v3.2.0 — 2026-04-18 — Dispatch gate soft warning: replace hard-stop deny
