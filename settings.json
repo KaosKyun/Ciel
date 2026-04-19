@@ -34,16 +34,6 @@
         ]
       },
       {
-        "matcher": "Bash|Read|Grep|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/plugins/ciel/hooks/pre-tool-count.sh",
-            "statusMessage": "Ciel: dispatch gate check..."
-          }
-        ]
-      },
-      {
         "matcher": "Agent",
         "hooks": [
           {
@@ -62,16 +52,6 @@
             "type": "command",
             "command": "bash .claude/plugins/ciel/hooks/post-tool-write.sh",
             "statusMessage": "Ciel: RELIRE dispatch..."
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|Read|Grep|Glob|Task|Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/plugins/ciel/hooks/post-tool-count.sh",
-            "statusMessage": "Ciel: counter increment..."
           }
         ]
       }

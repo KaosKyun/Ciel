@@ -62,7 +62,8 @@
       "Skill(commit-writer)",
       "Skill(pr-merger)",
       "Bash(mkdir -p /Users/neikyun/.claude/plugins/ciel/hooks)",
-      "Bash(cp /Users/neikyun/Documents/Projet/Ciel/Ciel/hooks/*.sh /Users/neikyun/.claude/plugins/ciel/hooks/)"
+      "Bash(cp /Users/neikyun/Documents/Projet/Ciel/Ciel/hooks/*.sh /Users/neikyun/.claude/plugins/ciel/hooks/)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('version','?'\\)\\)\")"
     ]
   },
   "enabledMcpjsonServers": [

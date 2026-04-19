@@ -1,5 +1,28 @@
 # Ciel — Changelog
 
+## v3.3.0 — 2026-04-19 — Remove counter hooks: noise-free discipline via pre-agent-gate + SKILL.md
+
+### Removed
+
+- **`pre-tool-count.sh`** — fired on every Bash/Read/Grep/Glob call, emitting `[CIEL COUNTER: N/15]` systemMessage. Noise outweighed signal; mechanical counting duplicates what SKILL.md already instructs.
+- **`post-tool-count.sh`** — counter maintenance (reset on Agent/Task, increment on tool call). No longer needed.
+- `hooks/pre-tool-count.{sh,ps1}`, `hooks/post-tool-count.{sh,ps1}` deleted from repo.
+- PreToolUse `Bash|Read|Grep|Glob` matcher + PostToolUse `Bash|Read|Grep|Glob|Task|Agent` matcher removed from all `settings.json` templates and `ciel-init.md` canonical block.
+
+### Rationale
+
+Dispatch discipline is now enforced by:
+1. **`pre-agent-gate.sh`** (v3.1.0) — blocks non-`ciel-*` Agent dispatches.
+2. **SKILL.md routing rules** — readable instructions.
+
+Mechanical counting hooks were always advisory since v3.2.0 (hard-stop removed) and the per-call systemMessage became pure noise.
+
+### Migration
+
+Users running `/ciel-update` get the cleaned-up install automatically. Stale `/tmp/ciel-counter-*` files can be left alone — nothing reads them anymore.
+
+---
+
 ## v3.2.0 — 2026-04-18 — Dispatch gate soft warning: replace hard-stop deny
 
 ### Changed

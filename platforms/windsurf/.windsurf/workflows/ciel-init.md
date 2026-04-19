@@ -73,16 +73,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/i
 
 ### Step 1b — Verify hooks are physically present
 
-After resolving `$CIEL_DIR`, check that `$CIEL_DIR/hooks/` contains all 9 required scripts:
+After resolving `$CIEL_DIR`, check that `$CIEL_DIR/hooks/` contains the 8 required scripts (v3.3.0 removed counter hooks):
 
 ```
-session-start.sh  user-prompt-submit.sh  pre-tool-write.sh  pre-tool-count.sh
-post-tool-write.sh  post-tool-count.sh  stop.sh  subagent-stop.sh  pre-compact.sh
+session-start.sh  user-prompt-submit.sh  pre-tool-write.sh  pre-agent-gate.sh
+post-tool-write.sh  stop.sh  subagent-stop.sh  pre-compact.sh
 ```
 
 Run: `ls "$CIEL_DIR/hooks/"*.sh 2>/dev/null | wc -l`
 
-If the count is < 9 (directory absent or scripts missing):
+If the count is < 8 (directory absent or scripts missing):
 
 1. Locate the Ciel source repo by checking these candidates in order:
    - `find "$HOME" -maxdepth 7 -path '*/Ciel/hooks/session-start.sh' 2>/dev/null | head -1` → strip `/hooks/session-start.sh` suffix
@@ -123,12 +123,10 @@ Using `$CIEL_DIR`, the canonical Ciel hooks block is:
   ],
   "PreToolUse": [
     { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-write.sh", "statusMessage": "Ciel: FLUX check..." } ] },
-    { "matcher": "Bash|Read|Grep|Glob", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-count.sh", "statusMessage": "Ciel: dispatch gate check..." } ] },
     { "matcher": "Agent", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-agent-gate.sh", "statusMessage": "Ciel: agent type gate..." } ] }
   ],
   "PostToolUse": [
-    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] },
-    { "matcher": "Bash|Read|Grep|Glob|Task|Agent", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-count.sh", "statusMessage": "Ciel: counter increment..." } ] }
+    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] }
   ],
   "Stop": [
     { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/stop.sh", "statusMessage": "Ciel: META-CRITIQUER..." } ] }

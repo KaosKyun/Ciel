@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (Kilo Code, v3.2.0)
+# AGENTS.md — Ciel deep-reasoning workflow (Kilo Code, v3.3.0)
 
 Source: https://github.com/KaosKyun/Ciel
 
