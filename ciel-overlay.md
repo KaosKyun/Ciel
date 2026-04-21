@@ -1,20 +1,19 @@
-# Ciel Overlay — [Nom du projet]
+# Ciel Overlay — Ciel Plugin
 
 > Ce fichier est l'overlay projet pour le plugin Ciel.
 > Il contient tout ce qui est spécifique à CE projet et override les defaults de Ciel.
-> À créer à la racine du projet et compléter les sections ci-dessous.
 
 ---
 
 ## Stack exacte
 
-- **Frontend:** [ex: React 19.0.0 / Vue 3.5 / Svelte 5]
-- **Backend:** [ex: Ktor 3.0.0 / FastAPI 0.115 / Express 5]
-- **Langage:** [ex: Kotlin 2.1.0 / TypeScript 5.5 / Python 3.12]
-- **DB:** [ex: PostgreSQL 16 / SQLite 3.45 / MongoDB 7]
-- **Cache:** [ex: Redis 7.2 / in-memory]
-- **Test:** [ex: Vitest 3.x + Playwright / pytest 8 / JUnit 5]
-- **Build:** [ex: pnpm 9.15 / Gradle 8.5 / npm 10]
+- **Frontend:** N/A (plugin backend)
+- **Backend:** TypeScript 5.x (plugin OpenCode)
+- **Langage:** TypeScript 5.5, Bash 5.x, PowerShell 7.x
+- **DB:** N/A
+- **Cache:** in-memory (fichiers temporaires /tmp)
+- **Test:** Node.js test runner + shell scripts
+- **Build:** npm 10, bash scripts
 
 ---
 
@@ -22,9 +21,10 @@
 
 | Lib | Version installée | URL docs officielle |
 |-----|-------------------|--------------------|
-| [lib] | [version exacte] | [URL] |
-| React | 19.0.0 | https://react.dev/reference/react |
-| [ajouter vos libs ici] | | |
+| TypeScript | 5.5.x | https://www.typescriptlang.org/docs/ |
+| Node.js | 20.x | https://nodejs.org/docs/latest/ |
+| OpenCode | latest | https://opencode.ai/docs/ |
+| Claude Code | latest | https://claude.ai/docs/ |
 
 ---
 
@@ -32,39 +32,52 @@
 
 Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 
-- `[ex: src/auth/]` — Authentification
-- `[ex: src/db/migration/]` — Schéma DB
-- `[ex: *Service.kt]` — Business logic
-- `[ex: *Routes.ts]` — Route handlers
-- `[ex: src/security/]` — Sécurité
+- `.opencode/plugins/ciel.ts` — Plugin principal OpenCode
+- `hooks/*` — Scripts d'automation (9 hooks)
+- `skills/ciel/` — Orchestrator principal
+- `skills/workflow/` — Pipeline CRÉER/CRITIQUER
+- `skills/security/` — Security hardening
+- `skills/meta/` — Self-improvement subsystem
+- `agents/ciel-*.md` — Définitions des agents
 
 ---
 
 ## Commandes CI / Vérification
 
-- **CI système:** [ex: GitHub Actions / GitLab CI]
-- **Runners:** [ex: ubuntu-latest / self-hosted]
-- **Build local:** `[ex: pnpm build / ./gradlew build]`
-- **Test local:** `[ex: pnpm test:unit / ./gradlew test]`
-- **Lint:** `[ex: pnpm lint / ./gradlew detekt]`
-- **Staging URL:** `[ex: https://staging.example.com]`
-- **Deploy staging:** `[ex: git push origin main]`
-- **Délai deploy:** `[ex: ~30-45s]`
+- **CI système:** GitHub Actions
+- **Runners:** ubuntu-latest
+- **Build local:** `cd .opencode && npm install`
+- **Test local:** `cd .opencode && npx tsx test-ciel.ts`
+- **Lint:** `shellcheck hooks/*.sh`
+- **Staging URL:** https://staging.ciel-plugin.dev (simulé)
+- **Deploy staging:** `git push origin main`
+- **Délai deploy:** ~1-2 minutes
+
+### Workflows GitHub Actions
+
+| Workflow | Fichier | Déclencheur | Purpose |
+|----------|---------|-------------|---------|
+| **CI** | `.github/workflows/ci.yml` | push main + PR | Lint hooks, test Node.js, validate config, byte limits, TypeScript |
+| **Test Hooks** | `.github/workflows/test-hooks.yml` | push hooks/ + PR | Test individuel + integration des hooks (8 cas) |
+| **Platform Validation** | `.github/workflows/platform-validation.yml` | push platforms/** | Validation 7 platforms (Cursor, Windsurf, Codex, OpenCode, Kilocode, Ollama, LM Studio) |
+| **Skill Integrity** | `.github/workflows/skill-integrity.yml` | push skills/** | Validation YAML frontmatter, taille ≤500 lignes, URLs |
+| **Matrix Build** | `.github/workflows/matrix-build.yml` | tag v* | Build parallèle multi-platforms pour release |
+| **Deploy Staging** | `.github/workflows/deploy-staging.yml` | push main | Déploiement staging automatique + health check |
+| **Release** | `.github/workflows/release.yml` | tag v* | Release GitHub + SBOM + artifacts multi-platforms |
 
 ---
 
 ## Comptes de test
 
-- `[ex: admin@example.com]` — rôle: admin
-- `[ex: user@example.com]` — rôle: user standard
+N/A — Plugin de développement, pas de comptes utilisateurs
+
+---
 
 ## Secrets (sensitive: true)
 
 > Les sections marquées `sensitive: true` sont automatiquement redactées par le plugin avant injection dans le prompt système.
 
-- `[ex: Token de test: $TEST_TOKEN]`
-- `[ex: API_KEY: sk-xxx]`
-- `[ex: DB_PASSWORD: xxx]`
+Aucun secret requis pour la CI actuelle.
 
 ---
 
@@ -72,8 +85,8 @@ Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 
 > Format: `[date] MISTAKE: [ce qui s'est passé] → RULE: [comment éviter]`
 
-- `[2025-01] MISTAKE: forgot transaction block → RULE: Toujours envelopper les queries DB dans transaction { }`
-- `[ajouter vos leçons ici]`
+- `[2026-04] MISTAKE: hooks non testés avant merge → RULE: Toujours exécuter test-hooks.yml en local avant push`
+- `[2026-04] MISTAKE:忘记更新 VERSION 文件 → RULE: Mettre à jour VERSION avant de créer un tag release`
 
 ---
 
@@ -81,6 +94,55 @@ Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 
 > Ce qui override ou complète les defaults Ciel — patterns du projet, conventions, contraintes
 
-- `[ex: Pas de business logic dans les controllers]`
-- `[ex: Tests unitaires obligatoires pour tout nouveau service]`
-- `[ex: Review mandatory pour tout fichier auth/]`
+- **SHA-pinned actions uniquement** — Toutes les GitHub Actions doivent être pinées par SHA (SLSA L3)
+- **Permissions minimales** — `contents: read` par défaut, écrire uniquement si nécessaire
+- **Timeout sur chaque job** — Maximum 15 minutes par job
+- **Concurrency avec cancel** — Annuler les jobs en cours sur PR
+- **Hooks shell validés** — Tous les scripts `.sh` doivent passer `shellcheck`
+- **Documentation à jour** — CHANGELOG.md doit être mis à jour avant chaque release
+- **Tests avant implémentation** — Suivre le workflow FAIRE (test-first RED)
+- **Byte limits strictes** — Chaque platform a ses limites (6KB-65KB), validation CI bloquante
+- **7 platforms supportées** — Cursor, Windsurf, Codex, OpenCode, Kilocode, Ollama, LM Studio
+
+---
+
+## Structure du projet
+
+```
+Ciel/
+├── .github/workflows/     # CI/CD (7 workflows)
+│   ├── ci.yml             # CI principale (6 jobs)
+│   ├── test-hooks.yml     # Test hooks (3 jobs)
+│   ├── platform-validation.yml # Validation 7 platforms
+│   ├── skill-integrity.yml # Validation skills
+│   ├── matrix-build.yml   # Build parallèle release
+│   ├── deploy-staging.yml # Déploiement staging
+│   └── release.yml        # Release GitHub
+├── .opencode/             # Configuration OpenCode
+│   ├── agents/            # 6 agents (plan, build, researcher, explorer, critic, improver)
+│   ├── commands/          # 9 commandes slash
+│   └── plugins/           # ciel.ts (plugin principal)
+├── agents/                # Définitions agents (source)
+├── commands/              # Commandes slash (source)
+├── hooks/                 # 9 hooks bash/powershell
+├── skills/                # ~50 compétences Ciel
+├── scripts/               # Installation, build, tests
+│   ├── install.sh         # Installateur universel
+│   ├── build-platforms.sh # Build multi-platforms
+│   └── test-stop-hook.sh  # Test hooks (8 cas)
+├── evals/                 # Self-improvement harness
+└── platforms/             # Builds multi-platforms (7 platforms)
+    ├── cursor/
+    ├── windsurf/
+    ├── codex/
+    ├── opencode/
+    ├── kilocode/
+    ├── ollama/
+    └── lmstudio/
+```
+
+---
+
+## Version courante
+
+Voir fichier `VERSION` à la racine.

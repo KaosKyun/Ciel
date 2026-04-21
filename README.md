@@ -1,5 +1,12 @@
 # Ciel
 
+[![CI](https://github.com/KaosKyun/Ciel/workflows/CI/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/ci.yml)
+[![Test Hooks](https://github.com/KaosKyun/Ciel/workflows/Test%20Hooks/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/test-hooks.yml)
+[![Platform Validation](https://github.com/KaosKyun/Ciel/workflows/Platform%20Validation/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/platform-validation.yml)
+[![Skill Integrity](https://github.com/KaosKyun/Ciel/workflows/Skill%20Integrity/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/skill-integrity.yml)
+[![Release](https://github.com/KaosKyun/Ciel/workflows/Release/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/release.yml)
+[![Deploy Staging](https://github.com/KaosKyun/Ciel/workflows/Deploy%20Staging/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/deploy-staging.yml)
+
 > *Named after the Primordial Sage from Tensura — the advisor who reasons at infinite speed before Rimuru acts.*
 
 Skills-first deep-reasoning plugin for LLM-assisted development. One generic orchestrator + library of ~50 specialized skills + 4 thin-orchestrator agents + self-improvement subsystem. Dual-platform: Claude Code + OpenCode.

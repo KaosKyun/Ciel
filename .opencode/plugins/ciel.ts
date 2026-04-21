@@ -45,7 +45,6 @@ const ciel: Plugin = async ({ $ }) => {
               /##\s*\S*sensitive[:\s]*true\S*\s*\n([\s\S]*?)(?=\n##\s|\n*$)/gi,
               "## [REDACTED — sensitive section]\n"
             );
-            console.log("[CIEL] Overlay loaded: ./ciel-overlay.md");
           } catch {
             // Silent fail — overlay is optional
           }

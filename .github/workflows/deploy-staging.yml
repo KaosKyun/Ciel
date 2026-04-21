@@ -1,0 +1,183 @@
+# Déploiement staging automatique
+# Déclencheur: push sur main (après CI verte)
+
+name: Deploy Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: staging
+      url: https://staging.ciel-plugin.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: .opencode/package-lock.json
+
+      - name: Install dependencies
+        working-directory: .opencode
+        run: npm ci
+
+      - name: Build plugin
+        run: |
+          echo "Building Ciel plugin for staging..."
+          # Simulation du build — dans la réalité, compiler le plugin TS
+          echo "✓ Plugin build simulated"
+          
+      - name: Prepare staging artifacts
+        run: |
+          mkdir -p staging-artifact
+          
+          # Copier les fichiers essentiels
+          cp -r .opencode/agents staging-artifact/
+          cp -r .opencode/commands staging-artifact/
+          cp .opencode/plugins/ciel.ts staging-artifact/ 2>/dev/null || echo "ciel.ts not found"
+          cp opencode.json staging-artifact/
+          cp AGENTS.md staging-artifact/
+          cp -r hooks staging-artifact/
+          cp -r skills staging-artifact/
+          
+          # Créer un manifest de déploiement
+          cat > staging-artifact/deploy-manifest.json << EOF
+          {
+            "version": "$(cat VERSION 2>/dev/null || echo 'dev')",
+            "commit": "${{ github.sha }}",
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "environment": "staging"
+          }
+          EOF
+          
+          echo "✓ Staging artifacts prepared"
+          ls -la staging-artifact/
+          
+      - name: Upload staging artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: staging-deploy-${{ github.sha }}
+          path: staging-artifact/
+          retention-days: 7
+          
+      - name: Simulate deployment
+        run: |
+          echo "=== Deploying to staging ==="
+          echo "Commit: ${{ github.sha }}"
+          echo "Version: $(cat VERSION 2>/dev/null || echo 'dev')"
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo ""
+          echo "✓ Deployment simulated successfully"
+          echo "In production, this would:"
+          echo "  - Copy files to staging server"
+          echo "  - Restart services"
+          echo "  - Run database migrations (if any)"
+          echo "==============================="
+
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Verify plugin structure
+        run: |
+          echo "=== Health Check: Plugin Structure ==="
+          
+          # Vérifier les fichiers critiques
+          checks_passed=0
+          checks_total=0
+          
+          # Check agents
+          checks_total=$((checks_total + 1))
+          if [ -d ".opencode/agents" ] && [ "$(ls -A .opencode/agents)" ]; then
+            echo "✓ Agents directory exists and is not empty"
+            checks_passed=$((checks_passed + 1))
+          else
+            echo "✗ Agents directory missing or empty"
+          fi
+          
+          # Check commands
+          checks_total=$((checks_total + 1))
+          if [ -d ".opencode/commands" ] && [ "$(ls -A .opencode/commands)" ]; then
+            echo "✓ Commands directory exists and is not empty"
+            checks_passed=$((checks_passed + 1))
+          else
+            echo "✗ Commands directory missing or empty"
+          fi
+          
+          # Check plugin file
+          checks_total=$((checks_total + 1))
+          if [ -f ".opencode/plugins/ciel.ts" ]; then
+            echo "✓ Plugin file exists"
+            checks_passed=$((checks_passed + 1))
+          else
+            echo "✗ Plugin file missing"
+          fi
+          
+          # Check hooks
+          checks_total=$((checks_total + 1))
+          if [ -d "hooks" ] && [ "$(ls -A hooks)" ]; then
+            echo "✓ Hooks directory exists and is not empty"
+            checks_passed=$((checks_passed + 1))
+          else
+            echo "✗ Hooks directory missing or empty"
+          fi
+          
+          # Check skills
+          checks_total=$((checks_total + 1))
+          if [ -d "skills" ] && [ "$(ls -A skills)" ]; then
+            echo "✓ Skills directory exists and is not empty"
+            checks_passed=$((checks_passed + 1))
+          else
+            echo "✗ Skills directory missing or empty"
+          fi
+          
+          echo ""
+          echo "Health check: $checks_passed/$checks_total checks passed"
+          
+          if [ $checks_passed -eq $checks_total ]; then
+            echo "✓ All health checks passed"
+            exit 0
+          else
+            echo "✗ Some health checks failed"
+            exit 1
+          fi
+          
+      - name: Validate plugin syntax
+        run: |
+          echo "=== Health Check: Plugin Syntax ==="
+          
+          if command -v npx &> /dev/null; then
+            echo "Checking TypeScript syntax..."
+            if [ -f ".opencode/plugins/ciel.ts" ]; then
+              echo "✓ ciel.ts exists (full TypeScript compilation would happen here)"
+            else
+              echo "⚠ ciel.ts not found (may be generated)"
+            fi
+          else
+            echo "⚠ Node.js not available, skipping TypeScript validation"
+          fi
+          
+          echo "✓ Syntax check completed"

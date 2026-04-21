@@ -1,0 +1,135 @@
+# Build parallèle multi-platforms pour release
+# Déclencheur: tag v*
+# Objectif: Accélérer le build de release en parallélisant par platform
+
+name: Matrix Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  get-version:
+    name: Get Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+  build-matrix:
+    name: Build ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: get-version
+    strategy:
+      matrix:
+        platform: [cursor, windsurf, codex, opencode, kilocode, ollama, lmstudio]
+      fail-fast: false
+    outputs:
+      cursor-hash: ${{ steps.build.outputs.cursor-hash }}
+      windsurf-hash: ${{ steps.build.outputs.windsurf-hash }}
+      codex-hash: ${{ steps.build.outputs.codex-hash }}
+      opencode-hash: ${{ steps.build.outputs.opencode-hash }}
+      kilocode-hash: ${{ steps.build.outputs.kilocode-hash }}
+      ollama-hash: ${{ steps.build.outputs.ollama-hash }}
+      lmstudio-hash: ${{ steps.build.outputs.lmstudio-hash }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: .opencode/package-lock.json
+
+      - name: Install dependencies
+        working-directory: .opencode
+        run: npm ci
+
+      - name: Build platform ${{ matrix.platform }}
+        id: build
+        run: |
+          echo "Building for ${{ matrix.platform }}..."
+          
+          # Build specific platform
+          ./scripts/build-platforms.sh --target=${{ matrix.platform }}
+          
+          # Create package
+          mkdir -p build/packages
+          tar -czf "build/packages/ciel-${{ matrix.platform }}-${{ needs.get-version.outputs.version }}.tar.gz" \
+            -C "platforms/${{ matrix.platform }}" .
+          
+          # Calculate hash for verification
+          hash=$(sha256sum "build/packages/ciel-${{ matrix.platform }}-${{ needs.get-version.outputs.version }}.tar.gz" | cut -d' ' -f1)
+          echo "${{ matrix.platform }}-hash=$hash" >> $GITHUB_OUTPUT
+          
+          echo "✓ Built ciel-${{ matrix.platform }}-${{ needs.get-version.outputs.version }}.tar.gz"
+          echo "  SHA256: $hash"
+          
+      - name: Upload platform artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: ciel-${{ matrix.platform }}-${{ needs.get-version.outputs.version }}
+          path: build/packages/ciel-${{ matrix.platform }}-${{ needs.get-version.outputs.version }}.tar.gz
+          retention-days: 30
+
+  verify-builds:
+    name: Verify All Builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [get-version, build-matrix]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        with:
+          pattern: ciel-*-${{ needs.get-version.outputs.version }}
+          merge-multiple: true
+          path: ./packages
+
+      - name: Verify all platforms built
+        run: |
+          echo "=== Verifying All Platform Builds ==="
+          
+          platforms=("cursor" "windsurf" "codex" "opencode" "kilocode" "ollama" "lmstudio")
+          failed=0
+          
+          for platform in "${platforms[@]}"; do
+            file="ciel-${platform}-${{ needs.get-version.outputs.version }}.tar.gz"
+            if [ -f "packages/$file" ]; then
+              size=$(wc -c < "packages/$file")
+              echo "✓ $platform: $file ($size bytes)"
+            else
+              echo "✗ $platform: $file not found"
+              failed=1
+            fi
+          done
+          
+          if [ $failed -eq 1 ]; then
+            echo "✗ Some platform builds are missing"
+            exit 1
+          fi
+          
+          echo "✓ All ${#platforms[@]} platforms built successfully"
