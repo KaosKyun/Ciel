@@ -30,3 +30,6 @@ ciel-overlay.md
 # Useful for the next session to resume without dead-end loops, but not
 # source of truth. Belongs on the developer machine, not in git history.
 .claude/session-progress.md
+
+# Nested git repo (separate project)
+Ciel/
