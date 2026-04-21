@@ -1,8 +1,7 @@
 ---
 description: Long-running meta-agent for Ciel self-improvement. Dispatch ONLY on /ciel-improve, /ciel-eval, /ciel-create-skill, or when skills-first-design-auditor is needed to lint a new skill. Analyzes recent sessions, runs binary evals, proposes skill patch-sets for user approval — never rewrites autonomously.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
-temperature: 0.2
+temperature: 0.1
 tools:
   write: false
   edit: false
@@ -812,6 +811,19 @@ allowed-tools: Read, Grep, Glob, Bash
 
 ---
 
-## OpenCode note
+## OpenCode-native: SDK Client for evals
 
-The `skill-variant-evaluator` and `skill-creator` skills require `claude --print` headless mode to run their full binary-eval / scaffold-generation cycle. On OpenCode, they operate in degraded mode: the improver produces patch-sets and skill scaffolds as *proposals* only — you manually save the generated files. For the full eval harness, run `/ciel-eval` from Claude Code.
+Sur OpenCode, `claude --print` n'existe pas. Pour l'éval harness, utilise le SDK Client:
+
+```typescript
+import { createOpencode } from "@opencode-ai/sdk";
+const { client } = await createOpencode();
+const session = await client.session.create({ body: { title: "eval" } });
+const result = await client.session.prompt({
+  path: { id: session.id },
+  body: { parts: [{ type: "text", text: "Eval skill: depth-classifier" }] }
+});
+// Judge output via another prompt avec expected_output
+```
+
+**Mode dégradé:** Les scores sont des estimations. Pour un PASS/FAIL binaire, validation manuelle requise.

@@ -1,10 +1,5 @@
 ---
-description: ---
-subtask: false
----
-
----
-description: Scans every Ciel skill for stale external references (outdated library version pins, dead URLs, superseded research citations) and produces a freshness patch-set for user approval. Complements `/ciel-improve` (transcript-driven) by catching drift from the outside world.
+description: Scan Ciel skills for stale references (outdated versions, dead URLs, superseded citations). Produces freshness patch-set for user approval.
 ---
 
 # /ciel-refresh — Freshness audit over the skill library

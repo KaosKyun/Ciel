@@ -1,173 +1,162 @@
 ---
-description: ---
-subtask: false
+description: Audit current session for Ciel paradigm violations. Produces copy-paste report for fixes. Hook-independent — works even if hooks broken. OpenCode-native.
 ---
 
----
-description: Audits the current Claude Code session for Ciel paradigm violations (missed Task dispatches, inline gathering, hook inactivity, skill overlaps, intent routing misses). Produces a copy-paste markdown report the user pastes into a fresh session to apply fixes. Hook-independent — works even when Ciel hooks are broken.
----
+# /ciel-audit — Session post-mortem (OpenCode)
 
-# /ciel-audit — Session post-mortem
-
-*Generates a structured report of Ciel behavior violations observed in the current session. The output is self-contained: the user copies it into a fresh Claude Code session with the prompt "Apply these Ciel fixes" and the new session applies the patches without seeing the original transcript.*
+*Generates a structured report of Ciel behavior violations observed in the current OpenCode session. The output is self-contained: copy into a fresh session with "Apply these Ciel fixes" and the new session applies patches without seeing original transcript.*
 
 Usage: `/ciel-audit`
 
-Runs inline in the main session. Does not dispatch agents. Does not depend on hooks being active.
+Runs inline. Does not dispatch agents. Does not depend on hooks being active.
 
 ---
 
 ## Instructions to the model
 
-You are auditing the **current conversation session** — the one you are participating in right now. The user will copy your output into a NEW Claude Code session where they will say "Apply these Ciel fixes." The report must therefore be self-contained: reference Ciel files with absolute paths, include line numbers, and give enough detail that a fresh session can execute the fixes without any transcript context.
+You are auditing the **current OpenCode session**. The user will copy your output into a NEW session. The report must be self-contained: reference Ciel files with absolute paths, include line numbers.
 
-Jump directly to the report. No preamble. No meta-commentary. No "I will now audit…".
+Jump directly to the report. No preamble. No meta-commentary.
 
-### What to audit
+### What to audit (OpenCode-specific)
 
-Scan the session's tool-use history (your own prior turns). For each `/ciel <task>` invocation in this session, check the six dimensions below.
+Scan the session's tool-use history. For each task, check:
 
 #### 1. Dispatch discipline (critical)
 
-- Did the assistant emit a `Task(subagent_type="ciel-*")` within the **first 3 tool calls** after the `/ciel` prompt?
-- If NO: count the inline `Bash` / `Read` / `Grep` / `Glob` / `WebSearch` / `WebFetch` calls emitted in the main session before any dispatch. This is the v2.1.5 anti-pattern documented in `skills/ciel/SKILL.md:146-156`.
-- Exception: Trivial tasks (rename, typo, 1-line fix, docs-only) are allowed to run inline.
-- If the prompt implied Standard or Critical depth (new feature, multi-file change, auth/security, config system) and no `Task()` was emitted → **dispatch violation, severity critical**.
+- Did the assistant dispatch `@ciel-researcher` / `@ciel-explorer` / `@ciel-critic` via `Task()` within **first 3 tool calls** for Standard/Critical tasks?
+- If NO: count inline `Bash` / `Read` / `Grep` / `WebSearch` / `WebFetch` calls before any dispatch.
+- Exception: Trivial tasks (rename, typo, docs) allowed inline.
+- **OpenCode context:** Primary agents are `ciel-plan` and `ciel-build`. Check if user switched via Tab, or if subagents were @mentioned.
 
-#### 2. Hook activity (critical — user suspects hooks are broken)
+#### 2. Plugin hook activity (critical)
 
-Search the session transcript for strings that Ciel hooks would have injected:
+Search session for plugin-injected strings:
 
-- `"CIEL depth hint:"` — from `hooks/user-prompt-submit.sh:36`, injected via `additionalContext` on every UserPromptSubmit.
-- `"CIEL "` prefix (e.g., `"CIEL [CRITIQUE]"`, `"CIEL src/...` ) — from `hooks/pre-tool-write.sh:34,36`, injected before every Write/Edit.
-- Session banner from `hooks/session-start.sh` (SessionStart context).
-- `"META-CRITIQUER"` or similar end-of-session signal from `hooks/stop.sh`.
+- `"[CIEL] Depth:"` — from `experimental.chat.messages.transform`
+- `"[CIEL] "` or `"[CIEL CRITIQUE]"` — from `tool.execute.after` on Write/Edit
+- `"[CIEL RELIRE REQUIRED]"` — from `experimental.chat.system.transform`
+- `"[CIEL] Session started"` — from `session.created` event
 
-If **none** of these strings appear anywhere in the session despite multiple `/ciel` invocations or Write/Edit tool calls → conclude **hooks are inactive**, severity critical.
+If **none** appear despite Write/Edit calls → **plugin inactive**, severity critical.
 
-Most likely root cause: relative paths in `Ciel/settings.json:8,19,31,42,54,65,76`. The `command` field is written as `bash .claude/plugins/ciel/hooks/<file>.sh`, which Claude Code resolves against the current working directory, not the plugin directory. When `claude` is launched from any project folder (the common case), the path does not exist and the hook fails silently.
+Most likely root cause: Plugin not loaded, or `opencode.json` missing `"plugin": ["./.opencode/plugins/ciel.ts"]`.
 
-#### 3. Skill invocation coverage vs depth
+#### 3. Primary agent usage
 
-Cross-reference `skills/ciel/SKILL.md:20-64` (Depth Gauge) with what actually happened:
+- Did user switch between `ciel-plan` and `ciel-build` via Tab for appropriate tasks?
+- If task was analysis/planning → should use `ciel-plan`
+- If task was implementation → should use `ciel-build`
+- If wrong agent used → flag as medium severity
 
-- **Standard** task (new endpoint, hook, component, service) → `researcher` and `explorer` agents must be dispatched in parallel before FAIRE. If neither was dispatched → flag.
-- **Critical** task (auth, DB schema, security, payment) → must additionally invoke `stride-analyzer` and `security-regression-check`. If missing → flag.
-- If depth was ambiguous and `depth-classifier` was not invoked → flag as medium severity.
+#### 4. Subagent dispatch
 
-#### 4. Skill overlap / redundancy
+For Standard/Critical tasks, verify:
 
-- Did the assistant invoke BOTH `relire-critic` AND `critiquer-auditor` on the same diff? They should be mutually exclusive (relire = post-FAIRE quick pass; critiquer = standalone audit of existing code).
-- Did `meta-critiquer` fire at end-of-task? If the task is ended and no meta-critiquer trace exists → flag as low severity.
-- Any skill invoked 3+ times for the same scope → flag as a churn signal.
+- `@ciel-researcher` dispatched for external lib/API research
+- `@ciel-explorer` dispatched for CODEBASE + FLUX steps
+- `@ciel-critic MODE=RELIRE` dispatched after 5+ files modified
+- `@ciel-critic MODE=CRITIQUER` for Critical tasks before merge
+
+Missing dispatch → flag with severity based on task depth.
 
 #### 5. Agent report quality
 
-- Any `Task(subagent_type="ciel-*")` whose returned message is under 200 tokens? Per `SKILL.md:290`, this signals truncation — the agent probably failed or got no useful context. Flag with the subagent_type and the prompt used.
+- Any `Task(subagent_type="ciel-*")` with output < 200 tokens? → truncation signal, flag with subagent_type.
 
-#### 6. Intent routing hits / misses
+#### 6. Intent routing
 
-Scan the user's `/ciel` prompt text against the intent signals in `SKILL.md:79-94`. For each matched intent, verify the corresponding skill was invoked.
+Scan user prompts for intent signals:
 
-Examples of intent→skill mapping to verify:
-- "debug", "why did X fail", "production bug", "incident", "RCA" → `debug-reasoning-rca`
-- "use library X", "call API Z" → `doc-validator-official` BEFORE writing code
-- "review this UI", "visual regression" → `playwright-visual-critic`
-- "accessibility", "a11y", "WCAG" → `accessibility-wcag-auditor`
-- Changes to `.github/workflows/` → `cicd-security-hardener`
-
-**MCP config / MCP servers** is currently **not listed** in the routing table. If the user's prompt was about MCP config/servers and no skill routed correctly, the fix is to **add a new row** to `SKILL.md:79-94`:
-
-```
-| "mcp server", "mcp config", ".mcp.json", "claude mcp" | `debug-reasoning-rca` + config inspection | `@ciel-explorer` then `@ciel-critic` MODE=RCA |
-```
+| Intent keywords | Expected skill/agent |
+|----------------|---------------------|
+| "debug", "why failed", "RCA" | `@ciel-critic MODE=RCA` + `debug-reasoning-rca` |
+| "use library X", "API" | `@ciel-researcher` + `doc-validator-official` |
+| "review UI", "visual" | `@ciel-critic` + `playwright-visual-critic` (if MCP configured) |
+| "accessibility", "a11y" | `@ciel-explorer` + `accessibility-wcag-auditor` |
+| "CI", "workflow", ".github" | `@ciel-explorer` + `cicd-security-hardener` |
 
 ---
 
-### Report format — output exactly this structure
+### Report format
 
-Begin the output with the literal line `# Ciel Session Audit Report`. End with the literal line `**End of audit report.**` on its own line. The user copies everything between those two markers.
+Begin with `# Ciel OpenCode Audit Report`. End with `**End of audit report.**`
 
 ```markdown
-# Ciel Session Audit Report
+# Ciel OpenCode Audit Report
 
 **Date**: <today's date>
-**Session summary**: <N> /ciel invocation(s), <N> total tool calls, <N> Task() dispatches, <N> inline Bash/Read/Grep/WebSearch calls in main session.
+**Session summary**: <N> tasks, <N> tool calls, <N> Task() dispatches, <N> inline calls in main session.
 
-**Verdict**: <PASS | VIOLATIONS FOUND | HOOKS INACTIVE | VIOLATIONS FOUND + HOOKS INACTIVE>
+**Verdict**: <PASS | VIOLATIONS FOUND | PLUGIN INACTIVE | VIOLATIONS + PLUGIN INACTIVE>
 
 ---
 
 ## Violations detected
 
-### 1. <Short violation name> — severity: <critical | high | medium | low>
+### 1. <Violation name> — severity: <critical | high | medium | low>
 
 **Evidence from session**
-- User prompt (turn N): `<exact prompt text, truncated to 200 chars>`
-- Assistant's first 3 tool calls after this prompt:
+- User prompt (turn N): `<exact prompt, truncated to 200 chars>`
+- Assistant's first 3 tool calls:
   1. `<tool_name>(<brief args>)`
   2. `<tool_name>(<brief args>)`
   3. `<tool_name>(<brief args>)`
-- Expected (per `skills/ciel/SKILL.md:<line>`): `Task(subagent_type="ciel-<role>", ...)` as first tool call
-- Observed: `Bash("claude mcp list")` inline — dispatch never happened
+- Expected (per `.opencode/agents/ciel-plan.md:<line>`): `@ciel-researcher` or `@ciel-explorer` dispatch
+- Observed: inline `Read`/`Grep` — no dispatch
 
 **Root cause hypothesis**
-<one or two sentences pointing to the structural reason — buried rule, missing gate, broken hook, etc.>
+<one sentence: buried rule, missing gate, plugin not loaded, etc.>
 
 **Incriminated Ciel files**
-- `Ciel/skills/ciel/SKILL.md:<start-end>` — <reason>
-- `Ciel/commands/ciel.md:<line>` — <reason>
-- `Ciel/settings.json:<line>` — <reason>
+- `.opencode/agents/ciel-plan.md:<line>` — <reason>
+- `.opencode/plugins/ciel.ts:<line>` — <reason>
+- `opencode.json:<line>` — <reason>
 
 **Proposed fix**
-- <bullet 1: concrete edit with file:line>
-- <bullet 2: concrete edit with file:line>
-- <bullet 3 if needed>
+- `<file>:<line>` — <concrete edit>
+- `<file>:<line>` — <concrete edit>
 
 ### 2. <next violation>
-…
+...
 
 ---
 
 ## Summary of fixes to apply
 
-Apply these in order. Each points to a file:line and a concrete change. Work at path `/Users/<user>/Documents/Projet/Ciel/Ciel/` (or wherever the Ciel repo is cloned).
+Apply in order. Work at `/Users/neikyun/Documents/Projet/Ciel/`.
 
-1. **<Fix name>** — `Ciel/<path>:<line>` — <one-line description>
-2. **<Fix name>** — `Ciel/<path>:<line>` — <one-line description>
-3. …
+1. **<Fix name>** — `.opencode/<path>:<line>` — <description>
+2. **<Fix name>** — `.opencode/<path>:<line>` — <description>
 
-After each fix: re-run the scenario that triggered the violation in a fresh Claude session to verify.
+After each fix: re-run scenario in fresh session to verify.
 
 ---
 
 **End of audit report.**
 ```
 
-### If no violations are found
-
-Output a single short section:
+### If PASS
 
 ```markdown
-# Ciel Session Audit Report
+# Ciel OpenCode Audit Report
 
 **Verdict**: PASS
 
-Session summary: <N> /ciel invocation(s), <N> tool calls, <N> Task() dispatches. All intents routed correctly. Hook signatures present. No skill overlap. No dispatch discipline issues.
+Session summary: <N> tasks, <N> tool calls, <N> Task() dispatches. All intents routed correctly. Plugin hooks active. No skill overlap.
 
 **End of audit report.**
 ```
 
 ### Tone and length
 
-- **Mechanically actionable, not narrative**. File paths, line numbers, before/after snippets.
-- Target length: 400–800 lines of markdown for a session with 2–3 violations. Shorter if PASS. Longer OK if many violations found.
-- No rhetorical preamble. No meta-commentary about the audit process itself. No emoji. No closing remarks after the `**End of audit report.**` marker.
+- **Actionable, not narrative** — file paths, line numbers, snippets.
+- Target: 400–800 lines for 2–3 violations. Shorter if PASS.
+- No preamble. No emoji. No closing after `**End of audit report.**`
 
 ### What NOT to do
 
-- Do NOT apply fixes in the current session. Only produce the report.
-- Do NOT invoke other Ciel skills. This command is fully self-contained.
-- Do NOT dispatch `Task()` agents. Audit happens inline in the main session using only your conversation memory and `Read` on Ciel files if needed to cite exact line numbers.
-- Do NOT ask clarifying questions. Produce the report with the information you have.
-- Do NOT restart, rerun, or attempt to fix the session in-flight. The report is the deliverable.
+- Do NOT apply fixes in current session — only produce report.
+- Do NOT invoke other Ciel skills — self-contained.
+- Do NOT dispatch `Task()` agents — audit uses conversation memory only.
+- Do NOT ask clarifying questions — produce report with available info.

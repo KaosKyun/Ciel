@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v2.9.0)
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v3.4.0)
 
 Source: https://github.com/KaosKyun/Ciel
 
@@ -6,9 +6,23 @@ Principle: **"Understand before generating. Verify before claiming done."**
 
 Ciel is installed as OpenCode-native primitives:
 
-- **Plugin** (`.opencode/plugins/ciel.ts`) — pre/post-write hooks + depth classification on user prompts.
+- **Plugin** (`.opencode/plugins/ciel.ts`) — session events + depth classification + RELIRE reminders.
+- **Primary Agents** (`.opencode/agents/ciel-plan.md`, `ciel-build.md`) — switch via Tab key.
 - **Subagents** (`.opencode/agents/ciel-*.md`) — dispatch with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
-- **Commands** (`.opencode/commands/ciel*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-refresh`, `/ciel-audit`, `/ciel-init`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
+- **Commands** (`.opencode/commands/`) — `/ciel-init`, `/ciel-update`, `/ciel-refresh`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-audit`.
+
+---
+
+## Primary Agents — Switch via Tab
+
+| Agent | Mode | Rôle | Permissions |
+|-------|------|------|-------------|
+| **`ciel-plan`** | `primary` | Analyse, planning, dispatch subagents | `edit: ask`, `bash: ask` (read-only) |
+| **`ciel-build`** | `primary` | Implémentation, FAIRE gates, RELIRE | `edit: allow`, `bash: allow` (full tools) |
+
+**Usage:**
+1. **Tab** key to switch between `ciel-plan` and `ciel-build` during a session.
+2. **@mention** subagents directly: `@ciel-researcher find docs for X`.
 
 ---
 
@@ -16,41 +30,26 @@ Ciel is installed as OpenCode-native primitives:
 
 | Level | Example | Pipeline |
 |-------|---------|----------|
-| **Trivial** | rename, typo, 1-line fix | `quoi-framer` → `pattern-fitness-check` → `faire-gatekeeper` → inline review → push |
-| **Standard** | hook, route, component, service | Full pipeline, dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
-| **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + `@ciel-critic` mandatory |
+| **Trivial** | rename, typo, 1-line fix | `quoi-framer` → inline, no dispatch |
+| **Standard** | hook, route, component, service | `ciel-plan` → `@ciel-explorer` → `ciel-build` → `@ciel-critic` (si 5+ fichiers) |
+| **Critical** | auth, DB schema, security, payment | `ciel-plan` → `@ciel-researcher` + `@ciel-explorer` (PARALLÈLE) → `ciel-build` → `@ciel-critic MODE=RELIRE` (mandatory) |
 
 Unsure → Standard. Touching user data or auth → Critical.
 
 ---
 
-## 10-step pipeline (condensed)
+## 10-step pipeline (OpenCode-native)
 
 1. **QUOI** — 1-sentence goal + NOT-X + definition of done
 2. **AVEC QUOI** — read installed versions (not memory), load overlay
-3. **RECHERCHE** — `@ciel-researcher` (Standard+Critical): official docs + anti-patterns + version changelog
+3. **RECHERCHE** — `@ciel-researcher`: official docs + anti-patterns + version changelog
 4. **SÉCURITÉ** — STRIDE + killer checklist (Critical only)
 5. **CODEBASE + FLUX** — `@ciel-explorer`: pattern fitness + data flow narration
 6. **ÉVALUER** — sizing + 2 failure modes + alternatives + counterfactual
 7. **FAIRE** — test-first (RED), alternatives gate, idiomatic gate, removal gate
-8. **RELIRE** — `@ciel-critic` MODE=RELIRE: 3 RISQUE (functional + imports + data) + FIX/ACCEPT/DEFER
-9. **PROUVER** — AVANT/APRÈS evidence + CI gate + PR body + issue comment
+8. **RELIRE** — `@ciel-critic MODE=RELIRE`: 3 RISQUE + FIX/ACCEPT/DEFER
+9. **PROUVER** — AVANT/APRÈS evidence + CI gate + PR body
 10. **META** — 30s post-task reflection: depth match? failure mode? user correction?
-
----
-
-## Top 10 Guards
-
-1. "I already know this" = red flag — need research
-2. Verify before asserting (no citation = don't know it)
-3. DB columns: verify real schema before query
-4. Test URL host:port must match handler host:port
-5. Pattern copied blindly → fitness check fails
-6. Self-critique in same context = same blind spots — dispatch `@ciel-critic`
-7. No alternative considered = back to ÉVALUER
-8. Scope drift at 3+ files → re-read QUOI
-9. Write test FIRST (RED), not after
-10. "No error in logs" ≠ proof — trigger scenario, see positive signal
 
 ---
 
@@ -58,27 +57,85 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 | Agent | When | Context | Permissions |
 |-------|------|---------|-------------|
-| `@ciel-researcher` | RECHERCHE step (Standard + Critical) | Isolated fork — no session bias | webfetch allowed, no edit |
-| `@ciel-explorer` | CODEBASE + FLUX (Standard + Critical) | Isolated fork — reads codebase fresh | bash/read, no edit |
-| `@ciel-critic` | RELIRE after FAIRE / CRITIQUER on diff | Isolated fork — different blind spots | bash/read, no edit |
-| `@ciel-improver` | On `/ciel-improve` only | Extended token budget | webfetch allowed, no edit |
+| `@ciel-researcher` | RECHERCHE step (Standard + Critical) | Isolated fork — no session bias | webfetch/websearch allowed, no edit |
+| `@ciel-explorer` | CODEBASE + FLUX (Standard + Critical) | Isolated fork — reads codebase fresh | read/grep/glob allowed, no edit |
+| `@ciel-critic` | RELIRE after FAIRE / CRITIQUER on diff | Isolated fork — different blind spots | bash/read allowed, no edit |
+| `@ciel-improver` | `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill` | Meta-analysis | bash/read/webfetch allowed, no edit |
 
-Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing code.
+Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing code on Critical tasks.
 
 ---
 
 ## Automatic context injection (plugin hooks)
 
-The `ciel.ts` plugin injects depth classification on every user prompt and RELIRE reminders after every `Write`/`Edit` on code files. You don't need to remember to invoke Ciel — the plugin fires on the right events.
+The `ciel.ts` plugin injects:
+
+- **Depth classification** on every user prompt (via `experimental.chat.messages.transform`)
+- **RELIRE reminders** after every Write/Edit (via `tool.execute.after`)
+- **Overlay context** from `ciel-overlay.md` (via `experimental.chat.system.transform`)
+- **META-CRITIQUER** on `session.idle` event
+- **learnings-capture** on `experimental.session.compacting`
 
 ---
 
-## MCP integration (opt-in)
+## ciel-overlay.md
 
-Ciel ships a `.mcp.json` template at the repo root with two opt-in servers: `playwright` (visual critique) and `context7` (live official docs). Register them via:
+Create `ciel-overlay.md` at project root with:
 
-```bash
-bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright,context7
+```markdown
+# Ciel Overlay — [Project Name]
+
+## Stack
+- Frontend: [lib + version]
+- Backend: [framework + version]
+- DB: [type + version]
+
+## URLs docs
+| Lib | Version | URL |
+|-----|---------|-----|
+| React | 19.0.0 | https://react.dev |
+
+## Fichiers critiques
+- src/auth/
+- *Service.*
+- *Routes.*
+
+## CI commands
+- Test: `pnpm test`
+- Lint: `pnpm lint`
+
+## Leçons projet
+- [date] MISTAKE: forgot transaction block → RULE: always wrap DB queries in `transaction {}`
 ```
 
-**Important** — OpenCode issue #2319: plugin hooks (`tool.execute.before/after`) do NOT fire for MCP tool calls. The `playwright-visual-critic` skill orchestrates the flow explicitly (navigate → snapshot → dispatch `@ciel-critic`) rather than relying on auto-triggered hooks. When you use a visual-critique workflow, dispatch the critic agent yourself after capture.
+The plugin loads this automatically on `session.created` and injects it into every system prompt.
+
+---
+
+## Commands (utilitaires)
+
+| Command | Purpose |
+|---------|---------|
+| `/ciel-init` | Bootstrap Ciel wiring (auto-detect platform, fix config) |
+| `/ciel-update` | Check for newer Ciel version, reinstall |
+| `/ciel-refresh` | Freshness audit over skill library (stale URLs, outdated pins) |
+| `/ciel-improve` | Analyze sessions, propose skill patches |
+| `/ciel-eval` | Run eval harness for skills (SDK Client on OpenCode) |
+| `/ciel-create-skill` | Generate valid `SKILL.md` scaffold |
+| `/ciel-recommend` | Discover community plugins matched to project stack |
+| `/ciel-audit` | Session post-mortem (Ciel paradigm violations) |
+
+---
+
+## Model selection
+
+Ciel agents inherit the **globally selected model** via `/models` or `opencode.json` `"model"` field.
+
+No model is hardcoded in agent configs — switch freely between:
+- `anthropic/claude-sonnet-4-5`
+- `anthropic/claude-opus-4-5`
+- `openai/gpt-5.2`
+- `openai/gpt-5.1-codex`
+- etc.
+
+Subagents inherit the model of the primary agent that invokes them.

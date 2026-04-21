@@ -1,11 +1,5 @@
 ---
-description: ---
-agent: ciel-researcher
-subtask: true
----
-
----
-description: Discovers community and official Claude Code plugins matched to the project's detected stack via ciel-overlay.md.
+description: Discover community/official plugins matched to project stack via ciel-overlay.md. Uses @ciel-researcher for RECHERCHE.
 ---
 
 # /ciel-recommend — Discover & Install Recommended Skills/Plugins

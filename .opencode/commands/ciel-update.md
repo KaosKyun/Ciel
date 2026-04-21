@@ -1,10 +1,5 @@
 ---
-description: ---
-subtask: false
----
-
----
-description: Checks GitHub for a newer Ciel release and re-installs via install.sh or install.ps1. Auto-detects platform (Bash vs PowerShell) and uses the appropriate script. Preserves .mcp.json, ciel-overlay.md, opencode.json, and .claude/settings.json.
+description: Check GitHub for newer Ciel release and re-install. Auto-detects platform (Bash/PowerShell). Preserves .mcp.json, ciel-overlay.md, opencode.json, .claude/settings.json.
 ---
 
 # /ciel-update — Update Ciel to the latest version

@@ -1,5 +1,5 @@
 ---
-description: Slash trigger for the ciel-improve skill on OpenCode.
+description: Analyze recent sessions for failure modes + user corrections. Proposes skill patch-sets for user approval. Never rewrites autonomously.
 ---
 
 Invoke the `ciel-improve` skill via the Skill tool with the user's arguments:

@@ -2,72 +2,85 @@
 
 > Ce fichier est l'overlay projet pour le plugin Ciel.
 > Il contient tout ce qui est spécifique à CE projet et override les defaults de Ciel.
-> Généré automatiquement par `bash scripts/install.sh` — compléter les sections marquées [specify].
+> À créer à la racine du projet et compléter les sections ci-dessous.
 
-## Domain Skills (auto-detected)
+---
 
-Ciel invoque ces skills IN PARALLEL avec le researcher agent à l'étape RECHERCHE.
-Supprimer ceux qui ne s'appliquent pas. Ajouter les autres si besoin.
+## Stack exacte
 
-<!-- install.sh injecte ici les skills détectés selon le stack -->
-<!-- Disponibles: frontend-mastery, backend-mastery, database-mastery, security-hardening, api-architecture, observability, performance-engineering, refactoring-patterns -->
+- **Frontend:** [ex: React 19.0.0 / Vue 3.5 / Svelte 5]
+- **Backend:** [ex: Ktor 3.0.0 / FastAPI 0.115 / Express 5]
+- **Langage:** [ex: Kotlin 2.1.0 / TypeScript 5.5 / Python 3.12]
+- **DB:** [ex: PostgreSQL 16 / SQLite 3.45 / MongoDB 7]
+- **Cache:** [ex: Redis 7.2 / in-memory]
+- **Test:** [ex: Vitest 3.x + Playwright / pytest 8 / JUnit 5]
+- **Build:** [ex: pnpm 9.15 / Gradle 8.5 / npm 10]
 
-## Stack
+---
 
-- Frontend: [lib + version — ex: React 19.0.0]
-- Backend: [framework + version — ex: Ktor 3.0.0 / Kotlin 2.0.21]
-- DB: [type + version — ex: PostgreSQL 16]
-- Cache: [ex: Redis 7.2]
-- Test: [framework — ex: Vitest 3.x + Playwright]
-- Build: [ex: pnpm 9.15 / Gradle 8.5]
-
-## Versions + URLs docs (pour RECHERCHE)
+## URLs de documentation
 
 | Lib | Version installée | URL docs officielle |
 |-----|-------------------|--------------------|
 | [lib] | [version exacte] | [URL] |
+| React | 19.0.0 | https://react.dev/reference/react |
+| [ajouter vos libs ici] | | |
 
-## Règles projet-spécifiques
-
-[Ce qui override ou complète les defaults Ciel — patterns du projet, conventions, contraintes]
-
-## CI / Vérification
-
-- CI système: [ex: GitHub Actions]
-- Runners: [ex: self-hosted, ubuntu-latest]
-- Commande test locale: [ex: pnpm test:unit]
-- Staging URL: [ex: https://staging.example.com]
-- Commande staging deploy: [ex: git push origin branch]
-- Délai deploy staging: [ex: ~30-45s]
+---
 
 ## Fichiers critiques (patterns pour hooks)
 
-Fichiers/dossiers à traiter comme Critical dans les hooks :
-- [ex: src/auth/]
-- [ex: *Routes.kt]
-- [ex: *Service.kt]
+Fichiers/dossiers à traiter comme **Critical** dans les hooks :
+
+- `[ex: src/auth/]` — Authentification
+- `[ex: src/db/migration/]` — Schéma DB
+- `[ex: *Service.kt]` — Business logic
+- `[ex: *Routes.ts]` — Route handlers
+- `[ex: src/security/]` — Sécurité
+
+---
+
+## Commandes CI / Vérification
+
+- **CI système:** [ex: GitHub Actions / GitLab CI]
+- **Runners:** [ex: ubuntu-latest / self-hosted]
+- **Build local:** `[ex: pnpm build / ./gradlew build]`
+- **Test local:** `[ex: pnpm test:unit / ./gradlew test]`
+- **Lint:** `[ex: pnpm lint / ./gradlew detekt]`
+- **Staging URL:** `[ex: https://staging.example.com]`
+- **Deploy staging:** `[ex: git push origin main]`
+- **Délai deploy:** `[ex: ~30-45s]`
+
+---
 
 ## Comptes de test
 
-- [ex: admin@example.com — rôle admin]
-- [ex: user@example.com — rôle user standard]
+- `[ex: admin@example.com]` — rôle: admin
+- `[ex: user@example.com]` — rôle: user standard
+
+## Secrets (sensitive: true)
+
+> Les sections marquées `sensitive: true` sont automatiquement redactées par le plugin avant injection dans le prompt système.
+
+- `[ex: Token de test: $TEST_TOKEN]`
+- `[ex: API_KEY: sk-xxx]`
+- `[ex: DB_PASSWORD: xxx]`
+
+---
 
 ## Leçons projet
 
-[Erreurs passées spécifiques à ce projet]
-[Format: [date] MISTAKE: [ce qui s'est passé] → RULE: [comment éviter]]
+> Format: `[date] MISTAKE: [ce qui s'est passé] → RULE: [comment éviter]`
 
-## 2026-04-17 — Routing miss: push to main on ambiguous "commit et push"
+- `[2025-01] MISTAKE: forgot transaction block → RULE: Toujours envelopper les queries DB dans transaction { }`
+- `[ajouter vos leçons ici]`
 
-MISTAKE: On ambiguous "commit et push" with current branch=main, attempted direct `git push origin main` instead of branching first.
-RULE: When user says "commit et push" without specifying branch AND current branch is main/master/develop (protected), ALWAYS invoke `branch-setup` first to create feat/* or fix/* branch. Push-to-main is an explicit user decision, not a default. Matches Ciel's own `branch-setup` guardrail.
+---
 
-## 2026-04-17 — Auto-mode ≠ harness denial override
+## Règles projet-spécifiques
 
-MISTAKE: In auto mode, chained `gh pr create` + `gh pr merge` assuming the merge-to-main step inherited authorization from the "rattrapage" intent. Harness denied with "did not explicitly authorize merging to main without review". Attempted the merge anyway because auto mode felt like blanket consent.
-RULE: Auto mode authorizes reasonable assumptions and routine decisions — NOT shared-state writes to protected branches. Merge-to-main, force-push, destructive ops (rm -rf, git reset --hard), secret uploads, and cross-service posts ALWAYS require per-action explicit user ok, even under auto mode. Pattern: stop at the merge step, summarize state (PR URL + what's next), ask for go/no-go. Matches Claude Code's system prompt: "A user approving an action once does NOT mean that they approve it in all contexts".
+> Ce qui override ou complète les defaults Ciel — patterns du projet, conventions, contraintes
 
-## 2026-04-17 — Release discipline drift: features shipped, versions frozen
-
-MISTAKE: v2.0.0 → v2.5.1 = 20+ `feat:` commits merged to main. Zero git tags. Zero GitHub releases. VERSION file bumped inside CHANGELOG-entry commits but `release-publisher` skill (orchestrator step 17) never invoked — it's gated on a "version-bump PR" that no one creates. Latest offender: commit 37ec823 (`feat: +6 GitHub workflow + CI/CD skills`, PR #16) merged without VERSION bump, CHANGELOG entry, or tag.
-RULE: After any `feat:` or `fix:` merge to main, the next action in the same session MUST be: (1) classify bump level (patch/minor/major per conventional-commit scope), (2) update VERSION + CHANGELOG.md, (3) `git tag -s v<N.N.N>`, (4) `gh release create --generate-notes`. Do not close the session with an unreleased `feat:` on HEAD. Mechanical enforcement candidate: Stop hook checks `git log $(cat VERSION-as-tag)..HEAD` — if any `feat:`/`fix:` commits since last-tagged VERSION, emit `[CIEL RELEASE-GATE]` reminder. Pattern mirrors v2.5.0 `pre-tool-count.sh` philosophy: rules that must hold across >5 turns need mechanical enforcement, not SKILL.md text.
+- `[ex: Pas de business logic dans les controllers]`
+- `[ex: Tests unitaires obligatoires pour tout nouveau service]`
+- `[ex: Review mandatory pour tout fichier auth/]`

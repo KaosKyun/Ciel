@@ -1,13 +1,6 @@
 ---
-description: ---
-agent: ciel-improver
-subtask: true
+description: Run binary eval dataset for Ciel skills. OpenCode: degraded mode (SDK Client, proposals only). Claude Code: full harness via claude --print.
 ---
-
-> **OpenCode note**: This command requires `claude --print` headless mode for full functionality (binary evals, skill scaffold generation). On OpenCode it runs in degraded mode — the improver agent returns proposals only. For the full harness, use Claude Code.
-
----
-description: Runs the binary eval dataset for one or all Ciel skills via claude --print headless, comparing variants.
 ---
 
 # /ciel-eval — Run eval harness
