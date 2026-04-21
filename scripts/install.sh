@@ -1,936 +1,380 @@
 #!/usr/bin/env bash
-# Ciel Universal Installer — version read dynamically from $CIEL_DIR/VERSION
+# Ciel Universal Installer — Modular Refactored Version
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: bash scripts/install.sh [project-root] [flags]
-#        bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
 #
 # Flags:
 #   --uninstall         Remove all files tracked in ~/.ciel/manifest.json
 #   --check-update      Query GitHub for newer VERSION and report
 #   --update            Uninstall + re-install latest from main
-#   --with-mcp=LIST     Register MCP servers from .mcp.json (CSV: playwright,context7)
+#   --with-mcp=LIST     Register MCP servers (CSV: playwright,context7)
+#   --platform=NAME     Force specific platform (skip auto-detection)
+#   --user              Install to user scope instead of project scope
 #   -y, --yes           Skip interactive confirmations
-#
-# v2.1.0 changes:
-#   - 10 new skills (debug-reasoning-rca, doc-validator-official, modern-patterns-checker,
-#     ai-failure-modes-detector, self-consistency-verifier, test-strategy-vitest-playwright,
-#     playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor,
-#     skills-first-design-auditor) — 46 total
-#   - ~/.ciel/manifest.json tracks installed files → enables clean --uninstall
-#   - --update / --check-update against github main VERSION
-#   - --with-mcp=playwright,context7 registers opt-in MCP servers into project .mcp.json
+#   -h, --help          Show this help message
 
 set -euo pipefail
 
-BOLD='\033[1m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; RESET='\033[0m'
-ok()   { echo -e "  ${GREEN}v${RESET} $1"; }
-info() { echo -e "  ${CYAN}>${RESET} $1"; }
-warn() { echo -e "  ${YELLOW}!${RESET} $1"; }
+# ─── Bootstrap ───────────────────────────────────────────────────────────────
 
-# ─── Pipe/process-substitution detection ─────────────────────────────────────
-# bash <(curl ...) sets BASH_SOURCE[0] to /dev/fd/N.
-# curl | bash -s -- leaves BASH_SOURCE[0] unset entirely, which trips `set -u`.
-# Guard with ${...:-} so both piping modes fall through to the tmp-clone path.
-CIEL_DIR=""
-_BSRC="${BASH_SOURCE[0]:-}"
-if [[ -n "$_BSRC" ]] && [[ "$_BSRC" != /dev/fd/* ]] && [[ "$_BSRC" != /proc/self/* ]]; then
-  _SCRIPT_DIR="$(cd "$(dirname "$_BSRC")" && pwd)"
-  CIEL_DIR="$(cd "$_SCRIPT_DIR/.." && pwd)"
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+RESET='\033[0m'
+
+ok()   { echo -e "  ${GREEN}✓${RESET} $1"; }
+info() { echo -e "  ${CYAN}➜${RESET} $1"; }
+warn() { echo -e "  ${YELLOW}⚠${RESET} $1"; }
+err()  { echo -e "  ${RED}✗${RESET} $1" >&2; }
+
+# Source libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CIEL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if [ -f "$SCRIPT_DIR/lib/platform.sh" ]; then
+  source "$SCRIPT_DIR/lib/platform.sh"
+else
+  err "Library not found: lib/platform.sh"
+  exit 1
 fi
 
-if [ -z "$CIEL_DIR" ] || [ ! -f "$CIEL_DIR/settings.json" ]; then
-  TEMP_DIR=$(mktemp -d)
-  trap 'rm -rf "$TEMP_DIR"' EXIT
-  info "Pipe execution detected — cloning KaosKyun/Ciel to $TEMP_DIR ..."
-  if ! git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git "$TEMP_DIR" 2>/dev/null; then
-    echo "ERROR: git clone failed."
-    echo "Run manually: git clone https://github.com/KaosKyun/Ciel.git ~/.ciel && bash ~/.ciel/scripts/install.sh"
-    exit 1
-  fi
-  CIEL_DIR="$TEMP_DIR"
+if [ -f "$SCRIPT_DIR/lib/installers.sh" ]; then
+  source "$SCRIPT_DIR/lib/installers.sh"
+else
+  err "Library not found: lib/installers.sh"
+  exit 1
 fi
 
-# ─── Flag parsing ────────────────────────────────────────────────────────────
+# ─── Flag Parsing ────────────────────────────────────────────────────────────
+
 FLAG_UNINSTALL=false
 FLAG_CHECK_UPDATE=false
 FLAG_UPDATE=false
 FLAG_YES=false
+FLAG_USER=false
 MCP_LIST=""
+FORCED_PLATFORM=""
 POSITIONAL=()
+
 for arg in "$@"; do
   case "$arg" in
-    --uninstall)    FLAG_UNINSTALL=true ;;
-    --check-update) FLAG_CHECK_UPDATE=true ;;
-    --update)       FLAG_UPDATE=true ;;
-    --with-mcp=*)   MCP_LIST="${arg#*=}" ;;
-    -y|--yes)       FLAG_YES=true ;;
+    --uninstall)     FLAG_UNINSTALL=true ;;
+    --check-update)  FLAG_CHECK_UPDATE=true ;;
+    --update)        FLAG_UPDATE=true ;;
+    --with-mcp=*)    MCP_LIST="${arg#*=}" ;;
+    --platform=*)    FORCED_PLATFORM="${arg#*=}" ;;
+    --user)          FLAG_USER=true ;;
+    -y|--yes)        FLAG_YES=true ;;
     -h|--help)
-      sed -n '1,20p' "$0" | sed 's/^# \?//'
+      head -20 "$0" | sed 's/^# \?//'
       exit 0
       ;;
-    -*) warn "Unknown flag: $arg (see --help)" ;;
-    *)  POSITIONAL+=("$arg") ;;
+    -*)
+      warn "Unknown flag: $arg (use --help for usage)"
+      ;;
+    *)
+      POSITIONAL+=("$arg")
+      ;;
   esac
 done
 
 PROJECT_ROOT="${POSITIONAL[0]:-$(pwd)}"
-PLATFORMS_DIR="$CIEL_DIR/platforms"
-PLUGIN_DIR="${CIEL_PLUGIN_DIR:-$HOME/.claude/plugins/ciel}"
+export CIEL_FORCE_PLATFORM="$FORCED_PLATFORM"
 
-# ─── Manifest helpers (track installed files for clean uninstall) ────────────
-INSTALLED_FILES=()
-_manifest_path() { echo "$HOME/.ciel/manifest.json"; }
-_manifest_append_file() { INSTALLED_FILES+=("$1"); }
+# ─── Version Management ──────────────────────────────────────────────────────
 
-_manifest_read_version() {
-  local manifest; manifest="$(_manifest_path)"
-  [ -f "$manifest" ] || return 1
-  grep -oE '"version":[[:space:]]*"[^"]+"' "$manifest" | head -1 | sed 's/.*"\([^"]*\)".*/\1/'
+get_local_version() {
+  cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "unknown"
 }
 
-_manifest_write() {
-  local manifest; manifest="$(_manifest_path)"
-  mkdir -p "$(dirname "$manifest")"
-  local version; version="$(cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')"
-  [ -z "$version" ] && version="2.1.0"
-  local now; now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-
-  {
-    printf '{\n'
-    printf '  "version": "%s",\n' "$version"
-    printf '  "installed_at": "%s",\n' "$now"
-    printf '  "last_update_check": "%s",\n' "$now"
-    printf '  "platforms": ['
-    local first=1
-    for p in "${INSTALLED[@]:-}"; do
-      [ -z "$p" ] && continue
-      if [ $first -eq 1 ]; then first=0; else printf ', '; fi
-      printf '"%s"' "$p"
-    done
-    printf '],\n'
-    printf '  "mcp": ['
-    first=1
-    if [ -n "$MCP_LIST" ]; then
-      IFS=',' read -ra _mcp_arr <<< "$MCP_LIST"
-      for m in "${_mcp_arr[@]}"; do
-        m="${m// /}"
-        [ -z "$m" ] && continue
-        if [ $first -eq 1 ]; then first=0; else printf ', '; fi
-        printf '"%s"' "$m"
-      done
-    fi
-    printf '],\n'
-    printf '  "files": ['
-    first=1
-    for f in "${INSTALLED_FILES[@]:-}"; do
-      [ -z "$f" ] && continue
-      if [ $first -eq 1 ]; then first=0; else printf ','; fi
-      printf '\n    "%s"' "$f"
-    done
-    printf '\n  ]\n}\n'
-  } > "$manifest"
-  ok "Wrote manifest: $manifest"
+get_remote_version() {
+  curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION" 2>/dev/null | tr -d '[:space:]' || echo ""
 }
 
-# ─── MCP installer (opt-in via --with-mcp=playwright,context7) ───────────────
-_install_mcp() {
-  local mcp_list="$1"
-  [ -z "$mcp_list" ] && return 0
-
-  local src_mcp="$CIEL_DIR/.mcp.json"
-  local dest_mcp="$PROJECT_ROOT/.mcp.json"
-
-  if [ ! -f "$src_mcp" ]; then
-    warn "No .mcp.json template in $CIEL_DIR — skipping MCP install"
-    return 0
-  fi
-  if ! command -v python3 &>/dev/null; then
-    warn "python3 not found — cannot merge .mcp.json. Copy $src_mcp manually."
-    return 0
-  fi
-
-  if [ -f "$dest_mcp" ]; then
-    local backup="$dest_mcp.backup-$(date +%Y%m%dT%H%M%S)"
-    cp "$dest_mcp" "$backup"
-    ok "Backed up existing .mcp.json → $backup"
-  fi
-
-  info "Merging MCP servers: $mcp_list"
-  python3 - "$src_mcp" "$dest_mcp" "$mcp_list" <<'PY'
-import json, sys, os
-src, dst, requested = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(src) as f:
-    template = json.load(f)
-servers = template.get("mcpServers", {})
-
-current = {"mcpServers": {}}
-if os.path.exists(dst):
-    try:
-        with open(dst) as f:
-            current = json.load(f)
-    except Exception:
-        pass
-current.setdefault("mcpServers", {})
-
-added = []
-skipped = []
-for name in [n.strip() for n in requested.split(",") if n.strip()]:
-    if name in servers:
-        current["mcpServers"][name] = servers[name]
-        added.append(name)
-    else:
-        skipped.append(name)
-
-current.pop("_comment", None)
-
-with open(dst, "w") as f:
-    json.dump(current, f, indent=2)
-    f.write("\n")
-
-if added:
-    print("  added: " + ", ".join(added))
-if skipped:
-    print("  not in template (skipped): " + ", ".join(skipped))
-PY
-
-  _manifest_append_file "$dest_mcp"
+compare_versions() {
+  local v1="$1" v2="$2"
+  
+  # Handle "unknown" versions
+  [ "$v1" = "unknown" ] && { echo "-1"; return; }
+  [ -z "$v2" ] && { echo "-1"; return; }
+  
+  # Split versions
+  local IFS='.'
+  read -ra V1 <<< "$v1"
+  read -ra V2 <<< "$v2"
+  
+  # Compare each component
+  for i in 0 1 2; do
+    local n1="${V1[$i]:-0}"
+    local n2="${V2[$i]:-0}"
+    [ "$n1" -lt "$n2" ] && { echo "-1"; return; }
+    [ "$n1" -gt "$n2" ] && { echo "1"; return; }
+  done
+  
+  echo "0"
 }
 
-# ─── Semver comparison ───────────────────────────────────────────────────────
-# Echoes: -1 if a<b, 0 if a==b, 1 if a>b. Handles X.Y.Z only (no pre-release).
-_semver_cmp() {
-  local a="$1" b="$2"
-  IFS='.' read -r a1 a2 a3 <<< "$a"
-  IFS='.' read -r b1 b2 b3 <<< "$b"
-  a1=${a1:-0}; a2=${a2:-0}; a3=${a3:-0}
-  b1=${b1:-0}; b2=${b2:-0}; b3=${b3:-0}
-  if [ "$a1" -gt "$b1" ]; then echo 1; return; fi
-  if [ "$a1" -lt "$b1" ]; then echo -1; return; fi
-  if [ "$a2" -gt "$b2" ]; then echo 1; return; fi
-  if [ "$a2" -lt "$b2" ]; then echo -1; return; fi
-  if [ "$a3" -gt "$b3" ]; then echo 1; return; fi
-  if [ "$a3" -lt "$b3" ]; then echo -1; return; fi
-  echo 0
-}
-
-# ─── Update-check (queries GitHub for latest VERSION) ────────────────────────
-# Exit codes:
-#   0 = up-to-date or local ahead of remote (CDN staleness guard)
-#   2 = genuine update available (remote > local)
-#   1 = error (no manifest / network failure)
-_check_update() {
-  local manifest; manifest="$(_manifest_path)"
-  if [ ! -f "$manifest" ]; then
-    warn "No manifest at $manifest — run a fresh install first"
+check_update() {
+  info "Checking for updates..."
+  
+  local local_ver remote_ver
+  local_ver="$(get_local_version)"
+  remote_ver="$(get_remote_version)"
+  
+  if [ -z "$remote_ver" ]; then
+    warn "Could not fetch remote version (network issue?)"
     return 1
   fi
-  local local_version; local_version="$(_manifest_read_version)"
-  [ -z "$local_version" ] && { warn "Cannot read version from manifest"; return 1; }
-
-  info "Local version:  $local_version"
-  info "Checking GitHub..."
-  # Cache-bust with a query param + no-cache header to reduce CDN staleness
-  # (raw.githubusercontent.com ignores most query strings for caching but
-  # some proxies honor them; the Cache-Control request header is stronger).
-  local remote_version
-  remote_version="$(curl -fsSL --max-time 5 \
-    -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-    "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION?t=$(date +%s)" 2>/dev/null \
-    | tr -d '[:space:]')"
-  if [ -z "$remote_version" ]; then
-    warn "Could not fetch remote VERSION (network / GitHub unreachable)"
-    return 1
-  fi
-  info "Remote version: $remote_version"
-
-  # Record last check (enables SessionStart throttling)
-  mkdir -p "$HOME/.ciel"
-  touch "$HOME/.ciel/.last-update-check"
-
-  # Semver compare — only "remote > local" is a real update. "remote < local"
-  # means CDN is stale OR the user is on a dev build; in either case, do nothing.
-  local cmp; cmp="$(_semver_cmp "$remote_version" "$local_version")"
+  
+  echo "  Local:  $local_ver"
+  echo "  Remote: $remote_ver"
+  
+  local cmp
+  cmp="$(compare_versions "$local_ver" "$remote_ver")"
+  
   case "$cmp" in
-    0)
-      ok "Up to date."
-      return 0
-      ;;
     -1)
-      ok "Up to date. (local ahead of remote — CDN stale or dev build; nothing to do.)"
-      return 0
-      ;;
-    1)
       echo ""
-      echo -e "  ${YELLOW}Update available:${RESET} v$local_version → v$remote_version"
-      echo "  Run: bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update"
-      return 2
+      info "Update available: $local_ver → $remote_ver"
+      echo "  Run with --update to install"
+      return 0
       ;;
-  esac
-}
-
-# ─── Uninstall (reads manifest, removes tracked files, preserves whitelist) ──
-_do_uninstall() {
-  local manifest; manifest="$(_manifest_path)"
-  if [ ! -f "$manifest" ]; then
-    warn "No manifest at $manifest — nothing to uninstall"
-    return 1
-  fi
-
-  local files
-  if command -v python3 &>/dev/null; then
-    files="$(python3 -c "import json,sys; print('\n'.join(json.load(open('$manifest')).get('files', [])))")"
-  else
-    files="$(grep -oE '"/[^"]+"' "$manifest" | sed 's/"//g')"
-  fi
-  [ -z "$files" ] && { warn "Manifest has no file entries"; return 1; }
-
-  local count; count="$(echo "$files" | grep -c . || true)"
-  info "Manifest lists $count files."
-
-  if ! $FLAG_YES; then
-    read -rp "  Delete these files? [y/N]: " ans
-    case "$ans" in
-      [Yy]*) ;;
-      *) echo "  Aborted."; return 0 ;;
-    esac
-  fi
-
-  # Whitelist: never auto-delete these (user data / user-scope configs)
-  # - .mcp.json              — project MCP servers (user may have customized)
-  # - ciel-overlay.md        — project-specific Ciel rules
-  # - opencode.json          — OpenCode config (model, provider, mcp, keybinds,
-  #                            permission, etc. — user customization would be
-  #                            lost on uninstall+reinstall otherwise)
-  # - .claude/settings.json  — project-scope Claude config (contains absolute
-  #                            $CIEL_DIR hook paths that are per-machine;
-  #                            created by /ciel-init, not by install.sh)
-  # Backup variants (\.bak- and .backup- suffixes) preserved too.
-  local preserve_re='(\.mcp\.json(\.backup-|$)|ciel-overlay\.md$|opencode\.json(\.bak-|$)|\.claude/settings\.json(\.bak-|$))'
-
-  local removed=0 preserved=0
-  while IFS= read -r f; do
-    [ -z "$f" ] && continue
-    if [[ "$f" =~ $preserve_re ]]; then
-      info "Preserved (whitelist): $f"
-      preserved=$((preserved + 1))
-      continue
-    fi
-    if [ -e "$f" ]; then
-      rm -rf "$f"
-      removed=$((removed + 1))
-    fi
-  done <<< "$files"
-
-  # Clean empty dirs (ignore failure — non-empty dirs stay)
-  for d in \
-    "$HOME/.claude/skills/ciel" \
-    "$HOME/.claude/plugins/ciel" \
-    "$HOME/.ciel/ollama" \
-    "$HOME/.ciel/lmstudio"; do
-    [ -d "$d" ] && rmdir "$d" 2>/dev/null || true
-  done
-
-  rm -f "$manifest" "$HOME/.ciel/.last-update-check"
-  rmdir "$HOME/.ciel" 2>/dev/null || true
-
-  ok "Removed $removed files (preserved $preserved)."
-}
-
-# ─── Update (uninstall + re-install from latest) ─────────────────────────────
-_do_update() {
-  local manifest; manifest="$(_manifest_path)"
-  if [ ! -f "$manifest" ]; then
-    warn "No manifest — cannot --update (not installed via v2.1.0+)"
-    echo "  Run: bash scripts/install.sh  (fresh install)"
-    return 1
-  fi
-
-  # Tri-state: 0 = up-to-date, 2 = update available, 1 = error
-  set +e
-  _check_update
-  local rc=$?
-  set -e
-
-  case "$rc" in
     0)
-      ok "Already on the latest version — nothing to do."
+      info "Already up to date"
       return 0
       ;;
     1)
-      warn "Update check failed — refusing to proceed (your install stays intact)."
-      return 1
-      ;;
-    2)
-      info "Proceeding with update..."
+      warn "Local version is newer than remote (development version?)"
+      return 0
       ;;
   esac
-
-  FLAG_YES=true _do_uninstall
-  info "Fetching latest installer..."
-  # Cache-bust the raw.githubusercontent.com CDN (same pattern as _check_update
-  # above). Without this, the /ciel-update that fires <5min after a push often
-  # re-installs the PREVIOUS version because the CDN still serves the old blob.
-  # Query param + Cache-Control + Pragma combined is the most robust mix the
-  # CDN honors for a GET request.
-  # Use process substitution so BASH_SOURCE[0] is defined in the child shell.
-  # `bash -s --` leaves BASH_SOURCE unset which trips set -u on the re-entry.
-  bash <(curl -fsSL \
-    -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-    "https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh?t=$(date +%s)") -y
 }
 
-# ─── Flag short-circuits (uninstall/check-update/update exit immediately) ────
-if $FLAG_UNINSTALL; then
-  echo -e "\n${BOLD}Ciel Uninstall${RESET}"
-  _do_uninstall
-  exit $?
-fi
-if $FLAG_CHECK_UPDATE; then
-  echo -e "\n${BOLD}Ciel Update Check${RESET}"
-  _check_update
-  exit $?
-fi
-if $FLAG_UPDATE; then
-  echo -e "\n${BOLD}Ciel Update${RESET}"
-  _do_update
-  exit $?
-fi
+# ─── Manifest Management ─────────────────────────────────────────────────────
 
-# ─── Detect existing install ─────────────────────────────────────────────────
-IS_UPDATE=false
-[ -f "$PROJECT_ROOT/ciel-overlay.md" ] && IS_UPDATE=true
+MANIFEST_FILE="$HOME/.ciel/manifest.json"
 
-if $IS_UPDATE; then
-  echo -e "\n${BOLD}Ciel Universal Installer v$(cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')${RESET} (${YELLOW}update detected${RESET})"
-else
-  echo -e "\n${BOLD}Ciel Universal Installer v$(cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')${RESET}"
-fi
-echo -e "Plugin : $CIEL_DIR"
-echo -e "Project: $PROJECT_ROOT\n"
-
-# ─── Stack detection (for overlay) ───────────────────────────────────────────
-detect_skills() {
-  local root="$1"; local skills=()
-  [ -f "$root/package.json" ] && grep -qE '"react"|"vue"|"svelte"' "$root/package.json" 2>/dev/null && skills+=("frontend-mastery")
-  { [ -f "$root/build.gradle.kts" ] || [ -f "$root/build.gradle" ] || find "$root" -name "build.gradle.kts" -maxdepth 3 2>/dev/null | grep -q .; } && skills+=("backend-mastery")
-  { [ -f "$root/requirements.txt" ] || [ -f "$root/pyproject.toml" ] || [ -f "$root/go.mod" ] || [ -f "$root/Cargo.toml" ]; } && skills+=("backend-mastery")
-  { [ -d "$root/supabase/migrations" ] || [ -d "$root/prisma" ] || find "$root" -name "*.sql" -maxdepth 4 2>/dev/null | grep -q .; } && skills+=("database-mastery")
-  find "$root" -type d \( -name "auth" -o -name "security" \) -maxdepth 5 2>/dev/null | grep -q . && skills+=("security-hardening")
-  printf '%s\n' "${skills[@]:-}" | sort -u
+init_manifest() {
+  mkdir -p "$(dirname "$MANIFEST_FILE")"
 }
 
-# Remove old Ciel files from a directory (only ciel-* prefixed files, safe for user's own files)
-_purge_ciel_files() {
-  local dir="$1" pattern="${2:-ciel*}"
-  if [ -d "$dir" ]; then
-    find "$dir" -maxdepth 1 -name "$pattern" -type f -delete 2>/dev/null
-  fi
+read_manifest_version() {
+  [ -f "$MANIFEST_FILE" ] || return 1
+  grep -oE '"version":[[:space:]]*"[^"]+"' "$MANIFEST_FILE" | \
+    sed 's/.*"\([^"]*\)".*/\1/' | head -1
 }
 
-_install_overlay() {
-  if [ ! -f "$PROJECT_ROOT/ciel-overlay.md" ]; then
-    cp "$CIEL_DIR/overlay-template.md" "$PROJECT_ROOT/ciel-overlay.md"
-    warn "Created ciel-overlay.md — fill in your stack versions and CI config"
-  fi
-}
-
-# ─── Purge any existing manual install ───────────────────────────────────────
-# Prevents duplicate /ciel entries when reinstalling or upgrading.
-# Does NOT touch settings.json (hooks stay in place).
-_purge_manual_install() {
-  info "Purging existing Ciel install..."
-
-  # Skill
-  if [ -d "$HOME/.claude/skills/ciel" ]; then
-    rm -rf "$HOME/.claude/skills/ciel"
-    ok "Removed ~/.claude/skills/ciel/"
-  fi
-
-  # Commands (ciel.md, ciel-update.md, ciel-recommend.md, ...)
-  if [ -d "$HOME/.claude/commands" ]; then
-    find "$HOME/.claude/commands" -name "ciel*.md" -delete 2>/dev/null
-    ok "Removed ciel commands"
-  fi
-
-  # Agents (researcher, explorer, critic — Ciel-specific)
-  for agent in researcher explorer critic; do
-    rm -f "$HOME/.claude/agents/$agent.md" 2>/dev/null || true
+write_manifest() {
+  local version installed_platforms mcp_servers
+  version="$(get_local_version)"
+  
+  # Build platforms list
+  installed_platforms=()
+  for dir in "$HOME/.claude/plugins/ciel" "$PROJECT_ROOT/.opencode"; do
+    [ -d "$dir" ] && installed_platforms+=("$(basename "$dir")")
   done
-  ok "Removed ciel agents"
-
-  # Plugin hooks dir — will be re-created
-  if [ -d "$HOME/.claude/plugins/ciel" ]; then
-    rm -rf "$HOME/.claude/plugins/ciel"
-    ok "Removed ~/.claude/plugins/ciel/"
-  fi
+  
+  # Write manifest
+  cat > "$MANIFEST_FILE" <<EOF
+{
+  "version": "$version",
+  "installed_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "platforms": [$(printf '"%s",' "${installed_platforms[@]}" | sed 's/,$//')],
+  "mcp": [${MCP_LIST:+\"${MCP_LIST//,/\", \"}\"}],
+  "ciel_dir": "$CIEL_DIR"
+}
+EOF
+  
+  ok "Manifest written: $MANIFEST_FILE"
 }
 
-# ─── Post-install file registry (populates INSTALLED_FILES for manifest) ────
-# Runs once after all install_* functions complete. Enumerates paths that
-# are known Ciel outputs; [ -e ... ] filters to what actually got created.
-_register_installed_files() {
-  # Claude Code — skills (orchestrator + categorized)
-  [ -d "$HOME/.claude/skills/ciel" ] && _manifest_append_file "$HOME/.claude/skills/ciel"
-  for cat in workflow research domain utility meta; do
-    [ -d "$CIEL_DIR/skills/$cat" ] || continue
-    for s in "$CIEL_DIR/skills/$cat"/*/; do
-      [ -d "$s" ] || continue
-      local name; name=$(basename "$s")
-      [ -d "$HOME/.claude/skills/$name" ] && _manifest_append_file "$HOME/.claude/skills/$name"
-    done
-  done
-  # Agents + commands + plugin dir
-  for a in researcher explorer critic improver; do
-    [ -f "$HOME/.claude/agents/$a.md" ] && _manifest_append_file "$HOME/.claude/agents/$a.md"
-  done
-  for c in "$HOME/.claude/commands/"ciel*.md; do
-    [ -f "$c" ] && _manifest_append_file "$c"
-  done
-  [ -d "$HOME/.claude/plugins/ciel" ] && _manifest_append_file "$HOME/.claude/plugins/ciel"
+# ─── Main Installation Logic ─────────────────────────────────────────────────
 
-  # Project-scope overlay (whitelist preserves on uninstall)
-  [ -f "$PROJECT_ROOT/ciel-overlay.md" ] && _manifest_append_file "$PROJECT_ROOT/ciel-overlay.md"
-
-  # Cursor / Windsurf / Kilo
-  [ -f "$PROJECT_ROOT/.cursor/rules/ciel.mdc" ] && _manifest_append_file "$PROJECT_ROOT/.cursor/rules/ciel.mdc"
-  [ -f "$PROJECT_ROOT/.windsurf/rules/ciel.md" ] && _manifest_append_file "$PROJECT_ROOT/.windsurf/rules/ciel.md"
-  [ -f "$PROJECT_ROOT/.kilocode/rules/ciel.md" ] && _manifest_append_file "$PROJECT_ROOT/.kilocode/rules/ciel.md"
-  if [ -d "$PROJECT_ROOT/.kilo/agents" ]; then
-    for f in "$PROJECT_ROOT/.kilo/agents/"*.md; do
-      [ -f "$f" ] && _manifest_append_file "$f"
-    done
+do_install() {
+  init_manifest
+  
+  # Detect platform
+  local platform
+  platform="$(detect_platform)"
+  
+  if [ "$platform" = "unknown" ]; then
+    err "Cannot detect AI coding platform."
+    echo ""
+    echo "Supported platforms:"
+    echo "  - Claude Code (claude)"
+    echo "  - OpenCode (opencode)"
+    echo "  - Cursor (cursor)"
+    echo "  - Windsurf (windsurf)"
+    echo "  - Codex CLI (codex)"
+    echo "  - Kilo Code (kilocode)"
+    echo "  - Ollama (ollama)"
+    echo "  - LM Studio (lmstudio)"
+    echo ""
+    echo "Specify with --platform=name"
+    return 1
   fi
-
-  # Codex / OpenCode (AGENTS.md is whitelisted in uninstall — user-owned risk)
-  [ -f "$PROJECT_ROOT/AGENTS.md" ] && _manifest_append_file "$PROJECT_ROOT/AGENTS.md"
-  [ -f "$PROJECT_ROOT/opencode.json" ] && _manifest_append_file "$PROJECT_ROOT/opencode.json"
-  [ -f "$PROJECT_ROOT/.opencode/plugins/ciel.ts" ] && _manifest_append_file "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
-  if [ -d "$PROJECT_ROOT/.opencode/agents" ]; then
-    for f in "$PROJECT_ROOT/.opencode/agents/"ciel-*.md; do
-      [ -f "$f" ] && _manifest_append_file "$f"
-    done
+  
+  info "Detected platform: $(get_platform_name "$platform")"
+  
+  # Validate platform
+  if ! validate_platform "$platform"; then
+    warn "$(get_platform_name "$platform") not fully configured"
+    print_install_instructions "$platform"
+    
+    if [ "$FLAG_YES" != "true" ]; then
+      echo ""
+      read -p "Continue anyway? [y/N] " -n 1 -r
+      echo
+      [[ ! $REPLY =~ ^[Yy]$ ]] && return 1
+    fi
   fi
-  if [ -d "$PROJECT_ROOT/.opencode/commands" ]; then
-    for f in "$PROJECT_ROOT/.opencode/commands/"ciel*.md; do
-      [ -f "$f" ] && _manifest_append_file "$f"
-    done
+  
+  # Install based on platform
+  case "$platform" in
+    claude)
+      install_claude_code "$CIEL_DIR" "$PROJECT_ROOT" "$FLAG_USER"
+      ;;
+    opencode)
+      install_opencode "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+    cursor|windsurf|codex|kilocode|ollama|lmstudio)
+      install_generic "$platform" "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+  esac
+  
+  # Install MCP servers if requested
+  if [ -n "$MCP_LIST" ]; then
+    info "Installing MCP servers: $MCP_LIST"
+    # TODO: Implement MCP installation
   fi
-
-  # Ollama / LM Studio (home-scope)
-  [ -f "$HOME/.ciel/ollama/Modelfile" ] && _manifest_append_file "$HOME/.ciel/ollama/Modelfile"
-  [ -f "$HOME/.ciel/lmstudio/system-prompt.md" ] && _manifest_append_file "$HOME/.ciel/lmstudio/system-prompt.md"
+  
+  # Write manifest
+  write_manifest
+  
+  echo ""
+  info "Installation complete!"
+  echo ""
+  echo "Next steps:"
+  case "$platform" in
+    claude)
+      echo "  1. Restart Claude Code"
+      echo "  2. Run /ciel-init to verify hooks"
+      ;;
+    opencode)
+      echo "  1. Restart OpenCode"
+      echo "  2. Ciel should auto-load (check for depth hints)"
+      ;;
+    *)
+      echo "  1. Restart $(get_platform_name "$platform")"
+      echo "  2. Check that Ciel rules/skills are active"
+      ;;
+  esac
+  
   return 0
 }
 
-# ─── Platform installers ──────────────────────────────────────────────────────
-install_claude() {
-  info "Claude Code..."
-
-  # Always purge first to avoid duplicate skill/command entries
-  _purge_manual_install
-
-  if command -v claude &>/dev/null && claude plugin install "$CIEL_DIR" 2>/dev/null; then
-    ok "Installed via claude plugin install (full plugin)"
-    _claude_hooks
-    _install_overlay
-    return
+do_uninstall() {
+  info "Uninstalling Ciel..."
+  
+  # Uninstall from all platforms
+  if [ -d "$HOME/.claude/plugins/ciel" ]; then
+    uninstall_claude_code
   fi
-
-  info "Copying Ciel files..."
-
-  mkdir -p "$HOME/.claude/skills"
-  # v2.0.0: copy all 33 skills across 5 categories + orchestrator
-  cp -r "$CIEL_DIR/skills/ciel" "$HOME/.claude/skills/"
-  ok "skills/ciel (orchestrator) -> ~/.claude/skills/ciel/"
-  for category in workflow research domain utility meta; do
-    if [ -d "$CIEL_DIR/skills/$category" ]; then
-      for skill_dir in "$CIEL_DIR/skills/$category"/*/; do
-        [ -d "$skill_dir" ] || continue
-        # Strip trailing slash so BSD cp (macOS) copies the dir itself,
-        # not just its contents onto the destination root.
-        cp -r "${skill_dir%/}" "$HOME/.claude/skills/"
-      done
-      count=$(find "$CIEL_DIR/skills/$category" -maxdepth 1 -type d | tail -n +2 | wc -l)
-      ok "skills/$category ($count skills) -> ~/.claude/skills/"
-    fi
+  
+  if [ -d "./.opencode" ]; then
+    uninstall_opencode "$(pwd)"
+  fi
+  
+  for platform in cursor windsurf codex kilocode ollama lmstudio; do
+    uninstall_generic "$platform" "$(pwd)"
   done
-
-  mkdir -p "$HOME/.claude/agents"
-  cp "$CIEL_DIR/agents/"*.md "$HOME/.claude/agents/" 2>/dev/null && ok "agents/ -> ~/.claude/agents/"
-
-  mkdir -p "$HOME/.claude/commands"
-  cp "$CIEL_DIR/commands/"*.md "$HOME/.claude/commands/" 2>/dev/null && ok "commands/ -> ~/.claude/commands/"
-
-  local MANUAL_PLUGIN_DIR="$HOME/.claude/plugins/ciel"
-  mkdir -p "$MANUAL_PLUGIN_DIR/hooks"
-  cp -r "$CIEL_DIR/hooks" "$MANUAL_PLUGIN_DIR/"
-  cp "$CIEL_DIR/overlay-template.md" "$MANUAL_PLUGIN_DIR/"
-  ok "hooks/ -> ~/.claude/plugins/ciel/hooks/"
-  _claude_hooks
-  _install_overlay
-}
-
-_claude_hooks() {
-  local hooks_dir="$HOME/.claude/plugins/ciel/hooks"
-  [ -d "$hooks_dir" ] && chmod +x "$hooks_dir/"*.sh 2>/dev/null && ok "Hooks set executable"
-
-  local settings="$HOME/.claude/settings.json"
-  local canonical="$CIEL_DIR/settings.json"
-
-  if [ ! -f "$settings" ]; then
-    cp "$canonical" "$settings"
-    ok "settings.json created with Ciel hooks"
-    return
+  
+  # Remove manifest
+  if [ -f "$MANIFEST_FILE" ]; then
+    rm "$MANIFEST_FILE"
+    ok "Removed manifest"
   fi
-
-  cp "$settings" "$settings.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null
-
-  python3 - "$settings" "$canonical" "$hooks_dir" <<'PY'
-import json, os, sys
-target, canonical_path, hooks_dir = sys.argv[1], sys.argv[2], sys.argv[3]
-
-with open(target) as f: current = json.load(f)
-with open(canonical_path) as f: canonical = json.load(f)
-
-current_hooks = current.get("hooks", {})
-canonical_hooks = canonical.get("hooks", {})
-
-# For each event, drop ANY entry whose command references plugins/ciel/hooks/
-# (stale paths, removed hooks like pre-tool-count). Keep everything else.
-# Then append the canonical Ciel entries with absolute hooks_dir path.
-def is_ciel_entry(entry):
-    for h in entry.get("hooks", []):
-        cmd = h.get("command", "")
-        if "plugins/ciel/hooks/" in cmd:
-            return True
-    return False
-
-merged = dict(current_hooks)
-for event, entries in canonical_hooks.items():
-    existing = merged.get(event, [])
-    kept = [e for e in existing if not is_ciel_entry(e)]
-    for entry in entries:
-        new_entry = json.loads(json.dumps(entry))
-        for h in new_entry.get("hooks", []):
-            cmd = h.get("command", "")
-            h["command"] = cmd.replace(".claude/plugins/ciel/hooks/", hooks_dir.rstrip("/") + "/")
-        kept.append(new_entry)
-    merged[event] = kept
-
-current["hooks"] = merged
-with open(target, "w") as f:
-    json.dump(current, f, indent=2)
-    f.write("\n")
-PY
-
-  if python3 -m json.tool < "$settings" > /dev/null 2>&1; then
-    ok "settings.json merged with canonical Ciel hooks (non-Ciel entries preserved)"
-  else
-    warn "settings.json merge produced invalid JSON — restore from $settings.bak-*"
-  fi
-}
-
-install_cursor() {
-  info "Cursor..."
-  mkdir -p "$PROJECT_ROOT/.cursor/rules"
-  cp "$PLATFORMS_DIR/cursor/.cursor/rules/ciel.mdc" "$PROJECT_ROOT/.cursor/rules/ciel.mdc"
-  local size; size=$(wc -c < "$PROJECT_ROOT/.cursor/rules/ciel.mdc")
-  ok "Copied .cursor/rules/ciel.mdc ($size bytes — under 6KB limit)"
-  _install_overlay
-}
-
-install_windsurf() {
-  info "Windsurf..."
-  _purge_ciel_files "$PROJECT_ROOT/.windsurf/workflows" "ciel*.md"
-  _purge_ciel_files "$PROJECT_ROOT/.windsurf/rules" "ciel*.md"
-
-  # Skills — copy entire ciel* skill directories
-  if [ -d "$PLATFORMS_DIR/windsurf/.windsurf/skills" ]; then
-    mkdir -p "$PROJECT_ROOT/.windsurf/skills"
-    for skill_dir in "$PLATFORMS_DIR/windsurf/.windsurf/skills"/ciel*/; do
-      [ -d "$skill_dir" ] || continue
-      local sname; sname=$(basename "$skill_dir")
-      rm -rf "$PROJECT_ROOT/.windsurf/skills/$sname"
-      cp -r "$skill_dir" "$PROJECT_ROOT/.windsurf/skills/$sname"
-    done
-    ok "Copied .windsurf/skills/ (ciel, ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
-  fi
-
-  # Workflows
-  if [ -d "$PLATFORMS_DIR/windsurf/.windsurf/workflows" ]; then
-    mkdir -p "$PROJECT_ROOT/.windsurf/workflows"
-    cp "$PLATFORMS_DIR/windsurf/.windsurf/workflows/"*.md "$PROJECT_ROOT/.windsurf/workflows/" 2>/dev/null || true
-    ok "Copied .windsurf/workflows/ (/ciel and all ciel-* commands)"
-  fi
-
-  # Rules (always-on)
-  mkdir -p "$PROJECT_ROOT/.windsurf/rules"
-  cp "$PLATFORMS_DIR/windsurf/.windsurf/rules/ciel.md" "$PROJECT_ROOT/.windsurf/rules/ciel.md"
-  ok "Copied .windsurf/rules/ciel.md (always-on)"
-
-  _install_overlay
-}
-
-install_codex() {
-  info "Codex CLI..."
-  cp "$PLATFORMS_DIR/codex/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
-  ok "Copied AGENTS.md (compact orchestrator)"
-
-  if [ -d "$PLATFORMS_DIR/codex/.codex" ]; then
-    mkdir -p "$PROJECT_ROOT/.codex/hooks" "$PROJECT_ROOT/.codex/commands" "$PROJECT_ROOT/.codex/agents"
-
-    cp "$PLATFORMS_DIR/codex/.codex/hooks.json" "$PROJECT_ROOT/.codex/hooks.json"
-    ok "Copied .codex/hooks.json (UserPromptSubmit depth gate)"
-
-    cp "$PLATFORMS_DIR/codex/.codex/hooks/"*.sh "$PROJECT_ROOT/.codex/hooks/" 2>/dev/null || true
-    chmod +x "$PROJECT_ROOT/.codex/hooks/"*.sh 2>/dev/null || true
-    ok "Copied .codex/hooks/ (user-prompt-submit.sh)"
-
-    cp "$PLATFORMS_DIR/codex/.codex/commands/"*.md "$PROJECT_ROOT/.codex/commands/" 2>/dev/null || true
-    ok "Copied .codex/commands/ (ciel-*.md)"
-
-    _purge_ciel_files "$PROJECT_ROOT/.codex/agents" "ciel-*.md"
-    cp "$PLATFORMS_DIR/codex/.codex/agents/"*.md "$PROJECT_ROOT/.codex/agents/" 2>/dev/null || true
-    ok "Copied .codex/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
-  fi
-
-  _install_overlay
-}
-
-install_opencode() {
-  info "OpenCode..."
-  _purge_ciel_files "$PROJECT_ROOT/.opencode/agents" "ciel-*.md"
-  _purge_ciel_files "$PROJECT_ROOT/.opencode/commands" "ciel*.md"
-  _purge_ciel_files "$PROJECT_ROOT/.opencode/plugins" "ciel.*"
-
-  cp "$PLATFORMS_DIR/opencode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
-  ok "Copied AGENTS.md"
-
-  if [ -f "$PLATFORMS_DIR/opencode/opencode.json" ] && [ ! -f "$PROJECT_ROOT/opencode.json" ]; then
-    cp "$PLATFORMS_DIR/opencode/opencode.json" "$PROJECT_ROOT/opencode.json"
-    ok "Copied opencode.json"
-  elif [ -f "$PROJECT_ROOT/opencode.json" ] && command -v python3 &>/dev/null; then
-    # Existing opencode.json — merge plugin + instructions entries non-destructively
-    # (same Python pattern as /ciel-init OpenCode branch). Preserves all other keys.
-    info "Merging opencode.json (preserving your model/provider/mcp/keybinds config)"
-    cp "$PROJECT_ROOT/opencode.json" "$PROJECT_ROOT/opencode.json.bak-$(date +%Y%m%dT%H%M%S)"
-    python3 - "$PROJECT_ROOT/opencode.json" <<'PY'
-import json, os, sys
-target = sys.argv[1]
-with open(target) as f:
-    current = json.load(f)
-current.setdefault("$schema", "https://opencode.ai/config.json")
-ins = current.get("instructions")
-if ins is None:
-    current["instructions"] = ["AGENTS.md"]
-elif isinstance(ins, str):
-    current["instructions"] = [ins] if ins == "AGENTS.md" else [ins, "AGENTS.md"]
-elif isinstance(ins, list) and "AGENTS.md" not in ins:
-    current["instructions"] = ins + ["AGENTS.md"]
-target_plugin = "./.opencode/plugins/ciel.ts"
-plg = current.get("plugin")
-if plg is None:
-    current["plugin"] = [target_plugin]
-elif isinstance(plg, str):
-    current["plugin"] = [plg] if plg == target_plugin else [plg, target_plugin]
-elif isinstance(plg, list) and target_plugin not in plg:
-    current["plugin"] = plg + [target_plugin]
-with open(target, "w") as f:
-    json.dump(current, f, indent=2)
-    f.write("\n")
-PY
-    ok "Merged opencode.json (backup: opencode.json.bak-*)"
-  elif [ -f "$PROJECT_ROOT/opencode.json" ]; then
-    warn "opencode.json exists and python3 unavailable — merge manually (add plugin entry: ./.opencode/plugins/ciel.ts)"
-  fi
-
-  # Native primitives: plugin + 4 subagents + 6 slash commands
-  if [ -f "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" ]; then
-    mkdir -p "$PROJECT_ROOT/.opencode/plugins"
-    cp "$PLATFORMS_DIR/opencode/.opencode/plugins/ciel.ts" "$PROJECT_ROOT/.opencode/plugins/ciel.ts"
-    ok "Copied .opencode/plugins/ciel.ts"
-  fi
-
-  if [ -d "$PLATFORMS_DIR/opencode/.opencode/agents" ]; then
-    mkdir -p "$PROJECT_ROOT/.opencode/agents"
-    cp "$PLATFORMS_DIR/opencode/.opencode/agents/"*.md "$PROJECT_ROOT/.opencode/agents/" 2>/dev/null
-    ok "Copied .opencode/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
-  fi
-
-  if [ -d "$PLATFORMS_DIR/opencode/.opencode/commands" ]; then
-    mkdir -p "$PROJECT_ROOT/.opencode/commands"
-    cp "$PLATFORMS_DIR/opencode/.opencode/commands/"*.md "$PROJECT_ROOT/.opencode/commands/" 2>/dev/null
-    ok "Copied .opencode/commands/ (ciel, ciel-improve, ciel-eval, ciel-create-skill, ciel-recommend, ciel-update)"
-  fi
-
-  _install_overlay
-}
-
-install_kilocode() {
-  info "Kilo Code..."
-  _purge_ciel_files "$PROJECT_ROOT/.kilocode/rules" "ciel*.md"
-  # Purge old unprefixed agent files (pre-v2.9 broken pointers — no skills bundled)
-  for old_agent in researcher.md explorer.md critic.md improver.md; do
-    rm -f "$PROJECT_ROOT/.kilo/agents/$old_agent"
-  done
-  _purge_ciel_files "$PROJECT_ROOT/.kilo/agents" "ciel-*.md"
-
-  # AGENTS.md at project root (compact orchestrator ≤6KB)
-  if [ -f "$PLATFORMS_DIR/kilocode/AGENTS.md" ]; then
-    cp "$PLATFORMS_DIR/kilocode/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
-    ok "Copied AGENTS.md (compact orchestrator, ≤6KB)"
-  fi
-
-  mkdir -p "$PROJECT_ROOT/.kilocode/rules"
-  cp "$PLATFORMS_DIR/kilocode/.kilocode/rules/ciel.md" "$PROJECT_ROOT/.kilocode/rules/ciel.md"
-  ok "Copied .kilocode/rules/ciel.md"
-
-  if [ -d "$PLATFORMS_DIR/kilocode/.kilo/agents" ]; then
-    mkdir -p "$PROJECT_ROOT/.kilo/agents"
-    cp "$PLATFORMS_DIR/kilocode/.kilo/agents/ciel-"*.md "$PROJECT_ROOT/.kilo/agents/" 2>/dev/null || true
-    ok "Copied .kilo/agents/ (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)"
-  fi
-
-  _install_overlay
-}
-
-install_ollama() {
-  info "Ollama..."
-  local TARGET="$HOME/.ciel/ollama"
-  mkdir -p "$TARGET"
-  cp "$PLATFORMS_DIR/ollama/Modelfile" "$TARGET/Modelfile"
-  ok "Copied Modelfile to $TARGET/"
+  
   echo ""
-  echo "    Next steps:"
-  echo "    1. Edit $TARGET/Modelfile — change FROM line to your preferred model"
-  echo "    2. ollama create ciel -f $TARGET/Modelfile"
-  echo "    3. ollama run ciel"
+  info "Uninstall complete"
+  return 0
 }
 
-install_lmstudio() {
-  info "LM Studio..."
-  local TARGET="$HOME/.ciel/lmstudio"
-  mkdir -p "$TARGET"
-  cp "$PLATFORMS_DIR/lmstudio/system-prompt.md" "$TARGET/system-prompt.md"
-  ok "Copied system-prompt.md to $TARGET/"
-
-  # Preset file — LM Studio 0.3.x format (operation.fields[] with dot-notation keys)
-  if [ -f "$PLATFORMS_DIR/lmstudio/ciel.preset.json" ]; then
-    cp "$PLATFORMS_DIR/lmstudio/ciel.preset.json" "$TARGET/ciel.preset.json"
-    ok "Copied ciel.preset.json to $TARGET/"
+do_update() {
+  info "Updating Ciel..."
+  
+  # Check if update is available
+  local local_ver remote_ver
+  local_ver="$(get_local_version)"
+  remote_ver="$(get_remote_version)"
+  
+  if [ -z "$remote_ver" ]; then
+    err "Could not fetch remote version"
+    return 1
   fi
-
+  
+  local cmp
+  cmp="$(compare_versions "$local_ver" "$remote_ver")"
+  
+  if [ "$cmp" != "-1" ]; then
+    info "Already up to date ($local_ver)"
+    return 0
+  fi
+  
+  info "Updating from $local_ver to $remote_ver"
+  
+  # Uninstall current version
+  do_uninstall
+  
+  # Clone latest version
+  local temp_dir
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf "$temp_dir"' EXIT
+  
+  info "Cloning latest version..."
+  if ! git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git "$temp_dir"; then
+    err "Failed to clone repository"
+    return 1
+  fi
+  
+  # Install from temp directory
+  CIEL_DIR="$temp_dir"
+  do_install
+  
   echo ""
-  echo "    Next steps:"
-  echo "    1. In LM Studio → top-right preset selector → Import preset → $TARGET/ciel.preset.json"
-  echo "       OR manually paste from $TARGET/system-prompt.md into Settings → System Prompt"
-  echo "    2. Select 'Ciel' preset before starting a session"
+  ok "Update complete: $local_ver → $remote_ver"
+  return 0
 }
 
-# ─── Platform detection ───────────────────────────────────────────────────────
-# Parallel indexed arrays (portable across bash 3.2 — no associative arrays)
-DETECTED_KEYS=()
-DETECTED_LABELS=()
-_add_detected() { DETECTED_KEYS+=("$1"); DETECTED_LABELS+=("$2"); }
+# ─── Main Entry Point ────────────────────────────────────────────────────────
 
-command -v claude &>/dev/null && _add_detected claude "Claude Code CLI"
-{ [ -d "$PROJECT_ROOT/.cursor" ] || command -v cursor &>/dev/null; } && _add_detected cursor "Cursor IDE"
-{ [ -d "$PROJECT_ROOT/.windsurf" ] || command -v windsurf &>/dev/null; } && _add_detected windsurf "Windsurf IDE"
-command -v codex &>/dev/null && _add_detected codex "Codex CLI"
-command -v opencode &>/dev/null && _add_detected opencode "OpenCode CLI"
-{ [ -d "$PROJECT_ROOT/.kilocode" ] || \
-  (command -v code &>/dev/null && code --list-extensions 2>/dev/null | grep -qi "kilocode"); } \
-  && _add_detected kilocode "Kilo Code"
-command -v ollama &>/dev/null && _add_detected ollama "Ollama"
-{ command -v lms &>/dev/null || [ -d "$HOME/.lmstudio" ]; } && _add_detected lmstudio "LM Studio"
-
-DETECTED_COUNT=${#DETECTED_KEYS[@]}
-
-# ─── User selection ───────────────────────────────────────────────────────────
-if [ "$DETECTED_COUNT" -eq 0 ]; then
-  warn "No supported AI tool detected automatically."
-  echo "  Available platforms: claude cursor windsurf codex opencode kilocode ollama lmstudio"
-  read -rp "  Platforms to install (space-separated or 'all'): " RAW
-  [ "$RAW" = "all" ] && RAW="claude cursor windsurf codex opencode kilocode ollama lmstudio"
-  IFS=' ' read -ra PLATFORMS <<< "$RAW"
-else
-  echo -e "${BOLD}Detected:${RESET}"
-  for i in $(seq 0 $((DETECTED_COUNT - 1))); do
-    echo -e "  ${CYAN}[$((i+1))]${RESET} ${DETECTED_LABELS[$i]} ${YELLOW}[${DETECTED_KEYS[$i]}]${RESET}"
-  done
+main() {
   echo ""
-  read -rp "  Install? [A]ll / numbers (e.g. 1,3) / [L]ist keys / [Q]uit: " ANS
-  ANS="${ANS:-A}"
-
-  if [[ "$ANS" =~ ^[AaYy]$ ]]; then
-    PLATFORMS=("${DETECTED_KEYS[@]}")
-  elif [[ "$ANS" =~ ^[Qq]$ ]]; then
-    echo -e "\n${BOLD}Aborted.${RESET}"
-    exit 0
-  elif [[ "$ANS" =~ ^[Ll] ]]; then
-    echo "  Keys: ${DETECTED_KEYS[*]}"
-    read -rp "  Platforms to install (space/comma-separated): " RAW
-    IFS=' ,' read -ra PLATFORMS <<< "$RAW"
-  elif [[ "$ANS" =~ ^[0-9,\ ]+$ ]]; then
-    # Number selection: "1,3" or "1 3" or "2"
-    IFS=', ' read -ra NUMS <<< "$ANS"
-    PLATFORMS=()
-    for n in "${NUMS[@]}"; do
-      idx=$((n - 1))
-      if [ "$idx" -ge 0 ] && [ "$idx" -lt "$DETECTED_COUNT" ]; then
-        PLATFORMS+=("${DETECTED_KEYS[$idx]}")
-      else
-        warn "Invalid number: $n (expected 1-$DETECTED_COUNT)"
-      fi
-    done
-  else
-    # Treat as space/comma-separated platform keys
-    IFS=' ,' read -ra PLATFORMS <<< "$ANS"
+  echo "╔═══════════════════════════════════════╗"
+  echo "║   Ciel Installer v$(get_local_version)              ║"
+  echo "╚═══════════════════════════════════════╝"
+  echo ""
+  
+  if [ "$FLAG_CHECK_UPDATE" = "true" ]; then
+    check_update
+    exit $?
   fi
-fi
-
-echo ""
-
-# ─── Run ──────────────────────────────────────────────────────────────────────
-INSTALLED=()
-for p in "${PLATFORMS[@]}"; do
-  case "$p" in
-    claude)   install_claude   && INSTALLED+=(claude)   ;;
-    cursor)   install_cursor   && INSTALLED+=(cursor)   ;;
-    windsurf) install_windsurf && INSTALLED+=(windsurf) ;;
-    codex)    install_codex    && INSTALLED+=(codex)    ;;
-    opencode) install_opencode && INSTALLED+=(opencode) ;;
-    kilocode) install_kilocode && INSTALLED+=(kilocode) ;;
-    ollama)   install_ollama   && INSTALLED+=(ollama)   ;;
-    lmstudio) install_lmstudio && INSTALLED+=(lmstudio) ;;
-    *)        warn "Unknown platform '$p' — skipping" ;;
-  esac
-  echo ""
-done
-
-# ─── Stack detection summary ──────────────────────────────────────────────────
-if [ -d "$PLUGIN_DIR" ] && [ -f "$PLUGIN_DIR/overlay-template.md" ]; then
-  DETECTED_SKILLS=$(detect_skills "$PROJECT_ROOT")
-  if [ -n "$DETECTED_SKILLS" ]; then
-    echo -e "  Stack detected: $(echo "$DETECTED_SKILLS" | tr '\n' ' ')"
+  
+  if [ "$FLAG_UPDATE" = "true" ]; then
+    do_update
+    exit $?
   fi
-fi
+  
+  if [ "$FLAG_UNINSTALL" = "true" ]; then
+    do_uninstall
+    exit $?
+  fi
+  
+  # Default: install
+  do_install
+  exit $?
+}
 
-# ─── MCP opt-in + manifest write ──────────────────────────────────────────────
-if [ -n "$MCP_LIST" ]; then
-  echo ""
-  info "Installing MCP servers..."
-  _install_mcp "$MCP_LIST"
-fi
-
-echo ""
-_register_installed_files
-_manifest_write
-
-echo ""
-echo -e "${BOLD}Done.${RESET} Installed: ${INSTALLED[*]:-none}"
-echo ""
-echo "Edit ciel-overlay.md to set stack versions, CI config, and project rules."
-echo "Uninstall:     bash scripts/install.sh --uninstall"
-echo "Check update:  bash scripts/install.sh --check-update"
-echo "Full docs:     https://github.com/KaosKyun/Ciel"
+main "$@"

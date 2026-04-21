@@ -1,104 +1,193 @@
 ---
-description: Checks GitHub for a newer Ciel release and re-installs via install.sh or install.ps1. Auto-detects platform (Bash vs PowerShell) and uses the appropriate script. Preserves .mcp.json, ciel-overlay.md, opencode.json, and .claude/settings.json.
+description: Check for Ciel updates and install if available. Compares local manifest version with GitHub main branch. Preserves all custom configs.
 ---
 
-# /ciel-update — Update Ciel to the latest version
+# /ciel-update — Update Ciel to Latest Version
 
-Checks GitHub for a newer release and re-installs if available. Works on every platform Ciel supports (Claude Code, Cursor, Windsurf, Codex, OpenCode, Kilo, Ollama, LM Studio).
+**Purpose:** Safely update Ciel while preserving your customizations.
 
-## How it works
+**Usage:** `/ciel-update [--check-only] [--force]`
 
-1. Compares your local manifest version (`~/.ciel/manifest.json`) with `VERSION` on the main branch.
-2. If newer, runs `install.sh --uninstall -y` or `install.ps1 --uninstall` to remove tracked files.
-3. Re-fetches the latest installer from GitHub and runs it with `-y`, which detects installed platforms and re-installs each one.
-4. Whitelisted files are preserved across the uninstall+reinstall (they are never deleted, and re-install merges non-destructively into them).
+- `--check-only` — Only check, don't install
+- `--force` — Install even if versions match (reinstall)
 
-## Run
+---
 
-**Auto-detect (recommended)** — works on Linux, macOS, Windows (WSL/native PowerShell):
+## Instructions
 
-```bash
-# Bash (Linux/macOS/WSL)
-bash scripts/install.sh --check-update    # check only
-bash scripts/install.sh --update          # apply update
+Deterministic update operation. NO agent dispatch.
 
-# PowerShell (Windows native)
-pwsh scripts/install.ps1 --check-update   # check only
-pwsh scripts/install.ps1 --update         # apply update
-```
+### Step 1: Read Local Version
 
-**Network one-liner (works from any directory)**:
+Check in order:
+1. `~/.ciel/manifest.json` → `"version"` field
+2. `$CIEL_DIR/VERSION` file
+3. Fallback: "unknown"
+
+### Step 2: Fetch Remote Version
 
 ```bash
-# Bash
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --check-update
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update
-
-# PowerShell
-irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.ps1 | iex -- --check-update
-irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.ps1 | iex -- --update
+curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION
 ```
 
-**Claude Code plugin path** (if installed via `claude plugin install`):
+If fails → Network error, tell user to check connection.
+
+### Step 3: Compare Versions
+
+Semver comparison (MAJOR.MINOR.PATCH):
+- Parse each component as integer
+- Compare left-to-right
+- Return: -1 (update available), 0 (same), 1 (local newer)
+
+**Decision table:**
+
+| Local vs Remote | Action |
+|-----------------|--------|
+| -1 (local < remote) | Update available |
+| 0 (equal) | Already up to date |
+| 1 (local > remote) | Development version |
+
+### Step 4: Pre-Update Checks
+
+Before updating:
+
+1. **Backup manifest:** `cp ~/.ciel/manifest.json ~/.ciel/manifest.json.bak-TIMESTAMP`
+2. **Check running sessions:** Warn if Claude Code/OpenCode is running
+3. **Verify disk space:** Need ~10MB for new version
+
+### Step 5: Uninstall Old Version
+
+Run uninstall for each platform:
+
+**Claude Code:**
+```bash
+rm -rf ~/.claude/plugins/ciel
+# Project settings preserved
+```
+
+**OpenCode:**
+```bash
+rm .opencode/plugins/ciel.ts
+rm -rf .opencode/agents/ciel-*
+rm -rf .opencode/commands/ciel-*
+# opencode.json preserved (restored from backup)
+```
+
+**Other platforms:**
+- Remove platform-specific Ciel files
+- Preserve user configs
+
+### Step 6: Install New Version
+
+**Option A: Git clone (recommended)**
+```bash
+TEMP_DIR=$(mktemp -d)
+git clone --depth=1 https://github.com/KaosKyun/Ciel.git "$TEMP_DIR"
+bash "$TEMP_DIR/scripts/install.sh" -y
+rm -rf "$TEMP_DIR"
+```
+
+**Option B: Download script**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) -y
+```
+
+### Step 7: Post-Update Verification
+
+1. **Check version:** `cat ~/.ciel/manifest.json | grep version`
+2. **Verify hooks:** `ls ~/.claude/plugins/ciel/hooks/*.sh | wc -l` (should be 8)
+3. **Test plugin:** Restart platform, check for depth hint
+
+### Step 8: Report
+
+```
+✓ Update complete
+
+Before: v3.3.0
+After:  v3.3.1
+
+Platforms updated:
+  ✓ Claude Code
+  ✓ OpenCode
+
+Customizations preserved:
+  ✓ .mcp.json
+  ✓ ciel-overlay.md
+  ✓ opencode.json
+  ✓ .claude/settings.json
+
+Next steps:
+1. Restart your AI coding platform
+2. Run /ciel-init to verify hooks
+```
+
+---
+
+## Rollback Procedure
+
+If update fails:
 
 ```bash
-# Bash
-bash ~/.claude/plugins/ciel/scripts/install.sh --check-update
-bash ~/.claude/plugins/ciel/scripts/install.sh --update
+# Restore manifest
+cp ~/.ciel/manifest.json.bak-TIMESTAMP ~/.ciel/manifest.json
 
-# PowerShell
-pwsh ~/.claude/plugins/ciel/scripts/install.ps1 --check-update
-pwsh ~/.claude/plugins/ciel/scripts/install.ps1 --update
+# Reinstall previous version
+git clone --depth=1 --branch v3.3.0 https://github.com/KaosKyun/Ciel.git /tmp/ciel-old
+bash /tmp/ciel-old/scripts/install.sh -y
+rm -rf /tmp/ciel-old
 ```
 
-## Which script to use?
+---
 
-| Your system | Use this script |
-|-------------|-----------------|
-| Linux / macOS | `bash scripts/install.sh` |
-| Windows (WSL) | `bash scripts/install.sh` (from WSL terminal) |
-| Windows (PowerShell) | `pwsh scripts/install.ps1` |
-| Windows (CMD) | Not supported — use PowerShell or WSL |
+## What's Preserved
 
-Both scripts have **identical functionality** and preserve the same files. Pick the one that matches your shell.
+| File | Action |
+|------|--------|
+| `~/.ciel/manifest.json` | Backed up, restored |
+| `.mcp.json` | Never deleted, merged |
+| `ciel-overlay.md` | Never deleted |
+| `opencode.json` | Backed up, merged |
+| `.claude/settings.json` | Never deleted (project-specific) |
+| Custom agents | Preserved |
+| Custom commands | Preserved |
 
-## What's preserved (whitelisted across uninstall+reinstall)
+---
 
-- `.mcp.json` and `.mcp.json.backup-*` — project MCP servers + backups
-- `ciel-overlay.md` — project-specific Ciel rules you wrote
-- `opencode.json` and `opencode.json.bak-*` — your OpenCode config (model, provider, mcp, permission, keybinds, custom agents). Re-install merges the Ciel `plugin` + `instructions` entries **non-destructively** via Python so you don't lose customizations.
-- `.claude/settings.json` and `.claude/settings.json.bak-*` — project-scope Claude config (contains absolute `$CIEL_DIR` hook paths, per-machine; created by `/ciel-init`)
+## What's Replaced
 
-## What's replaced
+| File | Action |
+|------|--------|
+| `~/.claude/plugins/ciel/*` | Replaced |
+| `~/.claude/skills/*` | Replaced |
+| `~/.claude/agents/ciel-*` | Replaced |
+| `~/.claude/commands/ciel-*` | Replaced |
+| `.opencode/plugins/ciel.ts` | Replaced |
+| `.opencode/agents/ciel-*` | Replaced |
+| `.opencode/commands/ciel-*` | Replaced |
 
-- All skills (`~/.claude/skills/<name>/`) — the full Ciel library re-copied
-- Agents (`~/.claude/agents/{researcher,explorer,critic,improver}.md`)
-- Commands (`~/.claude/commands/ciel*.md`)
-- Plugin hooks (`~/.claude/plugins/ciel/hooks/*`)
-- Platform-specific artifacts under `./.cursor/`, `./.windsurf/`, `./.opencode/{plugins,agents,commands}/`, `./.kilocode/`, `./.kilo/agents/`, etc. — only Ciel's files inside those directories.
+---
 
-## OpenCode specifics
+## Examples
 
-The update touches:
+```bash
+# Check for update
+/ciel-update --check-only
 
-- `./.opencode/plugins/ciel.ts` — replaced with the fresh v{NEW} TS plugin.
-- `./.opencode/agents/ciel-*.md` — 4 subagents replaced.
-- `./.opencode/commands/ciel*.md` — all 9 Ciel commands replaced (including the 2 OpenCode-only thin wrappers for `/ciel` and `/ciel-improve`).
-- `./AGENTS.md` — replaced **only if** it contained `"Ciel deep-reasoning workflow"` (your custom AGENTS.md is left alone).
-- `./opencode.json` — merged non-destructively. The `plugin` array gets the Ciel entry added if missing; the `instructions` array gets `AGENTS.md` added if missing; every other top-level key (model, provider, mcp, keybinds, permission, agent, mode) is preserved exactly as you had it. A `.bak-<timestamp>` backup is always written first.
+# Install update if available
+/ciel-update
 
-## Auto-notification
+# Force reinstall (repair)
+/ciel-update --force
+```
 
-The `SessionStart` hook (Claude Code) or TS plugin `session.created` event (OpenCode) checks for updates once per 24 hours and surfaces a `[UPDATE]` banner if a newer version exists. No network call happens on subsequent sessions within the window.
-
-## Frequency
-
-Run at the start of a project or when you see the `[UPDATE]` banner. `CHANGELOG.md` in the repo describes each release.
+---
 
 ## Troubleshooting
 
-- **"No manifest — cannot --update"**: You installed Ciel before v2.1.0. Run a fresh install once to create the manifest, then `--update` will work.
-- **"Could not fetch remote VERSION"**: network to GitHub blocked. Workarounds: (a) run from a box with network, pull the repo manually; (b) set a proxy with `https_proxy=...` before running.
-- **"Local ahead of remote"**: you're on a dev build (e.g., you committed locally but haven't pushed, or the CDN is stale). The installer refuses to "downgrade" — no-op.
-- **OpenCode reports `plugin not found` after update**: restart `opencode`. The TS plugin is loaded at session start; a running session won't pick up the new file until reload.
-- **PowerShell execution policy blocked**: run `Set-ExecutionPolicy -Scope Process Bypass` before running the script, or use `pwsh -ExecutionPolicy Bypass -File scripts/install.ps1`.
+| Problem | Solution |
+|---------|----------|
+| "No manifest" | Run fresh install first |
+| "Network error" | Check connection, retry |
+| "Permission denied" | Run with sudo or fix permissions |
+| "Hooks not firing after update" | Run /ciel-init to reconfigure |
+| "Version mismatch" | Check git branch, may be on dev version |
