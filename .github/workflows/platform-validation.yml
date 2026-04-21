@@ -179,8 +179,9 @@ jobs:
       - name: Validate TypeScript syntax
         run: |
           echo "=== Validating TypeScript Syntax ==="
-          cd platforms/opencode
-          npx tsc --noEmit .opencode/plugins/ciel.ts
+          # Use TypeScript from .opencode directory where it's installed
+          cd .opencode
+          npx tsc --noEmit ../platforms/opencode/.opencode/plugins/ciel.ts
           echo "✓ TypeScript validation passed"
 
   validate-kilocode:
