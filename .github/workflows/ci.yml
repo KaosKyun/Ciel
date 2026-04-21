@@ -149,7 +149,8 @@ jobs:
         run: |
           echo "Validating TypeScript plugin..."
           cd .opencode
-          npx tsc --noEmit plugins/ciel.ts
+          # Use --ignoreConfig to avoid tsconfig.json conflict when specifying files
+          npx tsc --noEmit --ignoreConfig plugins/ciel.ts
           echo "✓ TypeScript validation passed"
 
   validate-byte-limits:

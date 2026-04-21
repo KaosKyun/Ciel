@@ -180,8 +180,9 @@ jobs:
         run: |
           echo "=== Validating TypeScript Syntax ==="
           # Use TypeScript from .opencode directory where it's installed
+          # Use --ignoreConfig to avoid tsconfig.json conflict when specifying files
           cd .opencode
-          npx tsc --noEmit ../platforms/opencode/.opencode/plugins/ciel.ts
+          npx tsc --noEmit --ignoreConfig ../platforms/opencode/.opencode/plugins/ciel.ts
           echo "✓ TypeScript validation passed"
 
   validate-kilocode:
