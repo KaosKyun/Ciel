@@ -493,7 +493,7 @@ bundle_skills_compact() {
     echo "**Key checks** (excerpt — full skill available on Claude Code at \`skills/domain/$name/\`):"
     echo ""
     # First 20 lines of body (after YAML), skipping the intro H1 line
-    strip_yaml "$skill_md" | sed '/^# /d' | head -20
+    strip_yaml "$skill_md" | sed '/^# /d' | head -20 || true
   done
 }
 
