@@ -16,7 +16,7 @@
       "description": "Ciel — Primary orchestrator. Full pipeline: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → FAIRE → RELIRE → PROUVER. Dispatch subagents for Standard/Critical tasks.",
       "mode": "primary",
       "prompt": "{file:./.opencode/agents/ciel.md}",
-      "temperature": 0.2,
+      "temperature": 0.7,
       "tools": {
         "read": true,
         "glob": true,

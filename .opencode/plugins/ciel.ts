@@ -37,6 +37,16 @@ You are using Ciel deep-reasoning workflow. For EVERY user message:
 
 4. **NEVER skip gates**: test-first, alternatives, idiomatic, quality, removal
 
+5. **META-CRITIQUER — after EVERY completed task** (after PROUVER or direct response):
+   Do a 30-second reflection before your final output:
+   - (1) Did depth classification match the actual work done?
+   - (2) Any new failure mode discovered?
+   - (3) Did the user correct something? → persist to learnings
+   - (4) Any stale branches to clean?
+   - (5) Any uncovered issues left?
+   - (6) Context health — suggest /compact if > 50%?
+   - (7) Any dead code introduced?
+
 This is NOT optional. Every conversation must follow this workflow.
 `;
 
@@ -145,6 +155,14 @@ const ciel: Plugin = async ({ $ }) => {
         lastDepthHint = "CIEL STOP — 30s META-CRITIQUER: (1) depth match? (2) failure mode? (3) user correction → overlay? (4) stale branches?";
         relireSticky = true;
         faireBlocked = null;
+      }
+
+      if (event.type === "session.deleted") {
+        // Log session deletion (includes child sessions from subagent Task tool)
+        const rawId = (event as any).sessionID ?? (event as any).info?.id ?? "unknown";
+        const sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
+        const isChild = (event as any).parentSessionId != null;
+        console.log(`[CIEL] Session ${sessionId} deleted${isChild ? " (subagent child)" : ""}`);
       }
 
       if (event.type === "session.error") {
