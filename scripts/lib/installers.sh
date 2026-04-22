@@ -256,10 +256,17 @@ install_opencode() {
   [ -f "$config_file" ] && cp "$config_file" "${config_file}.bak-$(date +%Y%m%dT%H%M%S)"
   
   if [ -f "$config_file" ]; then
-    if ! grep -q "ciel" "$config_file" 2>/dev/null; then
+    # Check if old wrong key "plugins" exists (needs migration)
+    if grep -q '"plugins"' "$config_file" 2>/dev/null; then
       local tmp_config
       tmp_config=$(mktemp)
-      jq '.plugin = (.plugin // []) + ["./.opencode/plugins/ciel.ts"]' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
+      # Migrate: rename "plugins" → "plugin" and fix path
+      jq 'with_entries(if .key == "plugins" then .key = "plugin" else . end) | .plugin = ((.plugin // []) + ["./.opencode/plugins/ciel.ts"] | unique)' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
+      ok "Migrated opencode.json: plugins → plugin"
+    elif ! grep -q '"plugin"' "$config_file" 2>/dev/null || ! grep -q "ciel" "$config_file" 2>/dev/null; then
+      local tmp_config
+      tmp_config=$(mktemp)
+      jq '.plugin = ((.plugin // []) + ["./.opencode/plugins/ciel.ts"] | unique)' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
       ok "Updated opencode.json"
     fi
   else
