@@ -1,15 +1,11 @@
-// Ciel — OpenCode plugin (v3.4.1)
-// Idiomatic OpenCode implementation using all session events.
+// Ciel — OpenCode plugin (v3.5.0)
+// Mandatory workflow injection for ciel-plan and ciel-build agents
 //
-// Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
-//   - experimental.chat.system.transform → push depth hint + sticky RELIRE + overlay
+// Injection model:
+//   - experimental.chat.system.transform → CIEL WORKFLOW (mandatory) + depth hint + RELIRE + overlay
 //   - experimental.chat.messages.transform → depth classification
-//   - experimental.session.compacting → learnings-capture injection
-//   - tool.execute.after (write|edit) → FAIRE/RELIRE reminders + file tracking (fallback)
-//   - session.* events → banner, overlay load, META-CRITIQUER
-//
-// Why not tool.execute.before? Output shape is { args } only — no context injection.
-// Why not chat.params? No `system` field — silent no-op.
+//   - session.* events → tracking, META-CRITIQUER
+//   - tool.execute.after → FAIRE/RELIRE reminders + file tracking
 
 import type { Plugin } from "@opencode-ai/plugin";
 import { readFileSync, existsSync } from "fs";
@@ -19,51 +15,65 @@ const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|
 const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration\.schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
 const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b/i;
 
+// MANDATORY WORKFLOW INJECTION — Added to EVERY system prompt
+const CIEL_WORKFLOW_INSTRUCTION = `
+[CIEL MANDATORY WORKFLOW — ALWAYS ACTIVE]
+
+You are using Ciel deep-reasoning workflow. For EVERY user message:
+
+1. **ALWAYS classify depth first** (Trivial/Standard/Critical)
+2. **ALWAYS follow the pipeline**:
+   - Trivial: Direct response
+   - Standard: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → PLAN → FAIRE → RELIRE → PROUVER
+   - Critical: Same + STRIDE analysis + security-regression-check
+
+3. **ALWAYS dispatch subagents** when required:
+   - @ciel-researcher: External libs, APIs, unknown patterns
+   - @ciel-explorer: Codebase analysis (3+ files)
+   - @ciel-critic: 5+ files changed OR critical files (auth/, security/, *Service.*)
+
+4. **NEVER skip gates**: test-first, alternatives, idiomatic, quality, removal
+
+This is NOT optional. Every conversation must follow this workflow.
+`;
+
 const ciel: Plugin = async ({ $ }) => {
-  // Per-session state
   const writtenFiles = new Set<string>();
   const remindedFiles = new Set<string>();
-  const MAX_TRACKED_FILES = 100; // FIFO eviction to prevent unbounded memory growth
+  const MAX_TRACKED_FILES = 100;
   let relireSticky = false;
   let lastDepthHint: string | null = null;
   let overlayContent: string | null = null;
 
   return {
-    // ─── SESSION EVENTS ─────────────────────────────────────────────────────
     event: async ({ event }) => {
-      // 1. session.created — Banner + Overlay load
       if (event.type === "session.created") {
         const sessionId = event.info?.id?.slice(0, 8) ?? "unknown";
         console.log(`[CIEL] Session ${sessionId} started`);
 
-        // Load ciel-overlay.md if present (redact sensitive sections)
         if (existsSync("./ciel-overlay.md")) {
           try {
             const rawOverlay = readFileSync("./ciel-overlay.md", "utf-8");
-            // Redact sections marked as sensitive (e.g., secrets, credentials)
             overlayContent = rawOverlay.replace(
               /##\s*\S*sensitive[:\s]*true\S*\s*\n([\s\S]*?)(?=\n##\s|\n*$)/gi,
               "## [REDACTED — sensitive section]\n"
             );
           } catch {
-            // Silent fail — overlay is optional
+            // Silent fail
           }
         }
 
-        // Reset per-session state
         writtenFiles.clear();
         remindedFiles.clear();
         relireSticky = false;
         lastDepthHint = null;
       }
 
-      // 2. session.diff — Track file changes (primary method if supported)
       if (event.type === "session.diff") {
         const diffs = (event as any).diff ?? [];
         for (const fileDiff of diffs) {
           const path = fileDiff?.path ?? "";
           if (CODE_EXT_RE.test(path)) {
-            // FIFO eviction to prevent unbounded memory growth
             if (writtenFiles.size >= MAX_TRACKED_FILES) {
               const firstKey = writtenFiles.values().next().value!;
               writtenFiles.delete(firstKey);
@@ -77,13 +87,11 @@ const ciel: Plugin = async ({ $ }) => {
         }
       }
 
-      // 3. session.idle — META-CRITIQUER trigger (fire-and-forget)
       if (event.type === "session.idle") {
         lastDepthHint = "CIEL STOP — 30s META-CRITIQUER: (1) depth match? (2) failure mode? (3) user correction → overlay? (4) stale branches?";
         relireSticky = true;
       }
 
-      // 4. session.error — Error logging (critical only)
       if (event.type === "session.error") {
         const errorName = (event as any).error?.name ?? "UnknownError";
         const errorMessage = (event as any).error?.message ?? "";
@@ -93,11 +101,13 @@ const ciel: Plugin = async ({ $ }) => {
       }
     },
 
-    // ─── SYSTEM PROMPT INJECTION ────────────────────────────────────────────
     "experimental.chat.system.transform": async (_input, output) => {
       if (!Array.isArray(output?.system)) return;
 
-      // Overlay injection (every turn — in case overlay is reloaded)
+      // ⚠️ MANDATORY WORKFLOW INJECTION (FIRST — highest priority)
+      output.system.push(CIEL_WORKFLOW_INSTRUCTION);
+
+      // Overlay injection
       if (overlayContent) {
         output.system.push(`Project Overlay:\n${overlayContent}`);
       }
@@ -116,12 +126,10 @@ const ciel: Plugin = async ({ $ }) => {
       }
     },
 
-    // ─── MESSAGE TRANSFORM — Depth classification ───────────────────────────
     "experimental.chat.messages.transform": async (_input, output) => {
       const msgs = output?.messages;
       if (!Array.isArray(msgs) || msgs.length === 0) return;
 
-      // Find most recent user text part
       let prompt = "";
       for (let i = msgs.length - 1; i >= 0 && !prompt; i--) {
         const m = msgs[i];
@@ -153,14 +161,12 @@ const ciel: Plugin = async ({ $ }) => {
         : null;
     },
 
-    // ─── SESSION COMPACTION — learnings-capture ─────────────────────────────
     "experimental.session.compacting": async (_input, output) => {
       output.context.push(
         "CIEL PRE-COMPACT — Invoke learnings-capture skill NOW. Persist: (1) user corrections, (2) failure modes, (3) failed approaches + why they failed."
       );
     },
 
-    // ─── TOOL HOOKS — FAIRE/RELIRE reminders + file tracking (fallback) ─────
     tool: {
       execute: {
         after: async (input, output) => {
@@ -168,8 +174,6 @@ const ciel: Plugin = async ({ $ }) => {
           const filePath: string = input.args?.file_path ?? input.args?.path ?? "";
           if (!filePath || !CODE_EXT_RE.test(filePath)) return;
 
-          // Fallback tracking if session.diff is not supported by OpenCode
-          // FIFO eviction to prevent unbounded memory growth
           if (writtenFiles.size >= MAX_TRACKED_FILES) {
             const firstKey = writtenFiles.values().next().value!;
             writtenFiles.delete(firstKey);
