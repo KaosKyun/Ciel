@@ -1,5 +1,13 @@
 # Ciel — Changelog
 
+## v3.4.4 — 2026-04-22 — Force clean install of Claude Code hooks
+
+### Fixed
+
+- **Clean install** — `rm -rf ~/.claude/plugins/ciel` before installing to ensure stale hooks are replaced. Old hooks with python3 dependency and wrong event names were not being overwritten.
+
+---
+
 ## v3.4.3 — 2026-04-22 — Fix hooks arguments + OpenCode subagents
 
 ### Fixed
