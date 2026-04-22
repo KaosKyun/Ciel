@@ -1,12 +1,12 @@
-// Ciel — OpenCode plugin (v3.4.0)
+// Ciel — OpenCode plugin (v3.4.1)
 // Idiomatic OpenCode implementation using all session events.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
 //   - experimental.chat.system.transform → push depth hint + sticky RELIRE + overlay
 //   - experimental.chat.messages.transform → depth classification
 //   - experimental.session.compacting → learnings-capture injection
-//   - tool.execute.after (write|edit) → FAIRE/RELIRE reminders
-//   - session.* events → banner, overlay load, file tracking, META-CRITIQUER
+//   - tool.execute.after (write|edit) → FAIRE/RELIRE reminders + file tracking (fallback)
+//   - session.* events → banner, overlay load, META-CRITIQUER
 //
 // Why not tool.execute.before? Output shape is { args } only — no context injection.
 // Why not chat.params? No `system` field — silent no-op.
@@ -57,7 +57,7 @@ const ciel: Plugin = async ({ $ }) => {
         lastDepthHint = null;
       }
 
-      // 2. session.diff — Track file changes (more reliable than tool.execute.after)
+      // 2. session.diff — Track file changes (primary method if supported)
       if (event.type === "session.diff") {
         const diffs = (event as any).diff ?? [];
         for (const fileDiff of diffs) {
@@ -160,13 +160,25 @@ const ciel: Plugin = async ({ $ }) => {
       );
     },
 
-    // ─── TOOL HOOKS — FAIRE/RELIRE reminders ────────────────────────────────
+    // ─── TOOL HOOKS — FAIRE/RELIRE reminders + file tracking (fallback) ─────
     tool: {
       execute: {
         after: async (input, output) => {
           if (!["write", "edit"].includes(input.tool)) return;
           const filePath: string = input.args?.file_path ?? input.args?.path ?? "";
           if (!filePath || !CODE_EXT_RE.test(filePath)) return;
+
+          // Fallback tracking if session.diff is not supported by OpenCode
+          // FIFO eviction to prevent unbounded memory growth
+          if (writtenFiles.size >= MAX_TRACKED_FILES) {
+            const firstKey = writtenFiles.values().next().value!;
+            writtenFiles.delete(firstKey);
+            remindedFiles.delete(firstKey);
+          }
+          writtenFiles.add(filePath);
+          if (writtenFiles.size >= 5 || CRITICAL_FILE_RE.test(filePath)) {
+            relireSticky = true;
+          }
 
           remindedFiles.add(filePath);
           const isCritical = CRITICAL_FILE_RE.test(filePath);
