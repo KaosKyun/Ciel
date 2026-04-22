@@ -133,8 +133,8 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "bash",
-            "args": ["$HOME/.claude/plugins/ciel/session-start.sh"]
+            "command": "echo",
+            "args": ["CIEL v3.5.0 — Deep-reasoning active. Principle: Understand before generating. Verify before claiming done."]
           }
         ]
       }
@@ -145,8 +145,8 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "bash",
-            "args": ["$HOME/.claude/plugins/ciel/stop.sh"]
+            "command": "echo",
+            "args": ["CIEL STOP — META-CRITIQUER: depth match? failure mode? user correction? stale branches?"]
           }
         ]
       }
@@ -157,8 +157,8 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "bash",
-            "args": ["$HOME/.claude/plugins/ciel/pre-tool-write.sh"]
+            "command": "echo",
+            "args": ["CIEL FAIRE — alternatives? idiomatic? quality gates? test-first (RED)? removal gate?"]
           }
         ]
       }
@@ -169,8 +169,8 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "bash",
-            "args": ["$HOME/.claude/plugins/ciel/post-tool-write.sh"]
+            "command": "echo",
+            "args": ["CIEL RELIRE — 3 RISQUES (functional + imports + data) + FIX/ACCEPT/DEFER."]
           }
         ]
       }
@@ -181,8 +181,8 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "bash",
-            "args": ["$HOME/.claude/plugins/ciel/pre-compact.sh"]
+            "command": "echo",
+            "args": ["CIEL PRE-COMPACT — Invoke learnings-capture skill NOW."]
           }
         ]
       }
