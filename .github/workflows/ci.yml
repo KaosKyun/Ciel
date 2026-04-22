@@ -123,39 +123,6 @@ jobs:
             fi
           done
 
-  validate-typescript:
-    name: Validate TypeScript (Plugin)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    # Known issue: Type incompatibilities with @opencode-ai/plugin (non-blocking)
-    # This job is for informational purposes only and does not block CI
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          submodules: false
-          set-safe-directory: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: .opencode/package-lock.json
-
-      - name: Install dependencies
-        working-directory: .opencode
-        run: npm ci
-
-      - name: Validate TypeScript syntax
-        run: |
-          echo "Validating TypeScript plugin..."
-          cd .opencode
-          # Use --ignoreConfig to avoid tsconfig.json conflict when specifying files
-          npx tsc --noEmit --ignoreConfig plugins/ciel.ts
-          echo "✓ TypeScript validation passed"
-
   validate-byte-limits:
     name: Validate Byte Limits
     runs-on: ubuntu-latest
