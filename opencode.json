@@ -12,34 +12,20 @@
     }
   },
   "agent": {
-    "ciel-plan": {
-      "description": "Ciel Plan — Analyse, planning et dispatch des subagents. Read-only (edit denied).",
+    "ciel": {
+      "description": "Ciel — Primary orchestrator. Full pipeline: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → FAIRE → RELIRE → PROUVER. Dispatch subagents for Standard/Critical tasks.",
       "mode": "primary",
-      "prompt": "{file:./.opencode/agents/ciel-plan.md}",
-      "temperature": 0.1,
-      "permission": {
-        "edit": "deny",
-        "bash": "ask",
-        "task": {
-          "ciel-explorer": "allow",
-          "ciel-researcher": "allow",
-          "ciel-critic": "allow",
-          "ciel-build": "allow"
-        }
-      }
-    },
-    "ciel-build": {
-      "description": "Ciel Build — Implémentation, FAIRE gates, RELIRE. Full tools.",
-      "mode": "primary",
-      "prompt": "{file:./.opencode/agents/ciel-build.md}",
+      "prompt": "{file:./.opencode/agents/ciel.md}",
       "temperature": 0.2,
-      "permission": {
-        "edit": "allow",
-        "bash": "allow",
-        "task": {
-          "ciel-critic": "allow",
-          "ciel-explorer": "allow"
-        }
+      "tools": {
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "bash": true,
+        "write": true,
+        "edit": true,
+        "webfetch": true,
+        "websearch": true
       }
     },
     "ciel-researcher": {

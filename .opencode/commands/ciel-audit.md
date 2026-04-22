@@ -25,9 +25,10 @@ Scan the session's tool-use history. For each task, check:
 #### 1. Dispatch discipline (critical)
 
 - Did the assistant dispatch `@ciel-researcher` / `@ciel-explorer` / `@ciel-critic` via `Task()` within **first 3 tool calls** for Standard/Critical tasks?
-- If NO: count inline `Bash` / `Read` / `Grep` / `WebSearch` / `WebFetch` calls before any dispatch.
+- If NO: count inline `Bash` / `Read` / `Grep` / `WebSearch` / `WebFetch` calls emitted in the main session before any dispatch.
+- **Budget check**: Did the assistant emit **more than 5** inline Bash/Read/Grep/WebSearch/WebFetch calls before any `Task()` dispatch? If yes, flag as **critical** per `.opencode/agents/ciel.md` context-budget rules.
 - Exception: Trivial tasks (rename, typo, docs) allowed inline.
-- **OpenCode context:** Primary agents are `ciel-plan` and `ciel-build`. Check if user switched via Tab, or if subagents were @mentioned.
+- **OpenCode context:** Primary agent is `ciel`. Check if subagents were @mentioned.
 
 #### 2. Plugin hook activity (critical)
 
@@ -44,10 +45,10 @@ Most likely root cause: Plugin not loaded, or `opencode.json` missing `"plugin":
 
 #### 3. Primary agent usage
 
-- Did user switch between `ciel-plan` and `ciel-build` via Tab for appropriate tasks?
-- If task was analysis/planning → should use `ciel-plan`
-- If task was implementation → should use `ciel-build`
-- If wrong agent used → flag as medium severity
+- Did the assistant use the single `ciel` primary agent for the full pipeline (analyse → plan → implement → verify)?
+- If task was analysis/planning → should stay in `ciel` and dispatch subagents, NOT code directly
+- If task was implementation → should follow FAIRE gates (test-first, alternatives, idiomatic, quality)
+- If wrong flow used → flag as medium severity.
 
 #### 4. Subagent dispatch
 
@@ -57,6 +58,7 @@ For Standard/Critical tasks, verify:
 - `@ciel-explorer` dispatched for CODEBASE + FLUX steps
 - `@ciel-critic MODE=RELIRE` dispatched after 5+ files modified
 - `@ciel-critic MODE=CRITIQUER` for Critical tasks before merge
+- **Depth ambiguity**: If depth was ambiguous and `depth-classifier` was not invoked → **medium severity**.
 
 Missing dispatch → flag with severity based on task depth.
 
@@ -75,6 +77,27 @@ Scan user prompts for intent signals:
 | "review UI", "visual" | `@ciel-critic` + `playwright-visual-critic` (if MCP configured) |
 | "accessibility", "a11y" | `@ciel-explorer` + `accessibility-wcag-auditor` |
 | "CI", "workflow", ".github" | `@ciel-explorer` + `cicd-security-hardener` |
+| "mcp server", "mcp config", ".mcp.json", "claude mcp" | `@ciel-explorer` then `@ciel-critic MODE=RCA` + `debug-reasoning-rca` |
+
+##### 6b. Mid-session re-routing rule (v2.4.1)
+
+For **every Edit/Write tool call** in the session, verify that the intent routing table above was re-scanned against the target file path.
+
+- Example: if an edit targets `.github/workflows/*.yml`, `cicd-security-hardener` should have been dispatched even if the original task was something else.
+- Example: if an edit targets `auth/` or `security/`, `stride-analyzer` should have been invoked even if the original depth was classified as Standard.
+- If the file path implies a higher depth or a different skill than what was originally dispatched → flag as **high severity**.
+
+#### 7. Skill overlap / redundancy
+
+- Did the assistant invoke **both** `relire-critic` AND `critiquer-auditor` on the same diff? They should be mutually exclusive (`relire-critic` = post-FAIRE quick pass; `critiquer-auditor` = standalone audit of existing code).
+- Did `meta-critiquer` fire at end-of-task? If the task ended and no `meta-critiquer` trace exists → flag as **low severity**.
+- Any skill invoked **3+ times** for the same scope → flag as a **churn signal**.
+
+#### 8. Context budget check
+
+- Did the assistant use **lazy reading** (e.g., `Grep` before any full `Read` of a file being modified)? If a file was edited without being fully read first → flag as **medium severity**.
+- Did the assistant suggest `/compact` or equivalent context compaction when context usage was **> 50%**? If not, and the session continued with degraded context → flag as **medium severity**.
+- Did the assistant **mask old observations** (ignore prior tool results older than 3 turns without re-reading)? If old observations were referenced without re-verification → flag as **low severity**.
 
 ---
 
@@ -102,14 +125,14 @@ Begin with `# Ciel OpenCode Audit Report`. End with `**End of audit report.**`
   1. `<tool_name>(<brief args>)`
   2. `<tool_name>(<brief args>)`
   3. `<tool_name>(<brief args>)`
-- Expected (per `.opencode/agents/ciel-plan.md:<line>`): `@ciel-researcher` or `@ciel-explorer` dispatch
+- Expected (per `.opencode/agents/ciel.md:<line>`): `@ciel-researcher` or `@ciel-explorer` dispatch
 - Observed: inline `Read`/`Grep` — no dispatch
 
 **Root cause hypothesis**
 <one sentence: buried rule, missing gate, plugin not loaded, etc.>
 
 **Incriminated Ciel files**
-- `.opencode/agents/ciel-plan.md:<line>` — <reason>
+- `.opencode/agents/ciel.md:<line>` — <reason>
 - `.opencode/plugins/ciel.ts:<line>` — <reason>
 - `opencode.json:<line>` — <reason>
 
@@ -143,7 +166,7 @@ After each fix: re-run scenario in fresh session to verify.
 
 **Verdict**: PASS
 
-Session summary: <N> tasks, <N> tool calls, <N> Task() dispatches. All intents routed correctly. Plugin hooks active. No skill overlap.
+Session summary: <N> tasks, <N> tool calls, <N> Task() dispatches. All intents routed correctly. Plugin hooks active. No skill overlap. No dispatch discipline issues.
 
 **End of audit report.**
 ```

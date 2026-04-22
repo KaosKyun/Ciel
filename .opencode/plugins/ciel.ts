@@ -1,5 +1,5 @@
 // Ciel — OpenCode plugin (v3.7.0)
-// Mandatory workflow injection for ciel-plan and ciel-build agents
+// Mandatory workflow injection for ciel primary agent
 //
 // Injection model:
 //   - experimental.chat.system.transform → CIEL WORKFLOW (mandatory) + depth hint + RELIRE + overlay + faireBlocked
