@@ -98,6 +98,9 @@ uninstall_claude_code() {
 
 # ─── OpenCode Installer ──────────────────────────────────────────────────────
 
+
+# ─── OpenCode Installer ──────────────────────────────────────────────────────
+
 install_opencode() {
   local ciel_dir="$1"
   local project_root="${2:-$(pwd)}"
@@ -107,24 +110,78 @@ install_opencode() {
   # Create .opencode directory if needed
   mkdir -p "$project_root/.opencode"
   
-  # Copy plugin
-  mkdir -p "$project_root/.opencode/plugins"
-  cp "$ciel_dir/platforms/opencode/.opencode/plugins/ciel.ts" \
-     "$project_root/.opencode/plugins/"
+  # GitHub base URL for downloads
+  local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   
-  # Copy agents
-  cp -r "$ciel_dir/platforms/opencode/.opencode/agents/" \
-        "$project_root/.opencode/agents/" 2>/dev/null || \
-  cp -r "$ciel_dir/.opencode/agents/" \
-        "$project_root/.opencode/agents/" 2>/dev/null || true
-  
-  # Copy commands
-  cp -r "$ciel_dir/platforms/opencode/.opencode/commands/" \
-        "$project_root/.opencode/commands/" 2>/dev/null || \
-  cp -r "$ciel_dir/.opencode/commands/" \
-        "$project_root/.opencode/commands/" 2>/dev/null || true
-  
-  ok "Installed plugin and agents"
+  # Check if running from temp dir (curl mode) or local repo
+  if [[ "$ciel_dir" == /tmp/* ]]; then
+    # Curl mode - download files from GitHub
+    info "Downloading OpenCode files from GitHub..."
+    
+    # Create directories
+    mkdir -p "$project_root/.opencode/plugins"
+    mkdir -p "$project_root/.opencode/agents"
+    mkdir -p "$project_root/.opencode/commands"
+    mkdir -p "$project_root/.opencode/skills"
+    
+    # Download plugin
+    if ! curl -fsSL "$GITHUB_BASE/.opencode/plugins/ciel.ts" -o "$project_root/.opencode/plugins/ciel.ts" 2>/dev/null; then
+      err "Failed to download plugin"
+      return 1
+    fi
+    ok "Downloaded plugin"
+    
+    # Download agents
+    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+      if curl -fsSL "$GITHUB_BASE/.opencode/agents/${agent}.md" -o "$project_root/.opencode/agents/${agent}.md" 2>/dev/null; then
+        ok "Downloaded agent: $agent"
+      else
+        warn "Failed to download agent: $agent"
+      fi
+    done
+    
+    # Download commands
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+      if curl -fsSL "$GITHUB_BASE/.opencode/commands/${cmd}.md" -o "$project_root/.opencode/commands/${cmd}.md" 2>/dev/null; then
+        ok "Downloaded command: $cmd"
+      else
+        warn "Failed to download command: $cmd"
+      fi
+    done
+    
+    # Download skills (ciel-critic)
+    mkdir -p "$project_root/.opencode/skills/ciel-critic"
+    for skill in relire-critic critiquer-auditor stride-analyzer security-regression-check debug-reasoning-rca self-consistency-verifier; do
+      if curl -fsSL "$GITHUB_BASE/.opencode/skills/ciel-critic/${skill}.md" -o "$project_root/.opencode/skills/ciel-critic/${skill}.md" 2>/dev/null; then
+        ok "Downloaded skill: ciel-critic/$skill"
+      else
+        warn "Failed to download skill: ciel-critic/$skill"
+      fi
+    done
+    
+    # Download skills (workflow)
+    mkdir -p "$project_root/.opencode/skills/workflow"
+    for skill in depth-classifier; do
+      if curl -fsSL "$GITHUB_BASE/.opencode/skills/workflow/${skill}.md" -o "$project_root/.opencode/skills/workflow/${skill}.md" 2>/dev/null; then
+        ok "Downloaded skill: workflow/$skill"
+      else
+        warn "Failed to download skill: workflow/$skill"
+      fi
+    done
+    
+  else
+    # Local repo mode - copy files
+    mkdir -p "$project_root/.opencode/plugins"
+    cp "$ciel_dir/.opencode/plugins/ciel.ts" "$project_root/.opencode/plugins/" || {
+      err "Failed to copy plugin"
+      return 1
+    }
+    
+    cp -r "$ciel_dir/.opencode/agents/" "$project_root/.opencode/agents/" 2>/dev/null || true
+    cp -r "$ciel_dir/.opencode/commands/" "$project_root/.opencode/commands/" 2>/dev/null || true
+    cp -r "$ciel_dir/.opencode/skills/" "$project_root/.opencode/skills/" 2>/dev/null || true
+    ok "Copied plugin and agents"
+  fi
   
   # Update opencode.json
   local config_file="$project_root/opencode.json"
@@ -132,48 +189,30 @@ install_opencode() {
   
   if [ -f "$config_file" ]; then
     cp "$config_file" "$backup_file"
-    
-    # Merge configuration using Python (safe JSON handling)
-    python3 - "$ciel_dir/platforms/opencode/opencode.json" "$config_file" <<'PY'
-import json, sys
-src, dst = sys.argv[1], sys.argv[2]
-
-with open(src) as f:
-    template = json.load(f)
-with open(dst) as f:
-    current = json.load(f)
-
-# Merge plugin array
-current.setdefault("plugin", [])
-if "./.opencode/plugins/ciel.ts" not in current["plugin"]:
-    current["plugin"].append("./.opencode/plugins/ciel.ts")
-
-# Merge instructions array
-current.setdefault("instructions", [])
-if "AGENTS.md" not in current["instructions"]:
-    current["instructions"].append("AGENTS.md")
-
-with open(dst, "w") as f:
-    json.dump(current, f, indent=2)
-    f.write("\n")
-
-print("  ✓ Merged plugin and instructions")
-PY
+  fi
+  
+  # Check if Ciel plugin is already registered
+  if [ -f "$config_file" ]; then
+    if ! grep -q "ciel" "$config_file" 2>/dev/null; then
+      # Add plugin to existing config
+      local temp_config
+      temp_config=$(mktemp)
+      jq '.plugins = (.plugins // []) + ["./plugins/ciel.ts"]' "$config_file" > "$temp_config" && \
+        mv "$temp_config" "$config_file"
+      ok "Updated opencode.json"
+    fi
   else
     # Create new config
-    cp "$ciel_dir/platforms/opencode/opencode.json" "$config_file"
+    cat > "$config_file" <<EOFCONFIG
+{
+  "plugins": ["./plugins/ciel.ts"]
+}
+EOFCONFIG
     ok "Created opencode.json"
   fi
   
-  # Copy AGENTS.md if it doesn't exist
-  if [ ! -f "$project_root/AGENTS.md" ]; then
-    cp "$ciel_dir/platforms/opencode/AGENTS.md" "$project_root/"
-    ok "Created AGENTS.md"
-  fi
-  
-  return 0
+  ok "Ciel installed for OpenCode"
 }
-
 uninstall_opencode() {
   local project_root="${1:-$(pwd)}"
   
