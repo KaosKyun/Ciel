@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v3.4.0)
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v3.7.0)
 
 Source: https://github.com/KaosKyun/Ciel
 
@@ -6,22 +6,21 @@ Principle: **"Understand before generating. Verify before claiming done."**
 
 Ciel is installed as OpenCode-native primitives:
 
-- **Plugin** (`.opencode/plugins/ciel.ts`) — session events + depth classification + RELIRE reminders.
-- **Primary Agents** (`.opencode/agents/ciel-plan.md`, `ciel-build.md`) — switch via Tab key.
+- **Plugin** (`.opencode/plugins/ciel.ts`) — session events + workflow injection + depth classification + RELIRE reminders + META-CRITIQUER.
+- **Primary Agent** (`.opencode/agents/ciel.md`) — single orchestrator: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → FAIRE → RELIRE → PROUVER. Dispatches subagents for Standard/Critical tasks.
 - **Subagents** (`.opencode/agents/ciel-*.md`) — dispatch with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
 - **Commands** (`.opencode/commands/`) — `/ciel-init`, `/ciel-update`, `/ciel-refresh`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-audit`.
 
 ---
 
-## Primary Agents — Switch via Tab
+## Primary Agent — Single Orchestrator
 
 | Agent | Mode | Rôle | Permissions |
 |-------|------|------|-------------|
-| **`ciel-plan`** | `primary` | Analyse, planning, dispatch subagents | `edit: ask`, `bash: ask` (read-only) |
-| **`ciel-build`** | `primary` | Implémentation, FAIRE gates, RELIRE | `edit: allow`, `bash: allow` (full tools) |
+| **`ciel`** | `primary` | Full pipeline: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → FAIRE → RELIRE → PROUVER | `edit: allow`, `bash: allow` (full tools) |
 
 **Usage:**
-1. **Tab** key to switch between `ciel-plan` and `ciel-build` during a session.
+1. **One agent** — no Tab switching needed. `ciel` handles planning AND implementation.
 2. **@mention** subagents directly: `@ciel-researcher find docs for X`.
 
 ---
@@ -31,10 +30,10 @@ Ciel is installed as OpenCode-native primitives:
 | Level | Example | Pipeline |
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-line fix | `quoi-framer` → inline, no dispatch |
-| **Standard** | hook, route, component, service | `ciel-plan` → `@ciel-explorer` → `ciel-build` → `@ciel-critic` (si 5+ fichiers) |
-| **Critical** | auth, DB schema, security, payment | `ciel-plan` → `@ciel-researcher` + `@ciel-explorer` (PARALLÈLE) → `ciel-build` → `@ciel-critic MODE=RELIRE` (mandatory) |
+| **Standard** (feature, refactor) | hook, route, component | `@ciel-explorer` if 3+ files → `ciel` does FAIRE → `@ciel-critic` if 5+ files |
+| **Critical** (auth, DB, security, payment) | auth/, DB schema, payment | `@ciel-researcher` + `@ciel-explorer` IN PARALLEL → `ciel` does FAIRE → `@ciel-critic MODE=RELIRE` (mandatory) |
 
-Unsure → Standard. Touching user data or auth → Critical.
+Unsure → **Standard**. Touching user data or auth → **Critical**.
 
 ---
 
@@ -49,11 +48,11 @@ Unsure → Standard. Touching user data or auth → Critical.
 7. **FAIRE** — test-first (RED), alternatives gate, idiomatic gate, removal gate
 8. **RELIRE** — `@ciel-critic MODE=RELIRE`: 3 RISQUE + FIX/ACCEPT/DEFER
 9. **PROUVER** — AVANT/APRÈS evidence + CI gate + PR body
-10. **META** — 30s post-task reflection: depth match? failure mode? user correction?
+10. **META-CRITIQUER** — 30s post-task reflection: depth match? failure mode? user correction?
 
 ---
 
-## Agent dispatch rules
+## Subagent dispatch rules
 
 | Agent | When | Context | Permissions |
 |-------|------|---------|-------------|
@@ -70,11 +69,28 @@ Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing co
 
 The `ciel.ts` plugin injects:
 
+- **META-CRITIQUER** — 7-item reflection after every completed task (injected in every system prompt)
 - **Depth classification** on every user prompt (via `experimental.chat.messages.transform`)
 - **RELIRE reminders** after every Write/Edit (via `tool.execute.after`)
+- **FAIRE gates** reminder before every Write/Edit (via `tool.execute.before`)
 - **Overlay context** from `ciel-overlay.md` (via `experimental.chat.system.transform`)
-- **META-CRITIQUER** on `session.idle` event
 - **learnings-capture** on `experimental.session.compacting`
+- **session.deleted** logging (tracks subagent child sessions)
+
+---
+
+## Intent routing (auto-dispatch)
+
+| Intent keywords | Expected agent/skill |
+|----------------|---------------------|
+| "debug", "RCA", "incident" | `@ciel-critic MODE=RCA` + `debug-reasoning-rca` |
+| "use library X", "API" | `@ciel-researcher` + `doc-validator-official` |
+| "review UI", "visual" | `@ciel-critic` + `playwright-visual-critic` (if MCP) |
+| "accessibility", "a11y", "WCAG" | `@ciel-explorer` + `accessibility-wcag-auditor` |
+| "CI", "workflow", ".github" | `@ciel-explorer` + `cicd-security-hardener` |
+| "merge PR", "auto-merge" | `pr-merger` (after `prouver-verifier` + CI green) |
+| "respond to review" | `pr-review-responder` |
+| "watch CI", "flaky" | `ci-watcher` |
 
 ---
 
