@@ -3,8 +3,6 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # ─── Claude Code Installer ───────────────────────────────────────────────────
 
 install_claude_code() {
@@ -19,11 +17,10 @@ install_claude_code() {
   mkdir -p "$plugin_dir"
   
   if [[ "$ciel_dir" == /tmp/* ]]; then
-    # Curl mode - download from GitHub
     info "Downloading Ciel components from GitHub..."
     
-    # Download hooks
-    for hook in SessionStart.sh SessionEnd.sh PreToolUse.sh PostToolUse.sh PreCompact.sh PostCompact.sh; do
+    # Download hooks (actual names on GitHub)
+    for hook in session-start.sh stop.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh; do
       curl -fsSL "$GITHUB_BASE/hooks/$hook" -o "$plugin_dir/$hook" 2>/dev/null && ok "Hook: $hook" || warn "Missing: $hook"
     done
     
@@ -44,7 +41,6 @@ install_claude_code() {
     
     ok "Downloaded Ciel components"
   else
-    # Local mode - copy files
     cp -r "$ciel_dir/hooks/" "$plugin_dir/" 2>/dev/null || true
     cp -r "$ciel_dir/skills/" "$plugin_dir/" 2>/dev/null || true
     cp -r "$ciel_dir/agents/" "$plugin_dir/" 2>/dev/null || true
@@ -65,12 +61,11 @@ install_claude_code() {
   cat > "$config_file" << 'EOFCONFIG'
 {
   "hooks": {
-    "SessionStart": {"command": "bash", "args": ["~/.claude/plugins/ciel/SessionStart.sh"]},
-    "SessionEnd": {"command": "bash", "args": ["~/.claude/plugins/ciel/SessionEnd.sh"]},
-    "PreToolUse": {"command": "bash", "args": ["~/.claude/plugins/ciel/PreToolUse.sh"]},
-    "PostToolUse": {"command": "bash", "args": ["~/.claude/plugins/ciel/PostToolUse.sh"]},
-    "PreCompact": {"command": "bash", "args": ["~/.claude/plugins/ciel/PreCompact.sh"]},
-    "PostCompact": {"command": "bash", "args": ["~/.claude/plugins/ciel/PostCompact.sh"]}
+    "SessionStart": {"command": "bash", "args": ["~/.claude/plugins/ciel/session-start.sh"]},
+    "Stop": {"command": "bash", "args": ["~/.claude/plugins/ciel/stop.sh"]},
+    "PreToolWrite": {"command": "bash", "args": ["~/.claude/plugins/ciel/pre-tool-write.sh"]},
+    "PostToolWrite": {"command": "bash", "args": ["~/.claude/plugins/ciel/post-tool-write.sh"]},
+    "PreCompact": {"command": "bash", "args": ["~/.claude/plugins/ciel/pre-compact.sh"]}
   }
 }
 EOFCONFIG
@@ -79,9 +74,7 @@ EOFCONFIG
 }
 
 uninstall_claude_code() {
-  local project_root="${1:-$(pwd)}"
   rm -rf "$HOME/.claude/plugins/ciel"
-  rm -f "$project_root/.claude/settings.json"
   ok "Uninstalled Claude Code components"
 }
 
@@ -122,7 +115,6 @@ install_opencode() {
     ok "Copied OpenCode components"
   fi
   
-  # Update opencode.json
   local config_file="$project_root/opencode.json"
   [ -f "$config_file" ] && cp "$config_file" "${config_file}.bak-$(date +%Y%m%dT%H%M%S)"
   
