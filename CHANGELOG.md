@@ -1,5 +1,22 @@
 # Ciel — Changelog
 
+## v3.4.6 — 2026-04-22 — Use 'true' command for Claude Code hooks
+
+### Fixed
+
+- **Hooks command** — Replaced `echo` with `true` command in Claude Code hooks to test if session_id metadata causes argument errors
+
+---
+
+## v3.4.5 — 2026-04-22 — Force clean install + remove subagents
+
+### Fixed
+
+- **Clean install** — `rm -rf ~/.claude/plugins/ciel` before installing
+- **OpenCode subagents** — Removed `.opencode/agents/subagents/` creation (format conflict)
+
+---
+
 ## v3.4.4 — 2026-04-22 — Force clean install of Claude Code hooks
 
 ### Fixed
