@@ -5,29 +5,35 @@ set -euo pipefail
 
 CIEL_CENTRAL="$HOME/.ciel"
 
-# ─── Central Skills Installer ────────────────────────────────────────────────
+# ─── Central Resources Installer (skills + commands) ─────────────────────────
 
-install_central_skills() {
+install_central_resources() {
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   
-  info "Installing central Ciel skills to $CIEL_CENTRAL..."
+  info "Installing central Ciel resources to $CIEL_CENTRAL..."
   mkdir -p "$CIEL_CENTRAL/skills/ciel-critic" "$CIEL_CENTRAL/skills/workflow" "$CIEL_CENTRAL/skills/research" "$CIEL_CENTRAL/skills/security" "$CIEL_CENTRAL/skills/domain" "$CIEL_CENTRAL/skills/meta" "$CIEL_CENTRAL/skills/utility"
+  mkdir -p "$CIEL_CENTRAL/commands"
   
-  # Download all skill categories
+  # Skills
   for category in ciel-critic workflow research security domain meta utility; do
     for skill_file in $(curl -fsSL "https://api.github.com/repos/KaosKyun/Ciel/contents/skills/$category" 2>/dev/null | jq -r '.[].name' 2>/dev/null); do
       curl -fsSL "$GITHUB_BASE/skills/$category/$skill_file" -o "$CIEL_CENTRAL/skills/$category/$skill_file" 2>/dev/null || true
     done
   done
   
-  ok "Central skills installed to $CIEL_CENTRAL"
+  # Commands (central copies)
+  for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+    curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$CIEL_CENTRAL/commands/${cmd}.md" 2>/dev/null && ok "Central command: $cmd" || true
+  done
+  
+  ok "Central resources installed"
 }
 
 create_skills_symlink() {
   local platform_dir="$1"
   rm -rf "$platform_dir/skills"
   ln -sf "$CIEL_CENTRAL/skills" "$platform_dir/skills"
-  [ -L "$platform_dir/skills" ] && ok "Symlink: $platform_dir/skills → $CIEL_CENTRAL/skills" || warn "Symlink failed"
+  [ -L "$platform_dir/skills" ] && ok "Symlink: skills → $CIEL_CENTRAL/skills" || warn "Symlink failed"
 }
 
 # ─── Claude Code Installer ───────────────────────────────────────────────────
@@ -41,11 +47,11 @@ install_claude_code() {
   
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   local plugin_dir="$HOME/.claude/plugins/ciel"
-  local commands_dir="$HOME/.claude/commands"  # Global commands directory
+  local commands_dir="$HOME/.claude/commands"
   mkdir -p "$plugin_dir" "$plugin_dir/agents" "$commands_dir"
   
-  # Install central skills
-  [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_skills || ok "Central skills exist"
+  # Install central resources FIRST
+  [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_resources || ok "Central resources exist"
   
   if [[ "$ciel_dir" == /tmp/* ]]; then
     info "Downloading Claude Code components..."
@@ -60,9 +66,10 @@ install_claude_code() {
       curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$plugin_dir/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
     done
     
-    # Commands (as symlinks to central)
+    # Commands (symlinks to central)
     for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
-      ln -sf "$CIEL_CENTRAL/commands/$cmd.md" "$commands_dir/$cmd.md" 2>/dev/null && ok "Command: /$cmd" || true
+      rm -f "$commands_dir/$cmd.md"
+      ln -sf "$CIEL_CENTRAL/commands/$cmd.md" "$commands_dir/$cmd.md" && ok "Command: /$cmd" || warn "Command: $cmd"
     done
     
     create_skills_symlink "$plugin_dir"
@@ -71,6 +78,7 @@ install_claude_code() {
     cp -r "$ciel_dir/agents/" "$plugin_dir/" 2>/dev/null || true
     # Create command symlinks
     for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+      rm -f "$commands_dir/$cmd.md"
       ln -sf "$CIEL_CENTRAL/commands/$cmd.md" "$commands_dir/$cmd.md" 2>/dev/null || true
     done
     create_skills_symlink "$plugin_dir"
@@ -114,8 +122,8 @@ install_opencode() {
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   mkdir -p "$project_root/.opencode/plugins" "$project_root/.opencode/agents" "$project_root/.opencode/commands"
   
-  # Install central skills
-  [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_skills || ok "Central skills exist"
+  # Install central resources FIRST
+  [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_resources || ok "Central resources exist"
   
   if [[ "$ciel_dir" == /tmp/* ]]; then
     info "Downloading OpenCode files..."
@@ -123,12 +131,12 @@ install_opencode() {
     # Plugin
     curl -fsSL "$GITHUB_BASE/.opencode/plugins/ciel.ts" -o "$project_root/.opencode/plugins/ciel.ts" && ok "Plugin" || err "Plugin failed"
     
-    # Primary agents (.opencode/agents/)
+    # Primary agents
     for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
       curl -fsSL "$GITHUB_BASE/.opencode/agents/${agent}.md" -o "$project_root/.opencode/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
     done
     
-    # Subagents (agents/ at root - for @mention)
+    # Subagents
     mkdir -p "$project_root/.opencode/agents/subagents"
     for subagent in critic explorer improver researcher; do
       curl -fsSL "$GITHUB_BASE/agents/${subagent}.md" -o "$project_root/.opencode/agents/subagents/${subagent}.md" 2>/dev/null && ok "Subagent: $subagent" || true
@@ -144,7 +152,6 @@ install_opencode() {
     cp "$ciel_dir/.opencode/plugins/ciel.ts" "$project_root/.opencode/plugins/" && ok "Plugin copied"
     cp -r "$ciel_dir/.opencode/agents/" "$project_root/.opencode/agents/" 2>/dev/null || true
     cp -r "$ciel_dir/.opencode/commands/" "$project_root/.opencode/commands/" 2>/dev/null || true
-    # Copy subagents
     if [ -d "$ciel_dir/agents" ]; then
       mkdir -p "$project_root/.opencode/agents/subagents"
       cp "$ciel_dir/agents/"*.md "$project_root/.opencode/agents/subagents/" 2>/dev/null || true
@@ -195,7 +202,7 @@ install_generic() {
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   mkdir -p "$platform_dir/rules" "$platform_dir/agents" "$platform_dir/commands"
   
-  [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_skills || ok "Central skills exist"
+  [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_resources || ok "Central resources exist"
   
   if [[ "$ciel_dir" == /tmp/* ]]; then
     curl -fsSL "$GITHUB_BASE/platforms/$platform/$rules_file" -o "$platform_dir/rules/$rules_file" 2>/dev/null && ok "Rules: $rules_file" || \
