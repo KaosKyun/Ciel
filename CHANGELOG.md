@@ -1,5 +1,15 @@
 # Ciel — Changelog
 
+## v3.4.3 — 2026-04-22 — Fix hooks arguments + OpenCode subagents
+
+### Fixed
+
+- **Hooks arguments** — Added `shift $#` to all hooks to ignore `session_id:xxx` arguments passed by Claude Code (was causing `command not found`)
+- **OpenCode subagents** — Removed creation of `.opencode/agents/subagents/` directory. Generic `agents/*.md` files have string `tools:` that OpenCode rejects (expects record, not string). OpenCode agents are already in `.opencode/agents/` and registered in `opencode.json`.
+- **opencode.json migration** — Auto-migrate old `"plugins"` key → `"plugin"` on install
+
+---
+
 ## v3.4.2 — 2026-04-22 — Fix install script (hooks format, opencode.json, skills sync)
 
 ### Fixed
