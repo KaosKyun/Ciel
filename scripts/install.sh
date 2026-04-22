@@ -29,12 +29,42 @@ info() { echo -e "  ${CYAN}➜${RESET} $1"; }
 warn() { echo -e "  ${YELLOW}⚠${RESET} $1"; }
 err()  { echo -e "  ${RED}✗${RESET} $1" >&2; }
 
-# Source libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CIEL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# ─── Library Bootstrap (download if not present) ─────────────────────────────
 
+# Detect if running from local file or curl pipe
+if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]] || [[ ! -f "${BASH_SOURCE[0]}" ]]; then
+  # Running from curl pipe — download libs to temp dir
+  TEMP_LIB_DIR=$(mktemp -d)
+  SCRIPT_DIR="$TEMP_LIB_DIR"
+  CIEL_DIR="$TEMP_LIB_DIR"
+  LIB_URL_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/lib"
+  
+  info "Downloading Ciel libraries..."
+  
+  if ! curl -fsSL "$LIB_URL_BASE/platform.sh" -o "$TEMP_LIB_DIR/platform.sh" 2>/dev/null; then
+    err "Failed to download lib/platform.sh"
+    rm -rf "$TEMP_LIB_DIR"
+    exit 1
+  fi
+  
+  if ! curl -fsSL "$LIB_URL_BASE/installers.sh" -o "$TEMP_LIB_DIR/installers.sh" 2>/dev/null; then
+    err "Failed to download lib/installers.sh"
+    rm -rf "$TEMP_LIB_DIR"
+    exit 1
+  fi
+  
+  trap 'rm -rf "$TEMP_LIB_DIR"' EXIT
+else
+  # Running from local file
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  CIEL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
+# Source libraries
 if [ -f "$SCRIPT_DIR/lib/platform.sh" ]; then
   source "$SCRIPT_DIR/lib/platform.sh"
+elif [ -f "$SCRIPT_DIR/platform.sh" ]; then
+  source "$SCRIPT_DIR/platform.sh"
 else
   err "Library not found: lib/platform.sh"
   exit 1
@@ -42,12 +72,12 @@ fi
 
 if [ -f "$SCRIPT_DIR/lib/installers.sh" ]; then
   source "$SCRIPT_DIR/lib/installers.sh"
+elif [ -f "$SCRIPT_DIR/installers.sh" ]; then
+  source "$SCRIPT_DIR/installers.sh"
 else
   err "Library not found: lib/installers.sh"
   exit 1
 fi
-
-# ─── Flag Parsing ────────────────────────────────────────────────────────────
 
 FLAG_UNINSTALL=false
 FLAG_CHECK_UPDATE=false
