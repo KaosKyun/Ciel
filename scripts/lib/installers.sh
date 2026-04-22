@@ -75,6 +75,8 @@ install_claude_code() {
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   local plugin_dir="$HOME/.claude/plugins/ciel"
   local commands_dir="$HOME/.claude/commands"
+  # Force clean install — remove old hooks to prevent stale files
+  rm -rf "$plugin_dir"
   mkdir -p "$plugin_dir" "$plugin_dir/agents" "$commands_dir"
   
   # Sync local skills to central store (mode local uniquement)
