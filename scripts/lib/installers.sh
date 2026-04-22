@@ -133,8 +133,7 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "echo",
-            "args": ["CIEL v3.5.0 — Deep-reasoning active. Principle: Understand before generating. Verify before claiming done."]
+            "command": "true"
           }
         ]
       }
@@ -145,8 +144,7 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "echo",
-            "args": ["CIEL STOP — META-CRITIQUER: depth match? failure mode? user correction? stale branches?"]
+            "command": "true"
           }
         ]
       }
@@ -157,8 +155,7 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "echo",
-            "args": ["CIEL FAIRE — alternatives? idiomatic? quality gates? test-first (RED)? removal gate?"]
+            "command": "true"
           }
         ]
       }
@@ -169,8 +166,7 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "echo",
-            "args": ["CIEL RELIRE — 3 RISQUES (functional + imports + data) + FIX/ACCEPT/DEFER."]
+            "command": "true"
           }
         ]
       }
@@ -181,8 +177,7 @@ install_claude_code() {
         "hooks": [
           {
             "type": "command",
-            "command": "echo",
-            "args": ["CIEL PRE-COMPACT — Invoke learnings-capture skill NOW."]
+            "command": "true"
           }
         ]
       }
