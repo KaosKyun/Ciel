@@ -122,7 +122,7 @@ install_claude_code() {
   mkdir -p "$(dirname "$config_file")"
   [ -f "$config_file" ] && cp "$config_file" "${config_file}.bak-$(date +%Y%m%dT%H%M%S)"
   
-  cat > "$config_file" << 'EOFCONFIG'
+  cat > "$config_file" << EOFCONFIG
 {
   "hooks": {
     "SessionStart": [
@@ -132,7 +132,7 @@ install_claude_code() {
           {
             "type": "command",
             "command": "bash",
-            "args": ["~/.claude/plugins/ciel/session-start.sh"]
+            "args": ["$HOME/.claude/plugins/ciel/session-start.sh"]
           }
         ]
       }
@@ -144,7 +144,7 @@ install_claude_code() {
           {
             "type": "command",
             "command": "bash",
-            "args": ["~/.claude/plugins/ciel/stop.sh"]
+            "args": ["$HOME/.claude/plugins/ciel/stop.sh"]
           }
         ]
       }
@@ -156,7 +156,7 @@ install_claude_code() {
           {
             "type": "command",
             "command": "bash",
-            "args": ["~/.claude/plugins/ciel/pre-tool-write.sh"]
+            "args": ["$HOME/.claude/plugins/ciel/pre-tool-write.sh"]
           }
         ]
       }
@@ -168,7 +168,7 @@ install_claude_code() {
           {
             "type": "command",
             "command": "bash",
-            "args": ["~/.claude/plugins/ciel/post-tool-write.sh"]
+            "args": ["$HOME/.claude/plugins/ciel/post-tool-write.sh"]
           }
         ]
       }
@@ -180,7 +180,7 @@ install_claude_code() {
           {
             "type": "command",
             "command": "bash",
-            "args": ["~/.claude/plugins/ciel/pre-compact.sh"]
+            "args": ["$HOME/.claude/plugins/ciel/pre-compact.sh"]
           }
         ]
       }
