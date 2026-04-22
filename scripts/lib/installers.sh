@@ -96,8 +96,8 @@ install_claude_code() {
     done
     
     # Agents
-    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
-      curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$plugin_dir/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
+    for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+      curl -fsSL "$GITHUB_BASE/.opencode/agents/${agent}.md" -o "$plugin_dir/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
     done
     
     # Commands (symlinks to central)
@@ -220,8 +220,8 @@ install_opencode() {
     # Plugin
     curl -fsSL "$GITHUB_BASE/.opencode/plugins/ciel.ts" -o "$project_root/.opencode/plugins/ciel.ts" && ok "Plugin" || err "Plugin failed"
     
-    # Primary agents
-    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+    # Primary agents (ciel = merged plan+build)
+    for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
       curl -fsSL "$GITHUB_BASE/.opencode/agents/${agent}.md" -o "$project_root/.opencode/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
     done
     
@@ -304,7 +304,8 @@ install_generic() {
     curl -fsSL "$GITHUB_BASE/platforms/$platform/$rules_file" -o "$platform_dir/rules/$rules_file" 2>/dev/null && ok "Rules: $rules_file" || \
     curl -fsSL "$GITHUB_BASE/platforms/$platform/ciel.md" -o "$platform_dir/rules/ciel.md" 2>/dev/null && ok "Rules: ciel.md" || warn "Rules failed"
     
-    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+    # Primary agent (ciel = merged plan+build)
+    for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
       curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$platform_dir/agents/${agent}.md" 2>/dev/null || true
     done
     

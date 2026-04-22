@@ -14,20 +14,13 @@ const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, "..");
 
 // ─── Sync config: which skills are bundled in which agent ───
+// NOTE: OpenCode primary agent (ciel.md) bundles NO inline skills —
+// the TS plugin (ciel.ts) injects the full workflow + skills into every system prompt.
+// This script is kept for Claude Code / other platforms that use bundled agent files.
 const SYNC_CONFIG: Record<string, string[]> = {
-  ".opencode/agents/ciel-plan.md": [
-    "skills/workflow/depth-classifier/SKILL.md",
-    "skills/workflow/quoi-framer/SKILL.md",
-    "skills/workflow/avec-quoi-versioner/SKILL.md",
-    "skills/workflow/evaluer-sizer/SKILL.md",
-  ],
-  ".opencode/agents/ciel-build.md": [
-    "skills/workflow/faire-gatekeeper/SKILL.md",
-    "skills/workflow/relire-critic/SKILL.md",
-    "skills/workflow/stride-analyzer/SKILL.md",
-    "skills/workflow/security-regression-check/SKILL.md",
-    "skills/workflow/prouver-verifier/SKILL.md",
-  ],
+  // Claude Code agents (in ~/.claude/plugins/ciel/agents/)
+  // "agents/researcher.md": ["skills/research/doc-validator-official/SKILL.md", ...],
+  // "agents/explorer.md": ["skills/domain/frontend-mastery/SKILL.md", ...],
 };
 
 const SECTION_START = "## Skills invoked (bundled inline)";
