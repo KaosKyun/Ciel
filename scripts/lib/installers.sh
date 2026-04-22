@@ -228,11 +228,8 @@ install_opencode() {
       curl -fsSL "$GITHUB_BASE/.opencode/agents/${agent}.md" -o "$project_root/.opencode/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
     done
     
-    # Subagents
-    mkdir -p "$project_root/.opencode/agents/subagents"
-    for subagent in critic explorer improver researcher; do
-      curl -fsSL "$GITHUB_BASE/agents/${subagent}.md" -o "$project_root/.opencode/agents/subagents/${subagent}.md" 2>/dev/null && ok "Subagent: $subagent" || true
-    done
+    # Note: OpenCode agents are already defined in .opencode/agents/ and configured in opencode.json
+    # No subagents/ directory needed — avoids frontmatter format conflicts
     
     # Commands
     for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
@@ -244,10 +241,6 @@ install_opencode() {
     cp "$ciel_dir/.opencode/plugins/ciel.ts" "$project_root/.opencode/plugins/" && ok "Plugin copied"
     cp -r "$ciel_dir/.opencode/agents/" "$project_root/.opencode/agents/" 2>/dev/null || true
     cp -r "$ciel_dir/.opencode/commands/" "$project_root/.opencode/commands/" 2>/dev/null || true
-    if [ -d "$ciel_dir/agents" ]; then
-      mkdir -p "$project_root/.opencode/agents/subagents"
-      cp "$ciel_dir/agents/"*.md "$project_root/.opencode/agents/subagents/" 2>/dev/null || true
-    fi
     create_skills_symlink "$project_root/.opencode" "$CIEL_CENTRAL/skills"
   fi
   
