@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Ciel — Platform Installers Library
-# Architecture: Centralized skills (~/.ciel/) shared by ALL platforms via symlinks
+# Architecture:
+#   - Skills: CENTRALIZED (~/.ciel/) - shared by ALL platforms
+#   - Agents: PER-PLATFORM - each platform has its own copy
+#   - Commands: PER-PLATFORM - each platform has its own copy
+#   - Hooks: PER-PLATFORM - platform-specific
 
 set -euo pipefail
 
@@ -13,7 +17,6 @@ install_central_skills() {
   
   info "Installing central Ciel skills to $CIEL_CENTRAL..."
   mkdir -p "$CIEL_CENTRAL/skills/ciel-critic" "$CIEL_CENTRAL/skills/workflow" "$CIEL_CENTRAL/skills/research" "$CIEL_CENTRAL/skills/security" "$CIEL_CENTRAL/skills/domain" "$CIEL_CENTRAL/skills/meta" "$CIEL_CENTRAL/skills/utility"
-  mkdir -p "$CIEL_CENTRAL/agents" "$CIEL_CENTRAL/commands"
   
   # ciel-critic skills
   for skill in relire-critic critiquer-auditor stride-analyzer security-regression-check debug-reasoning-rca self-consistency-verifier; do
@@ -50,65 +53,21 @@ install_central_skills() {
     curl -fsSL "$GITHUB_BASE/skills/utility/${skill}.md" -o "$CIEL_CENTRAL/skills/utility/${skill}.md" 2>/dev/null || true
   done
   
-  # agents
-  for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
-    curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$CIEL_CENTRAL/agents/${agent}.md" 2>/dev/null || true
-  done
-  
-  # commands
-  for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
-    curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$CIEL_CENTRAL/commands/${cmd}.md" 2>/dev/null || true
-  done
-  
   ok "Central skills installed to $CIEL_CENTRAL"
 }
 
-# Create symlink from platform dir to central skills
+# Create symlink from platform dir to central skills ONLY
 create_skills_symlink() {
   local platform_dir="$1"
   local skills_link="$platform_dir/skills"
   
-  # Remove existing skills dir/link
   rm -rf "$skills_link"
-  
-  # Create symlink to central
   ln -sf "$CIEL_CENTRAL/skills" "$skills_link"
   
-  # Verify
   if [ -L "$skills_link" ] && [ -d "$skills_link" ]; then
     ok "Symlink: $skills_link → $CIEL_CENTRAL/skills"
   else
     warn "Failed to create symlink at $skills_link"
-  fi
-}
-
-# Create symlink from platform dir to central agents
-create_agents_symlink() {
-  local platform_dir="$1"
-  local agents_link="$platform_dir/agents"
-  
-  rm -rf "$agents_link"
-  ln -sf "$CIEL_CENTRAL/agents" "$agents_link"
-  
-  if [ -L "$agents_link" ] && [ -d "$agents_link" ]; then
-    ok "Symlink: $agents_link → $CIEL_CENTRAL/agents"
-  else
-    warn "Failed to create symlink at $agents_link"
-  fi
-}
-
-# Create symlink from platform dir to central commands
-create_commands_symlink() {
-  local platform_dir="$1"
-  local commands_link="$platform_dir/commands"
-  
-  rm -rf "$commands_link"
-  ln -sf "$CIEL_CENTRAL/commands" "$commands_link"
-  
-  if [ -L "$commands_link" ] && [ -d "$commands_link" ]; then
-    ok "Symlink: $commands_link → $CIEL_CENTRAL/commands"
-  else
-    warn "Failed to create symlink at $commands_link"
   fi
 }
 
@@ -123,9 +82,9 @@ install_claude_code() {
   
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   local plugin_dir="$HOME/.claude/plugins/ciel"
-  mkdir -p "$plugin_dir"
+  mkdir -p "$plugin_dir" "$plugin_dir/agents" "$plugin_dir/commands"
   
-  # Install central skills FIRST (one-time for all platforms)
+  # Install central skills FIRST (shared by all platforms)
   if [ ! -d "$CIEL_CENTRAL/skills" ]; then
     install_central_skills
   else
@@ -140,17 +99,25 @@ install_claude_code() {
       curl -fsSL "$GITHUB_BASE/hooks/$hook" -o "$plugin_dir/$hook" 2>/dev/null && ok "Hook: $hook" || warn "Missing: $hook"
     done
     
-    # Create symlinks to central resources
+    # Download agents (Claude-specific copy)
+    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+      curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$plugin_dir/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
+    done
+    
+    # Download commands (Claude-specific copy)
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+      curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$plugin_dir/commands/${cmd}.md" 2>/dev/null && ok "Command: $cmd" || true
+    done
+    
+    # Create symlink to central skills ONLY
     create_skills_symlink "$plugin_dir"
-    create_agents_symlink "$plugin_dir"
-    create_commands_symlink "$plugin_dir"
     
   else
     # Local mode
     cp -r "$ciel_dir/hooks/" "$plugin_dir/" 2>/dev/null || true
+    cp -r "$ciel_dir/agents/" "$plugin_dir/" 2>/dev/null || true
+    cp -r "$ciel_dir/commands/" "$plugin_dir/" 2>/dev/null || true
     create_skills_symlink "$plugin_dir"
-    create_agents_symlink "$plugin_dir"
-    create_commands_symlink "$plugin_dir"
   fi
   
   # Configure settings
@@ -193,9 +160,9 @@ install_opencode() {
   info "Installing Ciel for OpenCode..."
   
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
-  mkdir -p "$project_root/.opencode/plugins"
+  mkdir -p "$project_root/.opencode/plugins" "$project_root/.opencode/agents" "$project_root/.opencode/commands"
   
-  # Install central skills FIRST (one-time for all platforms)
+  # Install central skills FIRST (shared by all platforms)
   if [ ! -d "$CIEL_CENTRAL/skills" ]; then
     install_central_skills
   else
@@ -208,16 +175,24 @@ install_opencode() {
     # Download plugin (OpenCode-specific)
     curl -fsSL "$GITHUB_BASE/.opencode/plugins/ciel.ts" -o "$project_root/.opencode/plugins/ciel.ts" && ok "Plugin" || err "Failed to download plugin"
     
-    # Create symlinks to central resources
+    # Download agents (OpenCode-specific copy)
+    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+      curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$project_root/.opencode/agents/${agent}.md" 2>/dev/null && ok "Agent: $agent" || true
+    done
+    
+    # Download commands (OpenCode-specific copy)
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+      curl -fsSL "$GITHUB_BASE/.opencode/commands/${cmd}.md" -o "$project_root/.opencode/commands/${cmd}.md" 2>/dev/null && ok "Command: $cmd" || true
+    done
+    
+    # Create symlink to central skills ONLY
     create_skills_symlink "$project_root/.opencode"
-    create_agents_symlink "$project_root/.opencode"
-    create_commands_symlink "$project_root/.opencode"
     
   else
     cp "$ciel_dir/.opencode/plugins/ciel.ts" "$project_root/.opencode/plugins/" && ok "Plugin copied"
+    cp -r "$ciel_dir/.opencode/agents/" "$project_root/.opencode/agents/" 2>/dev/null || true
+    cp -r "$ciel_dir/.opencode/commands/" "$project_root/.opencode/commands/" 2>/dev/null || true
     create_skills_symlink "$project_root/.opencode"
-    create_agents_symlink "$project_root/.opencode"
-    create_commands_symlink "$project_root/.opencode"
   fi
   
   # Update opencode.json
@@ -250,31 +225,22 @@ install_generic() {
   local ciel_dir="$2"
   local project_root="${3:-$(pwd)}"
   
-  local platform_name
+  local platform_name rules_file platform_dir
   case "$platform" in
-    cursor) platform_name="Cursor" ;;
-    windsurf) platform_name="Windsurf" ;;
-    codex) platform_name="Codex" ;;
-    kilocode) platform_name="KiloCode" ;;
-    *) platform_name="$platform" ;;
+    cursor) platform_name="Cursor"; rules_file="ciel.mdc"; platform_dir="$project_root/.cursor" ;;
+    windsurf) platform_name="Windsurf"; rules_file="ciel.md"; platform_dir="$project_root/.windsurf" ;;
+    codex) platform_name="Codex"; rules_file="AGENTS.md"; platform_dir="$project_root/.codex" ;;
+    kilocode) platform_name="KiloCode"; rules_file="ciel.md"; platform_dir="$project_root/.kilocode" ;;
+    *) platform_name="$platform"; rules_file="ciel.md"; platform_dir="$project_root/.${platform}" ;;
   esac
   
   info "Installing Ciel for $platform_name..."
   
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
-  local target_dir rules_file platform_dir
+  local target_dir="$platform_dir/rules"
+  mkdir -p "$target_dir" "$platform_dir/agents" "$platform_dir/commands"
   
-  case "$platform" in
-    cursor) target_dir="$project_root/.cursor/rules"; rules_file="ciel.mdc"; platform_dir="$project_root/.cursor" ;;
-    windsurf) target_dir="$project_root/.windsurf/rules"; rules_file="ciel.md"; platform_dir="$project_root/.windsurf" ;;
-    codex) target_dir="$project_root/.codex"; rules_file="AGENTS.md"; platform_dir="$project_root/.codex" ;;
-    kilocode) target_dir="$project_root/.kilocode/rules"; rules_file="ciel.md"; platform_dir="$project_root/.kilocode" ;;
-    *) target_dir="$project_root/.${platform}/rules"; rules_file="ciel.md"; platform_dir="$project_root/.${platform}" ;;
-  esac
-  
-  mkdir -p "$target_dir"
-  
-  # Install central skills FIRST (one-time for all platforms)
+  # Install central skills FIRST (shared by all platforms)
   if [ ! -d "$CIEL_CENTRAL/skills" ]; then
     install_central_skills
   else
@@ -289,15 +255,23 @@ install_generic() {
       curl -fsSL "$GITHUB_BASE/platforms/$platform/ciel.md" -o "$target_dir/ciel.md" 2>/dev/null && ok "Installed: ciel.md" || warn "Download failed"
     fi
     
-    # Create symlinks to central resources
+    # Download agents (platform-specific copy)
+    for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+      curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$platform_dir/agents/${agent}.md" 2>/dev/null || true
+    done
+    
+    # Download commands (platform-specific copy)
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+      curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$platform_dir/commands/${cmd}.md" 2>/dev/null || true
+    done
+    
+    # Create symlink to central skills ONLY
     create_skills_symlink "$platform_dir"
-    create_agents_symlink "$platform_dir"
-    create_commands_symlink "$platform_dir"
   else
     cp "$ciel_dir/platforms/$platform/$rules_file" "$target_dir/" 2>/dev/null && ok "Installed: $rules_file" || \
     cp "$ciel_dir/platforms/$platform/ciel.md" "$target_dir/ciel.md" 2>/dev/null && ok "Installed: ciel.md" || warn "Copy failed"
+    cp -r "$ciel_dir/agents/" "$platform_dir/agents/" 2>/dev/null || true
+    cp -r "$ciel_dir/commands/" "$platform_dir/commands/" 2>/dev/null || true
     create_skills_symlink "$platform_dir"
-    create_agents_symlink "$platform_dir"
-    create_commands_symlink "$platform_dir"
   fi
 }
