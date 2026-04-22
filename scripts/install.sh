@@ -32,7 +32,9 @@ err()  { echo -e "  ${RED}✗${RESET} $1" >&2; }
 # ─── Library Bootstrap (download if not present) ─────────────────────────────
 
 # Detect if running from local file or curl pipe
+CURL_MODE=false
 if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]] || [[ ! -f "${BASH_SOURCE[0]}" ]]; then
+  CURL_MODE=true
   # Running from curl pipe — download libs to temp dir
   TEMP_LIB_DIR=$(mktemp -d)
   SCRIPT_DIR="$TEMP_LIB_DIR"
@@ -79,6 +81,92 @@ else
   exit 1
 fi
 
+# ─── Version Management (GitHub-aware for curl mode) ─────────────────────────
+
+get_local_version() {
+  if [ "$CURL_MODE" = "true" ]; then
+    # In curl mode, fetch from GitHub
+    curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "unknown"
+  else
+    # Local mode - read from repo
+    cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "unknown"
+  fi
+}
+
+get_remote_version() {
+  curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION" 2>/dev/null | tr -d '[:space:]' || echo ""
+}
+
+compare_versions() {
+  local v1="$1" v2="$2"
+  
+  # Handle "unknown" versions
+  [ "$v1" = "unknown" ] && { echo "-1"; return; }
+  [ -z "$v2" ] && { echo "-1"; return; }
+  
+  # Split versions
+  local IFS='.'
+  read -ra V1 <<< "$v1"
+  read -ra V2 <<< "$v2"
+  
+  # Compare each component
+  local max=${#V1[@]}
+  [ ${#V2[@]} -gt $max ] && max=${#V2[@]}
+  
+  for ((i=0; i<max; i++)); do
+    local n1=${V1[i]:-0}
+    local n2=${V2[i]:-0}
+    if [ "$n1" -lt "$n2" ]; then
+      echo "-1"
+      return
+    elif [ "$n1" -gt "$n2" ]; then
+      echo "1"
+      return
+    fi
+  done
+  
+  echo "0"
+}
+
+check_update() {
+  info "Checking for updates..."
+  local local_ver remote_ver
+  local_ver="$(get_local_version)"
+  remote_ver="$(get_remote_version)"
+  
+  if [ -z "$remote_ver" ]; then
+    warn "Could not fetch remote version (network issue?)"
+    return 1
+  fi
+  
+  echo "  Local:  $local_ver"
+  echo "  Remote: $remote_ver"
+  
+  local cmp
+  cmp="$(compare_versions "$local_ver" "$remote_ver")"
+  
+  case "$cmp" in
+    -1)
+      echo ""
+      info "Update available: $local_ver → $remote_ver"
+      echo "  Run with --update to install"
+      return 0
+      ;;
+    0)
+      echo ""
+      ok "Already up to date ($local_ver)"
+      return 0
+      ;;
+    1)
+      echo ""
+      info "Local version is newer ($local_ver > $remote_ver)"
+      return 0
+      ;;
+  esac
+}
+
+# ─── Flag Parsing ────────────────────────────────────────────────────────────
+
 FLAG_UNINSTALL=false
 FLAG_CHECK_UPDATE=false
 FLAG_UPDATE=false
@@ -113,95 +201,41 @@ done
 PROJECT_ROOT="${POSITIONAL[0]:-$(pwd)}"
 export CIEL_FORCE_PLATFORM="$FORCED_PLATFORM"
 
-# ─── Version Management ──────────────────────────────────────────────────────
+# ─── Platform Detection Override ─────────────────────────────────────────────
 
-get_local_version() {
-  cat "$CIEL_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "unknown"
-}
+# If platform.sh has detect_platform, use it; otherwise define fallback
+if ! type detect_platform &>/dev/null; then
+  detect_platform() {
+    local forced="${CIEL_FORCE_PLATFORM:-}"
+    [ -n "$forced" ] && { echo "$forced"; return 0; }
+    
+    # Check project files (order matters - most specific first)
+    [ -f "./.claude/settings.json" ] || [ -d "./.claude" ] && { echo "claude"; return 0; }
+    [ -f "./opencode.json" ] || [ -d "./.opencode" ] && { echo "opencode"; return 0; }
+    [ -d "./.cursor" ] && { echo "cursor"; return 0; }
+    [ -d "./.windsurf" ] && { echo "windsurf"; return 0; }
+    [ -d "./.codex" ] && { echo "codex"; return 0; }
+    [ -d "./.kilocode" ] || [ -d "./.kilo" ] && { echo "kilocode"; return 0; }
+    
+    # Check CLI
+    command -v claude &>/dev/null && { echo "claude"; return 0; }
+    command -v opencode &>/dev/null && { echo "opencode"; return 0; }
+    
+    echo "unknown"
+  }
+fi
 
-get_remote_version() {
-  curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION" 2>/dev/null | tr -d '[:space:]' || echo ""
-}
-
-compare_versions() {
-  local v1="$1" v2="$2"
-  
-  # Handle "unknown" versions
-  [ "$v1" = "unknown" ] && { echo "-1"; return; }
-  [ -z "$v2" ] && { echo "-1"; return; }
-  
-  # Split versions
-  local IFS='.'
-  read -ra V1 <<< "$v1"
-  read -ra V2 <<< "$v2"
-  
-  # Compare each component
-  for i in 0 1 2; do
-    local n1="${V1[$i]:-0}"
-    local n2="${V2[$i]:-0}"
-    [ "$n1" -lt "$n2" ] && { echo "-1"; return; }
-    [ "$n1" -gt "$n2" ] && { echo "1"; return; }
-  done
-  
-  echo "0"
-}
-
-check_update() {
-  info "Checking for updates..."
-  
-  local local_ver remote_ver
-  local_ver="$(get_local_version)"
-  remote_ver="$(get_remote_version)"
-  
-  if [ -z "$remote_ver" ]; then
-    warn "Could not fetch remote version (network issue?)"
-    return 1
-  fi
-  
-  echo "  Local:  $local_ver"
-  echo "  Remote: $remote_ver"
-  
-  local cmp
-  cmp="$(compare_versions "$local_ver" "$remote_ver")"
-  
-  case "$cmp" in
-    -1)
-      echo ""
-      info "Update available: $local_ver → $remote_ver"
-      echo "  Run with --update to install"
-      return 0
-      ;;
-    0)
-      info "Already up to date"
-      return 0
-      ;;
-    1)
-      warn "Local version is newer than remote (development version?)"
-      return 0
-      ;;
-  esac
-}
-
-# ─── Manifest Management ─────────────────────────────────────────────────────
+# ─── Installation Logic ──────────────────────────────────────────────────────
 
 MANIFEST_FILE="$HOME/.ciel/manifest.json"
 
-init_manifest() {
-  mkdir -p "$(dirname "$MANIFEST_FILE")"
-}
-
-read_manifest_version() {
-  [ -f "$MANIFEST_FILE" ] || return 1
-  grep -oE '"version":[[:space:]]*"[^"]+"' "$MANIFEST_FILE" | \
-    sed 's/.*"\([^"]*\)".*/\1/' | head -1
-}
-
 write_manifest() {
-  local version installed_platforms mcp_servers
+  mkdir -p "$(dirname "$MANIFEST_FILE")"
+  
+  local version installed_platforms=()
   version="$(get_local_version)"
   
   # Build platforms list
-  installed_platforms=()
   for dir in "$HOME/.claude/plugins/ciel" "$PROJECT_ROOT/.opencode"; do
     [ -d "$dir" ] && installed_platforms+=("$(basename "$dir")")
   done
@@ -220,167 +254,10 @@ EOF
   ok "Manifest written: $MANIFEST_FILE"
 }
 
-# ─── Main Installation Logic ─────────────────────────────────────────────────
-
 do_install() {
-  init_manifest
-  
-  # Detect platform
   local platform
   platform="$(detect_platform)"
   
-  if [ "$platform" = "unknown" ]; then
-    err "Cannot detect AI coding platform."
-    echo ""
-    echo "Supported platforms:"
-    echo "  - Claude Code (claude)"
-    echo "  - OpenCode (opencode)"
-    echo "  - Cursor (cursor)"
-    echo "  - Windsurf (windsurf)"
-    echo "  - Codex CLI (codex)"
-    echo "  - Kilo Code (kilocode)"
-    echo "  - Ollama (ollama)"
-    echo "  - LM Studio (lmstudio)"
-    echo ""
-    echo "Specify with --platform=name"
-    return 1
-  fi
-  
-  info "Detected platform: $(get_platform_name "$platform")"
-  
-  # Validate platform
-  if ! validate_platform "$platform"; then
-    warn "$(get_platform_name "$platform") not fully configured"
-    print_install_instructions "$platform"
-    
-    if [ "$FLAG_YES" != "true" ]; then
-      echo ""
-      read -p "Continue anyway? [y/N] " -n 1 -r
-      echo
-      [[ ! $REPLY =~ ^[Yy]$ ]] && return 1
-    fi
-  fi
-  
-  # Install based on platform
-  case "$platform" in
-    claude)
-      install_claude_code "$CIEL_DIR" "$PROJECT_ROOT" "$FLAG_USER"
-      ;;
-    opencode)
-      install_opencode "$CIEL_DIR" "$PROJECT_ROOT"
-      ;;
-    cursor|windsurf|codex|kilocode|ollama|lmstudio)
-      install_generic "$platform" "$CIEL_DIR" "$PROJECT_ROOT"
-      ;;
-  esac
-  
-  # Install MCP servers if requested
-  if [ -n "$MCP_LIST" ]; then
-    info "Installing MCP servers: $MCP_LIST"
-    # TODO: Implement MCP installation
-  fi
-  
-  # Write manifest
-  write_manifest
-  
-  echo ""
-  info "Installation complete!"
-  echo ""
-  echo "Next steps:"
-  case "$platform" in
-    claude)
-      echo "  1. Restart Claude Code"
-      echo "  2. Run /ciel-init to verify hooks"
-      ;;
-    opencode)
-      echo "  1. Restart OpenCode"
-      echo "  2. Ciel should auto-load (check for depth hints)"
-      ;;
-    *)
-      echo "  1. Restart $(get_platform_name "$platform")"
-      echo "  2. Check that Ciel rules/skills are active"
-      ;;
-  esac
-  
-  return 0
-}
-
-do_uninstall() {
-  info "Uninstalling Ciel..."
-  
-  # Uninstall from all platforms
-  if [ -d "$HOME/.claude/plugins/ciel" ]; then
-    uninstall_claude_code
-  fi
-  
-  if [ -d "./.opencode" ]; then
-    uninstall_opencode "$(pwd)"
-  fi
-  
-  for platform in cursor windsurf codex kilocode ollama lmstudio; do
-    uninstall_generic "$platform" "$(pwd)"
-  done
-  
-  # Remove manifest
-  if [ -f "$MANIFEST_FILE" ]; then
-    rm "$MANIFEST_FILE"
-    ok "Removed manifest"
-  fi
-  
-  echo ""
-  info "Uninstall complete"
-  return 0
-}
-
-do_update() {
-  info "Updating Ciel..."
-  
-  # Check if update is available
-  local local_ver remote_ver
-  local_ver="$(get_local_version)"
-  remote_ver="$(get_remote_version)"
-  
-  if [ -z "$remote_ver" ]; then
-    err "Could not fetch remote version"
-    return 1
-  fi
-  
-  local cmp
-  cmp="$(compare_versions "$local_ver" "$remote_ver")"
-  
-  if [ "$cmp" != "-1" ]; then
-    info "Already up to date ($local_ver)"
-    return 0
-  fi
-  
-  info "Updating from $local_ver to $remote_ver"
-  
-  # Uninstall current version
-  do_uninstall
-  
-  # Clone latest version
-  local temp_dir
-  temp_dir="$(mktemp -d)"
-  trap 'rm -rf "$temp_dir"' EXIT
-  
-  info "Cloning latest version..."
-  if ! git clone --depth=1 --quiet https://github.com/KaosKyun/Ciel.git "$temp_dir"; then
-    err "Failed to clone repository"
-    return 1
-  fi
-  
-  # Install from temp directory
-  CIEL_DIR="$temp_dir"
-  do_install
-  
-  echo ""
-  ok "Update complete: $local_ver → $remote_ver"
-  return 0
-}
-
-# ─── Main Entry Point ────────────────────────────────────────────────────────
-
-main() {
   echo ""
   echo "╔═══════════════════════════════════════╗"
   echo "║   Ciel Installer v$(get_local_version)              ║"
@@ -403,8 +280,113 @@ main() {
   fi
   
   # Default: install
-  do_install
-  exit $?
+  info "Detected platform: $(get_platform_name "$platform" 2>/dev/null || echo "$platform")"
+  
+  case "$platform" in
+    claude)
+      install_claude_code "$CIEL_DIR" "$PROJECT_ROOT" "$FLAG_USER"
+      ;;
+    opencode)
+      install_opencode "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+    cursor)
+      install_generic "cursor" "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+    windsurf)
+      install_generic "windsurf" "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+    codex)
+      install_generic "codex" "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+    kilocode)
+      install_generic "kilocode" "$CIEL_DIR" "$PROJECT_ROOT"
+      ;;
+    *)
+      err "Unsupported platform: $platform"
+      echo "Supported: claude, opencode, cursor, windsurf, codex, kilocode"
+      exit 1
+      ;;
+  esac
+  
+  # Register MCP servers if requested
+  if [ -n "$MCP_LIST" ]; then
+    info "Registering MCP servers: $MCP_LIST"
+    # TODO: Implement MCP registration
+  fi
+  
+  write_manifest
+  
+  echo ""
+  ok "Installation complete!"
+  echo ""
+  echo "Next steps:"
+  case "$platform" in
+    claude)
+      echo "  1. Restart Claude Code"
+      echo "  2. Ciel hooks should auto-load"
+      ;;
+    opencode)
+      echo "  1. Restart OpenCode"
+      echo "  2. Ciel should auto-load (check for depth hints)"
+      ;;
+    *)
+      echo "  1. Restart your AI assistant"
+      echo "  2. Check platform-specific docs for plugin loading"
+      ;;
+  esac
 }
 
-main "$@"
+do_uninstall() {
+  info "Uninstalling Ciel..."
+  
+  local platform
+  platform="$(detect_platform)"
+  
+  case "$platform" in
+    claude)
+      uninstall_claude_code "$PROJECT_ROOT"
+      ;;
+    opencode)
+      uninstall_opencode "$PROJECT_ROOT"
+      ;;
+    *)
+      rm -rf "$PROJECT_ROOT/.opencode" "$PROJECT_ROOT/.claude/plugins/ciel"
+      ;;
+  esac
+  
+  rm -f "$MANIFEST_FILE"
+  ok "Uninstall complete"
+}
+
+do_update() {
+  info "Updating Ciel..."
+  
+  local local_ver remote_ver
+  local_ver="$(get_local_version)"
+  remote_ver="$(get_remote_version)"
+  
+  if [ -z "$remote_ver" ]; then
+    err "Could not fetch remote version"
+    return 1
+  fi
+  
+  local cmp
+  cmp="$(compare_versions "$local_ver" "$remote_ver")"
+  
+  if [ "$cmp" != "-1" ]; then
+    info "Already up to date ($local_ver)"
+    return 0
+  fi
+  
+  info "Updating from $local_ver to $remote_ver"
+  
+  # Uninstall current version
+  do_uninstall
+  
+  # Re-install (this script is already the new version if run via curl)
+  do_install
+}
+
+# ─── Main Entry Point ────────────────────────────────────────────────────────
+
+do_install
