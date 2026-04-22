@@ -28,8 +28,9 @@ if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]] || [[ ! -f "${BASH_SOURCE[0]}" ]]; the
   
   info "Downloading Ciel libraries..."
   
-  curl -fsSL "$LIB_URL_BASE/platform.sh" -o "$TEMP_LIB_DIR/platform.sh" || { err "Failed to download platform.sh"; rm -rf "$TEMP_LIB_DIR"; exit 1; }
-  curl -fsSL "$LIB_URL_BASE/installers.sh" -o "$TEMP_LIB_DIR/installers.sh" || { err "Failed to download installers.sh"; rm -rf "$TEMP_LIB_DIR"; exit 1; }
+  mkdir -p "$TEMP_LIB_DIR/lib"
+  curl -fsSL "$LIB_URL_BASE/platform.sh" -o "$TEMP_LIB_DIR/lib/platform.sh" || { err "Failed to download platform.sh"; rm -rf "$TEMP_LIB_DIR"; exit 1; }
+  curl -fsSL "$LIB_URL_BASE/installers.sh" -o "$TEMP_LIB_DIR/lib/installers.sh" || { err "Failed to download installers.sh"; rm -rf "$TEMP_LIB_DIR"; exit 1; }
   
   trap 'rm -rf "$TEMP_LIB_DIR"' EXIT
 else
