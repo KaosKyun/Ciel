@@ -19,7 +19,8 @@ detect_platform() {
   
   # Check project files first (most reliable)
   # Order matters: Claude first, then others
-  if [ -f "./.claude/settings.json" ] || [ -d "./.claude" ]; then
+  # For Claude Code: require settings.json or settings.local.json (not just .claude/ dir)
+  if [ -f "./.claude/settings.json" ] || [ -f "./.claude/settings.local.json" ]; then
     echo "claude"
     return 0
   fi

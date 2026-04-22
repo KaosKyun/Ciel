@@ -31,9 +31,36 @@ install_central_resources() {
 
 create_skills_symlink() {
   local platform_dir="$1"
+  local source_dir="${2:-$CIEL_CENTRAL/skills}"
   rm -rf "$platform_dir/skills"
-  ln -sf "$CIEL_CENTRAL/skills" "$platform_dir/skills"
-  [ -L "$platform_dir/skills" ] && ok "Symlink: skills → $CIEL_CENTRAL/skills" || warn "Symlink failed"
+  ln -sf "$source_dir" "$platform_dir/skills"
+  [ -L "$platform_dir/skills" ] && ok "Symlink: skills → $source_dir" || warn "Symlink failed"
+}
+
+sync_local_skills_to_central() {
+  local ciel_dir="$1"
+  if [ -d "$ciel_dir/skills" ] && [[ "$ciel_dir" != /tmp/* ]]; then
+    info "Syncing local skills to central store..."
+    mkdir -p "$CIEL_CENTRAL/skills"
+    # Copy all skill categories from project to central (recursive for nested skills)
+    for category_dir in "$ciel_dir/skills"/*/; do
+      local category_name
+      category_name=$(basename "$category_dir")
+      mkdir -p "$CIEL_CENTRAL/skills/$category_name"
+      # Handle both flat files and nested skill directories
+      for item in "$category_dir"*; do
+        if [ -f "$item" ]; then
+          cp "$item" "$CIEL_CENTRAL/skills/$category_name/" 2>/dev/null || true
+        elif [ -d "$item" ]; then
+          local item_name
+          item_name=$(basename "$item")
+          mkdir -p "$CIEL_CENTRAL/skills/$category_name/$item_name"
+          cp -r "$item/"* "$CIEL_CENTRAL/skills/$category_name/$item_name/" 2>/dev/null || true
+        fi
+      done
+    done
+    ok "Local skills synced to central store"
+  fi
 }
 
 # ─── Claude Code Installer ───────────────────────────────────────────────────
@@ -49,6 +76,11 @@ install_claude_code() {
   local plugin_dir="$HOME/.claude/plugins/ciel"
   local commands_dir="$HOME/.claude/commands"
   mkdir -p "$plugin_dir" "$plugin_dir/agents" "$commands_dir"
+  
+  # Sync local skills to central store (mode local uniquement)
+  if [[ "$ciel_dir" != /tmp/* ]]; then
+    sync_local_skills_to_central "$ciel_dir"
+  fi
   
   # Install central resources FIRST
   [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_resources || ok "Central resources exist"
@@ -81,7 +113,7 @@ install_claude_code() {
       rm -f "$commands_dir/$cmd.md"
       ln -sf "$CIEL_CENTRAL/commands/$cmd.md" "$commands_dir/$cmd.md" 2>/dev/null || true
     done
-    create_skills_symlink "$plugin_dir"
+    create_skills_symlink "$plugin_dir" "$CIEL_CENTRAL/skills"
   fi
   
   # Configure settings
@@ -93,11 +125,66 @@ install_claude_code() {
   cat > "$config_file" << 'EOFCONFIG'
 {
   "hooks": {
-    "SessionStart": {"command": "bash", "args": ["~/.claude/plugins/ciel/session-start.sh"]},
-    "Stop": {"command": "bash", "args": ["~/.claude/plugins/ciel/stop.sh"]},
-    "PreToolWrite": {"command": "bash", "args": ["~/.claude/plugins/ciel/pre-tool-write.sh"]},
-    "PostToolWrite": {"command": "bash", "args": ["~/.claude/plugins/ciel/post-tool-write.sh"]},
-    "PreCompact": {"command": "bash", "args": ["~/.claude/plugins/ciel/pre-compact.sh"]}
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["~/.claude/plugins/ciel/session-start.sh"]
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["~/.claude/plugins/ciel/stop.sh"]
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["~/.claude/plugins/ciel/pre-tool-write.sh"]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["~/.claude/plugins/ciel/post-tool-write.sh"]
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["~/.claude/plugins/ciel/pre-compact.sh"]
+          }
+        ]
+      }
+    ]
   }
 }
 EOFCONFIG
@@ -121,6 +208,11 @@ install_opencode() {
   
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   mkdir -p "$project_root/.opencode/plugins" "$project_root/.opencode/agents" "$project_root/.opencode/commands"
+  
+  # Sync local skills to central store (mode local uniquement)
+  if [[ "$ciel_dir" != /tmp/* ]]; then
+    sync_local_skills_to_central "$ciel_dir"
+  fi
   
   # Install central resources FIRST
   [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_resources || ok "Central resources exist"
@@ -147,7 +239,7 @@ install_opencode() {
       curl -fsSL "$GITHUB_BASE/.opencode/commands/${cmd}.md" -o "$project_root/.opencode/commands/${cmd}.md" 2>/dev/null && ok "Command: $cmd" || true
     done
     
-    create_skills_symlink "$project_root/.opencode"
+    create_skills_symlink "$project_root/.opencode" "$CIEL_CENTRAL/skills"
   else
     cp "$ciel_dir/.opencode/plugins/ciel.ts" "$project_root/.opencode/plugins/" && ok "Plugin copied"
     cp -r "$ciel_dir/.opencode/agents/" "$project_root/.opencode/agents/" 2>/dev/null || true
@@ -156,7 +248,7 @@ install_opencode() {
       mkdir -p "$project_root/.opencode/agents/subagents"
       cp "$ciel_dir/agents/"*.md "$project_root/.opencode/agents/subagents/" 2>/dev/null || true
     fi
-    create_skills_symlink "$project_root/.opencode"
+    create_skills_symlink "$project_root/.opencode" "$CIEL_CENTRAL/skills"
   fi
   
   # Update opencode.json
@@ -164,10 +256,12 @@ install_opencode() {
   [ -f "$config_file" ] && cp "$config_file" "${config_file}.bak-$(date +%Y%m%dT%H%M%S)"
   
   if [ -f "$config_file" ]; then
-    grep -q "ciel" "$config_file" 2>/dev/null || {
-      jq '.plugins = (.plugins // []) + ["./plugins/ciel.ts"]' "$config_file" > "$(mktemp)" && mv "$(mktemp)" "$config_file"
+    if ! grep -q "ciel" "$config_file" 2>/dev/null; then
+      local tmp_config
+      tmp_config=$(mktemp)
+      jq '.plugins = (.plugins // []) + ["./plugins/ciel.ts"]' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
       ok "Updated opencode.json"
-    }
+    fi
   else
     echo '{"plugins": ["./plugins/ciel.ts"]}' > "$config_file"
     ok "Created opencode.json"
@@ -202,6 +296,11 @@ install_generic() {
   local GITHUB_BASE="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
   mkdir -p "$platform_dir/rules" "$platform_dir/agents" "$platform_dir/commands"
   
+  # Sync local skills to central store (mode local uniquement)
+  if [[ "$ciel_dir" != /tmp/* ]]; then
+    sync_local_skills_to_central "$ciel_dir"
+  fi
+  
   [ ! -d "$CIEL_CENTRAL/skills" ] && install_central_resources || ok "Central resources exist"
   
   if [[ "$ciel_dir" == /tmp/* ]]; then
@@ -216,12 +315,12 @@ install_generic() {
       curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$platform_dir/commands/${cmd}.md" 2>/dev/null || true
     done
     
-    create_skills_symlink "$platform_dir"
+    create_skills_symlink "$platform_dir" "$CIEL_CENTRAL/skills"
   else
     cp "$ciel_dir/platforms/$platform/$rules_file" "$platform_dir/rules/" 2>/dev/null && ok "Installed: $rules_file" || \
     cp "$ciel_dir/platforms/$platform/ciel.md" "$platform_dir/rules/ciel.md" 2>/dev/null && ok "Installed: ciel.md" || warn "Copy failed"
     cp -r "$ciel_dir/agents/" "$platform_dir/agents/" 2>/dev/null || true
     cp -r "$ciel_dir/commands/" "$platform_dir/commands/" 2>/dev/null || true
-    create_skills_symlink "$platform_dir"
+    create_skills_symlink "$platform_dir" "$CIEL_CENTRAL/skills"
   fi
 }

@@ -37,8 +37,8 @@ else
   CIEL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
 
-source "$SCRIPT_DIR/platform.sh"
-source "$SCRIPT_DIR/installers.sh"
+source "$SCRIPT_DIR/lib/platform.sh"
+source "$SCRIPT_DIR/lib/installers.sh"
 
 # ─── Version Management ──────────────────────────────────────────────────────
 
@@ -54,20 +54,21 @@ get_local_version() {
 
 detect_all_platforms() {
   local platforms=()
+  local project_platforms_found=false
   
-  # Check project-level configs
-  [ -f "./.claude/settings.json" ] || [ -d "./.claude" ] && platforms+=("claude")
-  [ -f "./opencode.json" ] || [ -d "./.opencode" ] && platforms+=("opencode")
-  [ -d "./.cursor" ] && platforms+=("cursor")
-  [ -d "./.windsurf" ] && platforms+=("windsurf")
-  [ -d "./.codex" ] && platforms+=("codex")
-  [ -d "./.kilocode" ] || [ -d "./.kilo" ] && platforms+=("kilocode")
+  # Check project-level configs ONLY (primary detection)
+  # For Claude Code: require settings.json or settings.local.json (not just .claude/ dir)
+  [ -f "./.claude/settings.json" ] || [ -f "./.claude/settings.local.json" ] && { platforms+=("claude"); project_platforms_found=true; }
+  [ -f "./opencode.json" ] || [ -d "./.opencode" ] && { platforms+=("opencode"); project_platforms_found=true; }
+  [ -d "./.cursor" ] && { platforms+=("cursor"); project_platforms_found=true; }
+  [ -d "./.windsurf" ] && { platforms+=("windsurf"); project_platforms_found=true; }
+  [ -d "./.codex" ] && { platforms+=("codex"); project_platforms_found=true; }
+  [ -d "./.kilocode" ] || [ -d "./.kilo" ] && { platforms+=("kilocode"); project_platforms_found=true; }
   
-  # Check user-level configs (if not already found)
-  if [[ ! " ${platforms[@]} " =~ " claude " ]]; then
+  # Check user-level configs ONLY if no project-level configs found
+  # This prevents installing Claude Code hooks in a global config for an OpenCode-only project
+  if [ "$project_platforms_found" = "false" ]; then
     [ -d "$HOME/.claude" ] && platforms+=("claude")
-  fi
-  if [[ ! " ${platforms[@]} " =~ " opencode " ]]; then
     [ -d "$HOME/.opencode" ] && platforms+=("opencode")
   fi
   
