@@ -259,11 +259,11 @@ install_opencode() {
     if ! grep -q "ciel" "$config_file" 2>/dev/null; then
       local tmp_config
       tmp_config=$(mktemp)
-      jq '.plugins = (.plugins // []) + ["./plugins/ciel.ts"]' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
+      jq '.plugin = (.plugin // []) + ["./.opencode/plugins/ciel.ts"]' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
       ok "Updated opencode.json"
     fi
   else
-    echo '{"plugins": ["./plugins/ciel.ts"]}' > "$config_file"
+    echo '{"plugin": ["./.opencode/plugins/ciel.ts"]}' > "$config_file"
     ok "Created opencode.json"
   fi
 }
