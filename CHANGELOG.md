@@ -1,5 +1,21 @@
 # Ciel — Changelog
 
+## v3.4.2 — 2026-04-22 — Fix install script (hooks format, opencode.json, skills sync)
+
+### Fixed
+
+- **Hooks format** — `PreToolWrite`/`PostToolWrite` → `PreToolUse`/`PostToolUse` + array format with `matcher` + `hooks`
+- **Hooks dependency** — Removed python3 dependency from all hooks (server compatibility)
+- **Hooks paths** — `~` → `$HOME` in Claude Code settings.json (tilde not expanded by Claude)
+- **opencode.json key** — `"plugins"` → `"plugin"` (correct OpenCode config key)
+- **opencode.json path** — `"./plugins/ciel.ts"` → `"./.opencode/plugins/ciel.ts"` (correct relative path)
+- **Curl mode lib path** — Downloaded files now go to `$TEMP_LIB_DIR/lib/` matching `source` path
+- **Platform detection** — Claude Code now requires `settings.json` (not just `.claude/` dir)
+- **jq mktemp bug** — Fixed double `mktemp` call producing different temp files
+- **Skills sync** — Added `sync_local_skills_to_central` for local mode installs
+
+---
+
 ## v3.4.1 — 2026-04-22 — Fix CI/CD TypeScript validation
 
 ### Fixed
