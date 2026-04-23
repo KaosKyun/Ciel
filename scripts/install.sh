@@ -337,8 +337,12 @@ install_claude_code() {
 }
 EOFSETTINGS
 
-  # Replace placeholder with actual path
-  sed -i '' "s|__CIEL_PLUGIN_HOME__|$plugin_dir|g" "$settings_file"
+  # Replace placeholder with actual path (BSD sed needs '' arg; GNU sed does not)
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s|__CIEL_PLUGIN_HOME__|$plugin_dir|g" "$settings_file"
+  else
+    sed -i "s|__CIEL_PLUGIN_HOME__|$plugin_dir|g" "$settings_file"
+  fi
   ok "Settings configured (7 hooks wired)"
 
   # Track in manifest
