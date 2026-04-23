@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## v4.0.1 — 2026-04-23 — Fix: Linux-compatible sed in installer
+
+### Fixed
+- `scripts/install.sh`: `sed -i ''` (BSD/macOS syntax) replaced with OS-detection guard. GNU sed (Linux) does not accept an empty-string argument after `-i` — it treated the substitution pattern as a filename, causing `settings.json` hook wiring to fail on any Linux host.
+
+---
+
 ## v4.0.0 — 2026-04-23 — Major refactor: Claude Code + OpenCode only, skills as knowledge references
 
 **BREAKING — Platform simplification + skill philosophy shift.**
