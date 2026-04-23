@@ -1,5 +1,13 @@
 # Ciel — Changelog
 
+## v4.0.2 — 2026-04-23 — Fix: restore hooks/ + fix spurious Ciel/ prefix in download URLs
+
+### Fixed
+- `hooks/` directory accidentally deleted in v4.0.0. All 8 hook scripts restored: `session-start`, `stop`, `user-prompt-submit`, `pre-tool-write`, `post-tool-write`, `subagent-stop`, `pre-compact`, `pre-agent-gate`. Without them, Claude Code reported "No such file or directory" on every session start.
+- `scripts/install.sh`: remote install downloaded hooks and agents from `$GITHUB_RAW/Ciel/hooks/` and `$GITHUB_RAW/Ciel/agents/` — spurious `Ciel/` prefix (dev-layout artifact). Corrected to `$GITHUB_RAW/hooks/` and `$GITHUB_RAW/agents/`.
+
+---
+
 ## v4.0.1 — 2026-04-23 — Fix: Linux-compatible sed in installer
 
 ### Fixed

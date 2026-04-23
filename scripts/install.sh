@@ -214,10 +214,10 @@ install_claude_code() {
     cp "$hooks_src/"*.ps1 "$plugin_dir/hooks/" 2>/dev/null || true
   else
     for hook in session-start.sh user-prompt-submit.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh subagent-stop.sh stop.sh pre-agent-gate.sh; do
-      curl -fsSL "$GITHUB_RAW/Ciel/hooks/$hook" -o "$plugin_dir/hooks/$hook" 2>/dev/null || true
+      curl -fsSL "$GITHUB_RAW/hooks/$hook" -o "$plugin_dir/hooks/$hook" 2>/dev/null || true
     done
     for hook in session-start.ps1 user-prompt-submit.ps1 pre-tool-write.ps1 post-tool-write.ps1 pre-compact.ps1 subagent-stop.ps1 stop.ps1; do
-      curl -fsSL "$GITHUB_RAW/Ciel/hooks/$hook" -o "$plugin_dir/hooks/$hook" 2>/dev/null || true
+      curl -fsSL "$GITHUB_RAW/hooks/$hook" -o "$plugin_dir/hooks/$hook" 2>/dev/null || true
     done
   fi
   chmod +x "$plugin_dir/hooks/"*.sh 2>/dev/null || true
@@ -230,7 +230,7 @@ install_claude_code() {
     cp "$agents_src/"*.md "$plugin_dir/agents/" 2>/dev/null || true
   else
     for agent in researcher explorer critic improver; do
-      curl -fsSL "$GITHUB_RAW/Ciel/agents/$agent.md" -o "$plugin_dir/agents/$agent.md" 2>/dev/null || true
+      curl -fsSL "$GITHUB_RAW/agents/$agent.md" -o "$plugin_dir/agents/$agent.md" 2>/dev/null || true
     done
   fi
   ok "Agents installed"
