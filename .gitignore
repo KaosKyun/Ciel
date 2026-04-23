@@ -26,6 +26,9 @@ ciel-overlay.md
 .claude/settings.json
 .claude/settings.json.bak-*
 
+# OpenCode config backups created by install.sh
+opencode.json.bak-*
+
 # Per-session state written by PreCompact / Stop hooks + meta-critiquer.
 # Useful for the next session to resume without dead-end loops, but not
 # source of truth. Belongs on the developer machine, not in git history.

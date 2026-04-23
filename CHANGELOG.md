@@ -1,5 +1,89 @@
 # Ciel — Changelog
 
+## v4.0.0 — 2026-04-23 — Major refactor: Claude Code + OpenCode only, skills as knowledge references
+
+**BREAKING — Platform simplification + skill philosophy shift.**
+
+### Changed — Platforms: Claude Code primary, OpenCode secondary
+
+Dropped support for Cursor, Windsurf, Codex, Kilo Code, Ollama, and LM Studio. Ciel now targets Claude Code (hooks, skills, agents, commands, MCP) and OpenCode (same resources, idiomatic TS plugin). Removed all platform-specific build targets and install functions.
+
+### Changed — Skills: workflow steps → knowledge references
+
+All 21 workflow skills converted from rigid pipeline steps (Phase 1 → Phase 2 → Phase 3) to standalone knowledge references (Methodology → Key points → Common patterns → Anti-patterns → How to verify). Skills are now invoked based on intent, not pipeline position. Each skill is self-contained and usable without reading the orchestrator.
+
+Affected skills: `relire-critic`, `debug-reasoning-rca`, `critiquer-auditor`, `meta-critiquer`, `quoi-framer`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `flux-narrator`, `stride-analyzer`, `security-regression-check`, `self-consistency-verifier`, `playwright-visual-critic`, `test-strategy-vitest-playwright`.
+
+### Added — `skills/domain/test-writing/SKILL.md`
+
+New domain skill: test writing methodology. Covers test pyramid (70/20/10), unit/integration/E2E methodology, assertion patterns, mocking strategy, coverage targets, framework notes (Vitest, Playwright, pytest), and common anti-patterns.
+
+### Fixed — Claude Code hooks
+
+- **Root cause of broken hooks**: `install_claude_code()` in `installers.sh` wrote `"command": "true"` for ALL hooks — this disabled them. New `install.sh` generates correct settings.json with proper hook paths and `statusMessage` fields.
+- **Hook paths**: old config referenced flat paths (`~/.claude/plugins/ciel/session-start.sh`); hooks now live in `hooks/` subdirectory.
+- **Missing hooks**: `UserPromptSubmit` and `SubagentStop` were missing from settings.json.
+
+### Changed — `scripts/install.sh` (complete rewrite)
+
+- `--check-update`, `--update`, `--uninstall`, `--platform=<claude|opencode>`, `-y/--yes` flags
+- Manifest tracking: writes `~/.ciel/manifest.json` during install
+- Correct settings.json generation with proper hook paths
+- Only supports Claude Code + OpenCode (dropped 6 other platforms)
+- Fallback version: fail-hard instead of silent stale version
+
+### Changed — `scripts/build-platforms.sh`
+
+Removed all platform targets except OpenCode. Script now reads `Ciel/skills/` source of truth and generates `.opencode/` artifacts only.
+
+### Fixed — Version sync
+
+All version references synced to 4.0.0: `VERSION`, `Ciel/.version`, `plugin.json`, `marketplace.json`, `install.ps1` banner, `install.sh` fallback.
+
+### Fixed — Agent routing
+
+- `.opencode/agents/ciel-critic.md` had broken file paths (`skills/ciel-critic/relire-critic.md`). Fixed to use skill names.
+- Source `Ciel/agents/critic.md` already correct.
+
+### Changed — `Ciel/skills/ciel/SKILL.md`
+
+Simplified from rigid pipeline (QUOI → AVEC QUOI → RECHERCHE → CODEBASE → FAIRE → RELIRE → PROUVER) to intent-routing table. Skills invoked based on intent signals, not sequential phases.
+
+### Changed — Template paths
+
+`Ciel/.claude/settings.json` template now uses `__CIEL_PLUGIN_HOME__/hooks/` placeholder instead of hardcoded absolute paths. `install.sh` replaces at install time.
+
+---
+
+## v3.7.3 — 2026-04-22 — CI validation cleanup
+
+### Fixed
+
+- **CI** — Removed ciel-plan + ciel-build from validation loops
+- **Agents** — Updated AGENTS.md for single ciel agent (remove plan/build split)
+- **Installer** — Removed ciel-plan + ciel-build from agent download loops
+
+---
+
+## v3.6.0 — 2026-04-22 — OpenCode META-CRITIQUER + session hook
+
+### Added
+
+- **OpenCode** — META-CRITIQUER added to workflow
+- **OpenCode** — `session.deleted` hook
+- **OpenCode** — Temperature set to 0.7
+
+---
+
+## v3.5.0 — 2026-04-22 — OpenCode agent consolidation + skills bundling
+
+### Changed
+
+- **OpenCode** — Merged ciel-plan + ciel-build into single primary agent `ciel`
+- **OpenCode** — Bundle core skills inline + sync script + FAIRE before hook
+
+---
+
 ## v3.4.6 — 2026-04-22 — Use 'true' command for Claude Code hooks
 
 ### Fixed

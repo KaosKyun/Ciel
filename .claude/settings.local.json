@@ -64,7 +64,22 @@
       "Bash(mkdir -p /Users/neikyun/.claude/plugins/ciel/hooks)",
       "Bash(cp /Users/neikyun/Documents/Projet/Ciel/Ciel/hooks/*.sh /Users/neikyun/.claude/plugins/ciel/hooks/)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('version','?'\\)\\)\")",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); hooks=d.get\\('hooks',{}\\); [print\\(k, '→', v\\) for k,v in hooks.items\\(\\)]\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); hooks=d.get\\('hooks',{}\\); [print\\(k, '→', v\\) for k,v in hooks.items\\(\\)]\")",
+      "Bash(mkdir -p ~/.claude/plugins/ciel/hooks)",
+      "Bash(mv ~/.claude/plugins/ciel/*.sh ~/.claude/plugins/ciel/hooks/)",
+      "Bash(mv ~/.claude/plugins/ciel/*.ps1 ~/.claude/plugins/ciel/hooks/)",
+      "Bash(mv ~/.claude/plugins/ciel/critic.md ~/.claude/plugins/ciel/agents/)",
+      "Bash(mv ~/.claude/plugins/ciel/explorer.md ~/.claude/plugins/ciel/agents/)",
+      "Bash(mv ~/.claude/plugins/ciel/improver.md ~/.claude/plugins/ciel/agents/)",
+      "Bash(mv ~/.claude/plugins/ciel/researcher.md ~/.claude/plugins/ciel/agents/)",
+      "Bash(chmod +x /Users/neikyun/Documents/Projet/Ciel/scripts/install.sh)",
+      "Bash(rsync -av --delete /Users/neikyun/Documents/Projet/Ciel/Ciel/skills/ /Users/neikyun/.ciel/skills/)",
+      "Bash(curl -fsSL \"https://api.github.com/repos/KaosKyun/Ciel/contents/\")",
+      "Bash(curl -fsSL \"https://api.github.com/repos/KaosKyun/Ciel/contents/hooks\")",
+      "Bash(curl -fsSL \"https://api.github.com/repos/KaosKyun/Ciel/contents/skills\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(xargs -I{} basename {})",
+      "Bash(git status *)"
     ]
   },
   "enabledMcpjsonServers": [

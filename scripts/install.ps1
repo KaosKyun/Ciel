@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Ciel Universal Installer v2.4.0 (PowerShell)
+# Ciel Universal Installer v4.0.0 (PowerShell)
 # Supports: Claude Code, Cursor, Windsurf, Codex CLI, OpenCode, Kilo Code, Ollama, LM Studio
 # Usage: pwsh scripts/install.ps1 [project-root] [flags]
 #        irm https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.ps1 | iex
@@ -12,7 +12,7 @@
 #   --with-mcp=LIST     Register MCP servers from .mcp.json (CSV: playwright,context7)
 #   -y, --yes           Skip interactive confirmations
 #
-# Parity with install.sh v2.4.0:
+# Parity with install.sh v4.0.0:
 #   - Non-destructive opencode.json merge via Python
 #   - Platform detection with --platform override
 #   - Whitelist preservation on uninstall
@@ -102,7 +102,7 @@ function _manifest_read_version {
 function _manifest_write {
     $version = if (isFile "$CIEL_DIR/VERSION") {
         (Get-Content "$CIEL_DIR/VERSION" -Raw).Trim()
-    } else { "2.4.0" }
+    } else { "4.0.0" }
     
     $manifest = @{
         version = $version
@@ -319,10 +319,10 @@ $isUpdate = isFile "$PROJECT_ROOT/ciel-overlay.md"
 
 Write-Host ""
 if ($isUpdate) {
-    Write-Host "Ciel Universal Installer v2.4.0 " -ForegroundColor White -NoNewline
+    Write-Host "Ciel Universal Installer v4.0.0 " -ForegroundColor White -NoNewline
     Write-Host "(update detected)" -ForegroundColor Yellow
 } else {
-    Write-Host "Ciel Universal Installer v2.4.0" -ForegroundColor White
+    Write-Host "Ciel Universal Installer v4.0.0" -ForegroundColor White
 }
 Write-Host "Plugin : $CIEL_DIR"
 Write-Host "Project: $PROJECT_ROOT"

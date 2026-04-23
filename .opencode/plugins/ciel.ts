@@ -1,14 +1,17 @@
-// Ciel — OpenCode plugin (v3.7.0)
+// Ciel — OpenCode plugin (v4.0.0)
 // Mandatory workflow injection for ciel primary agent
 //
 // Injection model:
-//   - experimental.chat.system.transform → CIEL WORKFLOW (mandatory) + depth hint + RELIRE + overlay + faireBlocked
+//   - shell.env → inject CIEL_SESSION_ID, CIEL_DEPTH into all shell execution
+//   - experimental.chat.system.transform → CIEL WORKFLOW + depth hint + RELIRE + overlay
 //   - experimental.chat.messages.transform → depth classification
 //   - session.* events → tracking, META-CRITIQUER, RELIRE reminders
-//   - tool.execute.before → FAIRE gates reminder (NON-BLOCKING: injects into tool output)
+//   - tool.execute.before → FAIRE gates reminder (NON-BLOCKING)
 //   - tool.execute.after → file tracking + RELIRE trigger
+//   - tool helper → custom ciel-status tool
 
 import type { Plugin } from "@opencode-ai/plugin";
+import { tool } from "@opencode-ai/plugin";
 import { readFileSync, existsSync } from "fs";
 import { basename, dirname, join } from "path";
 
@@ -101,20 +104,54 @@ function isSourceFile(filePath: string): boolean {
   return CODE_EXT_RE.test(filePath) && !isTestFile(filePath);
 }
 
-const ciel: Plugin = async ({ $ }) => {
+const ciel: Plugin = async ({ client }) => {
   const writtenFiles = new Set<string>();
   const MAX_TRACKED_FILES = 100;
   let relireSticky = false;
   let lastDepthHint: string | null = null;
   let overlayContent: string | null = null;
   let faireBlocked: { filePath: string; gate: string; candidates: string[] } | null = null;
+  let sessionId: string = "unknown";
 
   return {
+    // ─── CUSTOM TOOLS ───
+    tool: {
+      "ciel-status": tool({
+        description: "Shows current Ciel session state: depth classification, files changed, RELIRE status, FAIRE gate state. Use when user asks 'what's the Ciel status' or 'show Ciel state'.",
+        args: {},
+        async execute(_args, _context) {
+          const changed = Array.from(writtenFiles);
+          return JSON.stringify({
+            sessionId,
+            depthHint: lastDepthHint,
+            filesChanged: changed.length,
+            files: changed.slice(0, 10),
+            relireRequired: relireSticky,
+            faireBlocked: faireBlocked ? {
+              file: faireBlocked.filePath,
+              gate: faireBlocked.gate,
+            } : null,
+            overlayLoaded: overlayContent != null,
+          }, null, 2);
+        },
+      }),
+    },
+
+    // ─── SHELL ENV — inject Ciel context into all shell execution ───
+    "shell.env": async (_input, output) => {
+      output.env.CIEL_SESSION_ID = sessionId;
+      output.env.CIEL_DEPTH = lastDepthHint ?? "unclassified";
+    },
+
+    // ─── EVENTS ───
     event: async ({ event }) => {
       if (event.type === "session.created") {
         const rawId = (event as any).info?.id ?? (event as any).sessionID ?? "unknown";
-        const sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
-        console.log(`[CIEL] Session ${sessionId} started`);
+        sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
+
+        await client.app.log({
+          body: { service: "ciel", level: "info", message: `Session ${sessionId} started` },
+        });
 
         if (existsSync("./ciel-overlay.md")) {
           try {
@@ -158,26 +195,36 @@ const ciel: Plugin = async ({ $ }) => {
       }
 
       if (event.type === "session.deleted") {
-        // Log session deletion (includes child sessions from subagent Task tool)
         const rawId = (event as any).sessionID ?? (event as any).info?.id ?? "unknown";
-        const sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
+        const sid = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
         const isChild = (event as any).parentSessionId != null;
-        console.log(`[CIEL] Session ${sessionId} deleted${isChild ? " (subagent child)" : ""}`);
+        await client.app.log({
+          body: { service: "ciel", level: "info", message: `Session ${sid} deleted${isChild ? " (subagent child)" : ""}` },
+        });
       }
 
       if (event.type === "session.error") {
         const errorName = (event as any).error?.name ?? "UnknownError";
         const errorMessage = (event as any).error?.message ?? "";
         if (errorName === "ProviderAuthError" || errorName === "MessageAbortedError") {
-          console.log(`[CIEL ERROR] ${errorName}: ${errorMessage}`);
+          await client.app.log({
+            body: { service: "ciel", level: "error", message: `${errorName}: ${errorMessage}` },
+          });
         }
+      }
+
+      if (event.type === "session.compacted") {
+        // Post-compaction: state was persisted by session.compacting hook
+        await client.app.log({
+          body: { service: "ciel", level: "info", message: `Session ${sessionId} compacted — state preserved` },
+        });
       }
     },
 
     "experimental.chat.system.transform": async (_input, output) => {
       if (!Array.isArray(output?.system)) return;
 
-      // ⚠️ MANDATORY WORKFLOW INJECTION (FIRST — highest priority)
+      // MANDATORY WORKFLOW INJECTION (FIRST — highest priority)
       output.system.push(CIEL_WORKFLOW_INSTRUCTION);
 
       // Overlay injection
@@ -255,8 +302,6 @@ const ciel: Plugin = async ({ $ }) => {
     },
 
     // ─── BEFORE HOOK — FAIRE gates reminder (NON-BLOCKING) ───
-    // Injects FAIRE checklist into tool output so the model sees it before writing.
-    // Also sets faireBlocked flag if test-first gate fails (picked up by system.transform).
     "tool.execute.before": async (input: any, output: any) => {
       if (!["write", "edit"].includes(input.tool)) return;
       const filePath: string = output?.args?.filePath ?? "";
@@ -275,9 +320,9 @@ const ciel: Plugin = async ({ $ }) => {
 
       // Gate 2: CRITICAL FILE WARNING
       if (CRITICAL_FILE_RE.test(filePath)) {
-        console.log(
-          `[CIEL CRITICAL FILE] ${filePath} — stride-analyzer + security-regression-check required.`
-        );
+        await client.app.log({
+          body: { service: "ciel", level: "warn", message: `CRITICAL FILE: ${filePath} — stride-analyzer + security-regression-check required` },
+        });
       }
 
       // Inject FAIRE reminder into the tool output

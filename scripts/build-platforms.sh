@@ -1,29 +1,35 @@
 #!/bin/bash
-# Ciel — Build platform-specific artifacts from skills/
+# Ciel — Build OpenCode artifacts from skills/
 #
-# Regenerates platforms/ directory for:
-#   - Cursor   (.cursor/rules/ciel.mdc, ≤ 6KB) — compressed rules
-#   - Windsurf (.windsurf/rules/ciel.md, ≤ 6KB) — compressed rules
-#   - Codex    (AGENTS.md, ≤ 32KB)
-#   - OpenCode (.opencode/plugins/ + agents/ + commands/ + AGENTS.md) — NATIVE primitives
-#   - Kilo     (.kilocode/rules/ciel.md + .kilo/agents/, ≤ 32KB)
-#   - Ollama   (Modelfile with baked SYSTEM)
-#   - LM Studio (system-prompt.md copy-paste)
+# Regenerates platforms/opencode/ directory:
+#   - .opencode/plugins/ciel.ts  (TS port of hooks)
+#   - .opencode/agents/*.md      (skills bundled inline)
+#   - .opencode/commands/*.md    (slash commands)
+#   - AGENTS.md                  (compact orchestrator)
+#   - opencode.json              (plugin config)
 #
-# Source of truth: skills/ (SKILL.md files)
-# Output: platforms/ (regenerated every run)
+# Source of truth: Ciel/skills/ (SKILL.md files)
+# Output: platforms/opencode/ (regenerated every run)
 #
-# Usage: ./build-platforms.sh [--check] [--target=cursor|windsurf|codex|opencode|kilo|ollama|lmstudio|all]
+# Usage: ./build-platforms.sh [--check] [--target=opencode]
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SKILLS="$ROOT/skills"
+# Skills may be at ROOT/skills (GitHub layout) or ROOT/Ciel/skills (dev layout)
+if [ -d "$ROOT/skills" ]; then
+  SKILLS="$ROOT/skills"
+elif [ -d "$ROOT/Ciel/skills" ]; then
+  SKILLS="$ROOT/Ciel/skills"
+else
+  echo "ERROR: skills/ not found at $ROOT/skills or $ROOT/Ciel/skills"
+  exit 1
+fi
 PLATFORMS="$ROOT/platforms"
 CIEL_VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION" 2>/dev/null || echo "0.0.0")"
 
 CHECK_ONLY=false
-TARGET="all"
+TARGET="opencode"
 for arg in "$@"; do
   case "$arg" in
     --check) CHECK_ONLY=true ;;
@@ -1557,26 +1563,14 @@ purge_target() {
 mkdir -p "$PLATFORMS"
 
 case "$TARGET" in
-  cursor)   purge_target cursor   && build_cursor   ;;
-  windsurf) purge_target windsurf && build_windsurf ;;
-  codex)    purge_target codex    && build_codex    ;;
   opencode) purge_target opencode && build_opencode ;;
-  kilo)     purge_target kilo && build_kilo ;;
-  ollama)   purge_target ollama   && build_ollama   ;;
-  lmstudio) purge_target lmstudio && build_lmstudio ;;
   all)
     rm -rf "$PLATFORMS"
     mkdir -p "$PLATFORMS"
-    build_cursor
-    build_windsurf
-    build_codex
     build_opencode
-    build_kilo
-    build_ollama
-    build_lmstudio
     ;;
   *)
-    echo "Unknown target: $TARGET" >&2
+    echo "Unknown target: $TARGET (only 'opencode' and 'all' supported)" >&2
     exit 1
     ;;
 esac
