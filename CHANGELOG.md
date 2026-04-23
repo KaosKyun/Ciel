@@ -1,5 +1,13 @@
 # Ciel — Changelog
 
+## v4.0.3 — 2026-04-23 — Fix: restore skills/ to repo (remote install was getting empty skills)
+
+### Fixed
+- `skills/` directory accidentally deleted in v4.0.0. `install.sh` downloads skills from `$GITHUB_RAW/skills/...` — all 404 on remote install, masked by `|| true`. 70 skill files (SKILL.md + reference.md) restored to repo from local `~/.ciel/skills/`.
+- `skills/ciel/reference.md`: added 3 new Guards from v4.0.0–v4.0.2 incidents (hooks deleted while config references them, silent 404 in install loops, dev-layout paths leaking into remote URLs).
+
+---
+
 ## v4.0.2 — 2026-04-23 — Fix: restore hooks/ + fix spurious Ciel/ prefix in download URLs
 
 ### Fixed
