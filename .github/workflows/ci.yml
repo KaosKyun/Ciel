@@ -114,7 +114,7 @@ jobs:
       - name: Validate agent definitions
         run: |
           echo "Checking agent files exist..."
-          for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+          for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
             if [ -f ".opencode/agents/${agent}.md" ]; then
               echo "✓ .opencode/agents/${agent}.md exists"
             else

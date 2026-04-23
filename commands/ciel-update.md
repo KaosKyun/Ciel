@@ -55,8 +55,8 @@ done
 curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/skills/ciel-critic/relire-critic.md" -o "$PLUGIN_DIR/skills/ciel-critic/relire-critic.md"
 # ... (other skills)
 
-# Update agents
-for agent in ciel-plan ciel-build ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+# Update agents (ciel = merged plan+build)
+for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
   curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/agents/${agent}.md" -o "$PLUGIN_DIR/agents/${agent}.md"
 done
 
