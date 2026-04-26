@@ -1,12 +1,22 @@
-# Documentation Ciel v5
+# Ciel v5
 
 > **Deep-reasoning framework pour le developpement assiste par LLM.**
 >
-> Ciel v5 est un framework de raisonnement profond qui orchestre le pipeline de developpement sur OpenCode ET Claude Code.
-> Il classifie chaque tache par profondeur (Trivial/Standard/Critical/Spike), dispatche des subagents specialises
-> en isolation par fork, applique 6 quality gates, et persiste la connaissance entre sessions via .ciel/.
+> Pipeline 16 etapes, subagents specialises, 6 quality gates, memoire persistante.
 >
 > Principe : **"Understand before generating. Verify before claiming done."**
+
+## Installation
+
+```bash
+# Une commande, zero config
+curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh | bash -s -- -y
+
+# Ou depuis un clone local
+bash scripts/install.sh -y
+```
+
+Auto-detecte OpenCode ou Claude Code. Verifier avec `--check-update`.
 
 ---
 
@@ -42,7 +52,7 @@ Ciel/
 ├── CLAUDE.md             # Instructions Claude Code
 ├── AGENTS.md             # Workflow complet + philosophie
 ├── ciel-overlay.md       # Overlay projet
-├── VERSION               # 5.1.0
+├── VERSION               # 5.1.2
 ├── skills/               # 63 skills source
 ├── scripts/              # Install zero-config (256 lignes .sh, 129 .ps1)
 ├── hooks/                # 8 hooks legacy
@@ -89,6 +99,6 @@ DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE
 
 ## References
 
-- **Version** : 5.1.0 (voir [VERSION](../VERSION))
+- **Version** : 5.1.2 (voir [VERSION](../VERSION))
 - **AGENTS.md** : [Workflow complet](../AGENTS.md)
 - **Depot GitHub** : [github.com/KaosKyun/Ciel](https://github.com/KaosKyun/Ciel)
