@@ -69,10 +69,15 @@ fi
 
 # --- Detect platform ---
 detect_platform() {
-  if [ -f "./.claude/settings.json" ] || [ -d "./.claude/agents" ] || command -v claude &>/dev/null; then
-    echo "claude"
-  elif [ -f "./opencode.json" ] || [ -d "./.opencode" ] || command -v opencode &>/dev/null; then
+  # Project files first (most reliable signal)
+  if [ -f "./opencode.json" ] || [ -d "./.opencode" ]; then
     echo "opencode"
+  elif [ -f "./.claude/settings.json" ] || [ -d "./.claude/agents" ]; then
+    echo "claude"
+  elif command -v opencode &>/dev/null; then
+    echo "opencode"
+  elif command -v claude &>/dev/null; then
+    echo "claude"
   else
     echo "unknown"
   fi
