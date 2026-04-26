@@ -21,11 +21,8 @@ import { basename, dirname, join } from "path";
 // ----- Constants -----
 
 const CODE_EXT_RE = /\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql)$/i;
-const TEST_FILE_RE = /\.(test|spec|_test|_spec)\.(ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte)$/i;
+const TEST_FILE_RE = /(\.test\.|\.spec\.|_test\.|_spec\.)(ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte)$/i;
 const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret|Payment|Account|Credential)/;
-const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit\.card|migration\.schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
-const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one\.line|fix\.typo|spelling)\b/i;
-const SPIKE_KEYWORD_RE = /\b(spike|exploration|prototype|draft|rough|experimental|poc|proof.of.concept|throwaway)\b/i;
 const CIEL_DIR = ".ciel";
 const MAP_FILE = join(CIEL_DIR, "map.json");
 const PARKING_FILE = join(CIEL_DIR, "parking.md");
@@ -394,46 +391,29 @@ const ciel: Plugin = async ({ client }) => {
       }
     },
 
-    // ----- MESSAGES TRANSFORM (depth classification) -----
+    // ----- MESSAGES TRANSFORM (model-driven depth classification) -----
+    // The model classifies depth based on the pipeline instruction in the system prompt.
+    // No regex keyword matching -- the model reasons about the task and decides.
+    // This hint is injected so the pipeline instruction remains visible after compaction.
     "experimental.chat.messages.transform": async (_input, output) => {
       const msgs = output?.messages;
       if (!Array.isArray(msgs) || msgs.length === 0) return;
 
-      let prompt = "";
-      for (let i = msgs.length - 1; i >= 0 && !prompt; i--) {
+      // Check if there's a user message (any content -- the model classifies it)
+      let hasUserMessage = false;
+      for (let i = msgs.length - 1; i >= 0 && !hasUserMessage; i--) {
         const m = msgs[i];
-        if (m?.info?.role !== "user") continue;
-        const parts = m?.parts;
-        if (!Array.isArray(parts)) continue;
-        for (let j = parts.length - 1; j >= 0; j--) {
-          const p = parts[j];
-          if (p?.type === "text" && typeof p.text === "string") {
-            prompt = p.text;
-            break;
-          }
-        }
+        if (m?.info?.role === "user") hasUserMessage = true;
       }
-      if (!prompt) return;
+      if (!hasUserMessage) return;
 
-      let depth: string = "Standard";
-      let reason = "no specific keywords detected -- default to Standard";
-      if (CRITICAL_KEYWORD_RE.test(prompt)) {
-        depth = "Critical";
-        reason = "auth/security/payment keyword detected";
-      } else if (SPIKE_KEYWORD_RE.test(prompt)) {
-        depth = "Spike";
-        reason = "spike/exploration/prototype keyword detected -- gates assouplies";
-      } else if (TRIVIAL_KEYWORD_RE.test(prompt)) {
-        depth = "Trivial";
-        reason = "rename/typo/docs keyword detected";
-      }
-
-      lastDepthHint = `[CIEL] Depth: ${depth} (${reason}). Route accordingly.`;
+      // Let the model decide the depth based on the pipeline instruction
+      lastDepthHint = "[CIEL] Classify depth from the pipeline instruction above.";
     },
 
     // ----- COMPACTING (cross-session memory -- persist automatically) -----
     "experimental.session.compacting": async (_input, output) => {
-      // Persist .ciel/memory.json
+      // Persist .ciel/memory.json with current state
       try {
         ensureCielDir();
         const memory = {
@@ -448,10 +428,11 @@ const ciel: Plugin = async ({ client }) => {
         // silent
       }
 
-      // Inject context for the LLM to update learnings and map
+      // Inject context for the LLM to update learnings, map, and parking
       output.context.push(
         "CIEL PRE-COMPACT -- Persist if needed: (1) user corrections -> .ciel/learnings.md, " +
-        "(2) project map updates -> .ciel/map.json. " +
+        "(2) project map updates -> .ciel/map.json, " +
+        "(3) fortuitous discoveries -> .ciel/parking.md. " +
         "Memory already saved at .ciel/memory.json"
       );
     },

@@ -86,9 +86,11 @@ jobs:
         working-directory: .opencode
         run: |
           if [ -f test-ciel.ts ]; then
+            echo "Running Ciel v5 test suite..."
             npx tsx test-ciel.ts
           else
-            echo "No test-ciel.ts found, skipping..."
+            echo "ERROR: test-ciel.ts not found"
+            exit 1
           fi
 
   validate-config:

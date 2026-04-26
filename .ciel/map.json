@@ -9,7 +9,17 @@
           "responsibility": "auto-detected"
         }
       ]
+    },
+    {
+      "name": ".opencode",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/test-ciel.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
     }
   ],
-  "lastUpdated": "2026-04-26T15:07:09.877Z"
+  "lastUpdated": "2026-04-26T15:42:06.432Z"
 }

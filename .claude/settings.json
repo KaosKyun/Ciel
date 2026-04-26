@@ -35,15 +35,6 @@
           }
         ]
       },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "prompt",
-            "if": "Bash(gh pr create *)",
-            "prompt": "Is the PR body present? If not, ask the user to add one using pr-body-generator. Respond with a JSON object: {\"decision\":\"allow\"} or {\"decision\":\"block\",\"reason\":\"...\"}."
-          }
-        ]
       }
     ],
     "PostToolUse": [
@@ -53,16 +44,6 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/track-file.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "prompt",
-            "if": "Write(*/auth/*)|Edit(*/auth/*)|Write(*/security/*)|Edit(*/security/*)",
-            "prompt": "The file being modified is in an auth or security path. Should we trigger STRIDE analysis? Respond: {\"decision\":\"allow\"} or {\"decision\":\"block\",\"reason\":\"...\"}."
           }
         ]
       }
@@ -98,15 +79,5 @@
         ]
       }
     ],
-    "TeammateIdle": [
-      {
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "A teammate is idle. Should we keep them working? Respond: {\"decision\":\"allow\"} to let them rest, or {\"decision\":\"block\"} to keep them working."
-          }
-        ]
-      }
-    ]
   }
 }
