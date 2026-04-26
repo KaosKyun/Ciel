@@ -60,7 +60,7 @@ console.log("  (Depth is classified by the model via pipeline instruction, not r
 console.log("");
 
 // Verify the pipeline instruction contains the depth guidance
-assert(pluginSource.includes("classify depth"), "Pipeline instruction mentions depth classification");
+assert(pluginSource.includes("depth classification") || pluginSource.includes("ALWAYS classify"), "Pipeline instruction mentions depth classification");
 assert(pluginSource.includes("Standard"), "Pipeline instruction mentions Standard depth");
 assert(pluginSource.includes("Critical"), "Pipeline instruction mentions Critical depth");
 assert(pluginSource.includes("Trivial"), "Pipeline instruction mentions Trivial depth");
@@ -103,7 +103,7 @@ assert(pluginSource.includes("experimental.chat.messages.transform"), "Plugin ha
 assert(pluginSource.includes("tool.execute.before"), "Plugin has tool.execute.before");
 assert(pluginSource.includes("tool.execute.after"), "Plugin has tool.execute.after");
 assert(pluginSource.includes("experimental.session.compacting"), "Plugin has session.compacting");
-assert(pluginSource.includes("CIEL MANDATORY WORKFLOW v5"), "Plugin contains v5 pipeline");
+assert(pluginSource.includes("CIEL WORKFLOW") || pluginSource.includes("DOCS > QUOI > ASK"), "Plugin contains v5 pipeline enforcement");
 assert(pluginSource.includes("META-CRITIQUER"), "Plugin contains META-CRITIQUER");
 assert(pluginSource.includes("SPIKE MODE"), "Plugin contains SPIKE mode");
 assert(pluginSource.includes("ASK"), "Plugin contains ASK window");

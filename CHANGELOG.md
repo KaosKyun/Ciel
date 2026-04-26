@@ -1,5 +1,24 @@
 # Ciel — Changelog
 
+## v5.1.0 — 2026-04-26 — Pipeline enforcement via plugin, install pro, JSON repair
+
+### Added
+- **Pipeline enforcement** : `messages.transform` hook injecte un rappel SYSTEME avant chaque message utilisateur pour forcer le suivi du pipeline
+- **`--check-update`** : nouveau flag `scripts/install.sh --check-update` pour verifier la version GitHub
+- **Install pro** : `scripts/install.sh` reecrit avec `usage()`, `need_cmd()`, `ensure()`, ANSI safe, `-y`/`-q` flags, pre-flight, verify, log, summary
+
+### Changed
+- **ciel.md agent** : instruction reduite de 230 a 47 lignes (pipeline enforce par plugin, pas par le texte)
+- **ciel-update command** : simplifie (2 etapes: `--check-update` + `--update -y`)
+
+### Fixed
+- **settings.json** : JSON invalide (accolade + virgule traînante) — Claude Code plantait sur "cinq animaux" / "undefined in DINO"
+- **install.sh** : exit 1 sur `cp` identique en local — fix avec `cp -n || true`
+- **ciel.ts plugin** : edits non persistés — maintenant verificables via `git diff`
+
+### Metrics
+- Fix/revert ratio: 3/0 (100% fix)
+
 ## v5.0.0 — 2026-04-26 — Refonte: pipeline 16 etapes, dual harness, memory persistante
 
 **BREAKING — Nouveau pipeline, nouvelle architecture harness.**

@@ -1,98 +1,58 @@
 ---
-description: Update Ciel for the current platform only (Claude, OpenCode, etc.)
+description: Check GitHub for newer Ciel release and re-install. Runs `scripts/install.sh --check-update` then `--update`.
 ---
 
-# ciel-update — Platform-aware update
+# /ciel-update — Update Ciel to the latest version
 
-Update Ciel components for **only the platform that executed this command**.
+Checks GitHub for a newer release and re-installs if available.
 
-## Process
+## Steps
 
-### 1. Detect current platform
+1. **Check version**: `bash scripts/install.sh --check-update`
+   - Fetches `VERSION` from GitHub, compares with local
+   - Prints "up to date" or "update available"
 
-Check execution context to determine which platform is running:
+2. **Apply update**: `bash scripts/install.sh --update -y`
+   - Re-installs all Ciel files (plugins, agents, commands, hooks)
+   - Preserves: `ciel-overlay.md`, `.ciel/`, existing configs
+   - Non-destructive merge on `opencode.json`
 
-```bash
-# Check if running in Claude Code
-if [ -d "$HOME/.claude/plugins/ciel" ]; then
-  PLATFORM="claude"
-# Check if running in OpenCode  
-elif [ -f ".opencode/plugins/ciel.ts" ] || [ -d ".opencode" ]; then
-  PLATFORM="opencode"
-# Check Cursor
-elif [ -d ".cursor" ]; then
-  PLATFORM="cursor"
-# Check Windsurf
-elif [ -d ".windsurf" ]; then
-  PLATFORM="windsurf"
-else
-  echo "Unknown platform, aborting"
-  exit 1
-fi
-```
+## Flags
 
-### 2. Fetch latest version
+| Flag | Purpose |
+|------|---------|
+| `--check-update` | Check remote version, don't install |
+| `--update` / `-u` | Force reinstall all files |
+| `-y` | Skip confirmation (non-interactive) |
+| `-q` | Quiet mode (summary only) |
+
+## One-liner
 
 ```bash
-REMOTE_VERSION=$(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION | tr -d '[:space:]')
-LOCAL_VERSION=$(cat VERSION 2>/dev/null || echo "unknown")
-
-echo "Current: $LOCAL_VERSION → Latest: $REMOTE_VERSION"
+bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --check-update
+bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update -y
 ```
 
-### 3. Update platform-specific files
+## What's preserved
 
-**For Claude Code:**
-```bash
-PLUGIN_DIR="$HOME/.claude/plugins/ciel"
+- `ciel-overlay.md` — project-specific rules
+- `.ciel/map.json`, `.ciel/memory.json`, `.ciel/parking.md`
+- `opencode.json` — existing config merged non-destructively
+- `.claude/settings.json` — hook paths preserved
 
-# Update hooks
-for hook in session-start.sh stop.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh; do
-  curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/hooks/$hook" -o "$PLUGIN_DIR/$hook"
-done
+## What's replaced
 
-# Update skills
-curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/skills/ciel-critic/relire-critic.md" -o "$PLUGIN_DIR/skills/ciel-critic/relire-critic.md"
-# ... (other skills)
+- `.opencode/plugins/ciel.ts` — fresh plugin
+- `.opencode/agents/ciel-*.md` — agent definitions
+- `.opencode/commands/ciel-*.md` — command files
+- `.claude/agents/ciel-*.md` — Claude Code agents
+- `.claude/hooks/*.sh` — shell hooks
+- `CLAUDE.md` — root instruction
 
-# Update agents (ciel = merged plan+build)
-for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
-  curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/agents/${agent}.md" -o "$PLUGIN_DIR/agents/${agent}.md"
-done
+## Troubleshooting
 
-# Update commands
-for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
-  curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/commands/${cmd}.md" -o "$PLUGIN_DIR/commands/${cmd}.md"
-done
-```
-
-**For OpenCode:**
-```bash
-OPENDIR=".opencode"
-
-# Update plugin
-curl -fsSL "https://raw.githubusercontent.com/KaosKyun/Ciel/main/.opencode/plugins/ciel.ts" -o "$OPENDIR/plugins/ciel.ts"
-
-# Update agents, commands, skills similarly...
-```
-
-### 4. Verify and report
-
-```bash
-echo "✓ Updated to version $REMOTE_VERSION for $PLATFORM"
-echo ""
-echo "Restart your AI assistant to apply changes."
-```
-
-## Important rules
-
-1. **Platform isolation**: Only update files for the executing platform
-2. **No cross-platform updates**: Claude command ≠ OpenCode update
-3. **Preserve config**: Don't overwrite settings.json or opencode.json
-4. **Atomic updates**: Download to temp, then move (avoid partial installs)
-
-## Error handling
-
-- Network error → exit with message "Update failed: network issue"
-- Permission error → exit with message "Update failed: permission denied"
-- Unknown platform → exit with message "Update failed: unknown platform"
+| Symptom | Fix |
+|---------|-----|
+| `Could not fetch remote version` | Check internet or proxy: `https_proxy=... bash install.sh --check-update` |
+| Plugin not loaded after update | Restart OpenCode (plugin loaded at session start) |
+| `jq not found` warning | Install jq for automatic opencode.json patching |

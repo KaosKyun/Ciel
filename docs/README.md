@@ -42,7 +42,7 @@ Ciel/
 ├── CLAUDE.md             # Instructions Claude Code
 ├── AGENTS.md             # Workflow complet + philosophie
 ├── ciel-overlay.md       # Overlay projet
-├── VERSION               # 5.0.0
+├── VERSION               # 5.1.0
 ├── skills/               # 63 skills source
 ├── scripts/              # Install zero-config (256 lignes .sh, 129 .ps1)
 ├── hooks/                # 8 hooks legacy
@@ -89,6 +89,6 @@ DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE
 
 ## References
 
-- **Version** : 5.0.0 (voir [VERSION](../VERSION))
+- **Version** : 5.1.0 (voir [VERSION](../VERSION))
 - **AGENTS.md** : [Workflow complet](../AGENTS.md)
 - **Depot GitHub** : [github.com/KaosKyun/Ciel](https://github.com/KaosKyun/Ciel)

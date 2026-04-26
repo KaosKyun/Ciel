@@ -6,20 +6,80 @@
       "key_files": [
         {
           "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/plugins/ciel.ts",
-          "responsibility": "auto-detected"
+          "responsibility": "Plugin principal v5. Injecte workflow pipeline dans system prompt (system.transform) ET avant chaque message user (messages.transform pipeline enforcement). FAIRE gates, META-CRITIQUER, relire reminders, depth hints.",
+          "modified": "2026-04-26",
+          "change": "messages.transform injecte maintenant un message SYSTEME avant chaque user message pour enforce la pipeline"
         }
       ]
     },
     {
-      "name": ".opencode",
+      "name": "agents",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/agents",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/agents/ciel.md",
+          "responsibility": "Agent principal. Instruction courte (30 lignes vs 230 avant). Pipeline enforce par plugin, pas par le texte.",
+          "modified": "2026-04-26",
+          "change": "Supprime les 200+ lignes de description pipeline. Garde juste 5 regles + references aux skills."
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/agents/ciel-plan.md",
+          "responsibility": "Agent planification (read-only + question tool). NON UTILISE actuellement.",
+          "status": "orphan"
+        }
+      ]
+    },
+    {
+      "name": "commands",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/commands",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/commands/ciel-update.md",
+          "responsibility": "Commande /ciel-update. Check GitHub version + reinstall.",
+          "modified": "2026-04-26",
+          "change": "Simplifie pour matcher le nouveau install.sh (--check-update + --update -y)"
+        }
+      ]
+    },
+    {
+      "name": "claude-config",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/.claude",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.claude/settings.json",
+          "responsibility": "Configuration Claude Code. Hooks pour le pipeline Ciel (pre-tool, post-tool, subagent).",
+          "modified": "2026-04-26",
+          "change": "Fix JSON invalide: extra '}' supprime + trailing comma supprime"
+        }
+      ]
+    },
+    {
+      "name": "scripts",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/scripts",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/scripts/install.sh",
+          "responsibility": "Installateur universel Ciel v5. Auto-detect OpenCode/Claude Code.",
+          "modified": "2026-04-26",
+          "change": "Rewrite pro: usage(), need_cmd(), ensure(), ANSI safe, --check-update, -y/-q flags, pre-flight, verify, log, summary"
+        }
+      ]
+    },
+    {
+      "name": "tests",
       "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode",
       "key_files": [
         {
           "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/test-ciel.ts",
-          "responsibility": "auto-detected"
+          "responsibility": "Suite de tests du plugin Ciel. 48 tests.",
+          "modified": "2026-04-26",
+          "change": "Tests mis a jour pour matcher le nouveau pipeline enforcement (CIEL WORKFLOW au lieu de CIEL MANDATORY WORKFLOW)"
         }
       ]
     }
   ],
-  "lastUpdated": "2026-04-26T15:42:06.432Z"
+  "orphans": [
+    ".opencode/agents/ciel-plan.md — cree mais non reference. Agent read-only pour planification. A supprimer ou integrer."
+  ],
+  "lastUpdated": "2026-04-26T16:53:01.016Z"
 }

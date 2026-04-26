@@ -1,4 +1,4 @@
-// Ciel -- OpenCode plugin (v5.0.0)
+// Ciel -- OpenCode plugin (v5.1.0)
 // Full 16-step pipeline: DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE
 //   -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2
 //   -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META
@@ -365,24 +365,35 @@ const ciel: Plugin = async ({ client }) => {
       }
     },
 
-    // ----- MESSAGES TRANSFORM (model-driven depth classification) -----
-    // The model classifies depth based on the pipeline instruction in the system prompt.
-    // No regex keyword matching -- the model reasons about the task and decides.
-    // This hint is injected so the pipeline instruction remains visible after compaction.
+    // ----- MESSAGES TRANSFORM (pipeline enforcement) -----
+    // Inject a PIPELINE REMINDER as a system message BEFORE each user message.
+    // This is more effective than system prompt text because it's fresh and
+    // appears right before the user's message -- hard for the model to ignore.
     "experimental.chat.messages.transform": async (_input, output) => {
       const msgs = output?.messages;
       if (!Array.isArray(msgs) || msgs.length === 0) return;
 
-      // Check if there's a user message (any content -- the model classifies it)
-      let hasUserMessage = false;
-      for (let i = msgs.length - 1; i >= 0 && !hasUserMessage; i--) {
-        const m = msgs[i];
-        if (m?.info?.role === "user") hasUserMessage = true;
+      // Find the last user message
+      let lastUserIdx = -1;
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i]?.info?.role === "user") {
+          lastUserIdx = i;
+          break;
+        }
       }
-      if (!hasUserMessage) return;
+      if (lastUserIdx === -1) return;
 
-      // Let the model decide the depth based on the pipeline instruction
-      lastDepthHint = "[CIEL] Classify depth from the pipeline instruction above.";
+      // Inject pipeline reminder right before the user message
+      const reminder: any = {
+        role: "system",
+        content: `[CIEL WORKFLOW] Start every response with depth classification (Trivial/Standard/Critical/Spike), then follow the pipeline step by step. Steps: DOCS > QUOI > ASK > AVEC QUOI > DIVERGE > RECHERCHE > SECURITE > CODEBASE > EVALUER > ASK2 > FAIRE > ADR > RELIRE > PROUVER > MEMOIRE > META. USE the 'question' tool for ASK/ASK2 -- never code on assumptions.`,
+        info: { role: "system" },
+      };
+
+      msgs.splice(lastUserIdx, 0, reminder);
+
+      // Also set depth hint for the system transform
+      lastDepthHint = "[CIEL] Classify depth before responding.";
     },
 
     // ----- COMPACTING (cross-session memory -- persist automatically) -----
