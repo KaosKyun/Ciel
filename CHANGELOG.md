@@ -1,5 +1,7 @@
 # Ciel — Changelog
 
+## [Unreleased]
+
 ## v5.1.0 — 2026-04-26 — Pipeline enforcement via plugin, install pro, JSON repair
 
 ### Added
@@ -1422,3 +1424,7 @@ Direct user request for a total refactor aligned with Anthropic's Skills-first p
 **Déclenché par** : 62.8% fix/revert sur 675 commits Neiyomi avec dev-reasoning monolithique.
 
 **Changements** : architecture 5-layer, agents OBLIGATOIRES Standard/Critical, RECHERCHE output gate (6 items), FLUX 3 items test-spécifiques.
+
+[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.0...HEAD
+[v5.1.0]: https://github.com/KaosKyun/Ciel/compare/v5.0.0...v5.1.0
+[v5.0.0]: https://github.com/KaosKyun/Ciel/compare/v4.0.3...v5.0.0
