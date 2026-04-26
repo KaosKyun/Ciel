@@ -33,36 +33,17 @@ const MEMORY_FILE = join(CIEL_DIR, "memory.json");
 // ----- V5 WORKFLOW INJECTION -----
 
 const CIEL_WORKFLOW_INSTRUCTION = `
-[CIEL v5] MANDATORY WORKFLOW -- APPLY TO EVERY MESSAGE.
+Every response MUST start with depth classification. Then follow the matching pipeline.
 
-START by classifying depth: Trivial / Standard / Critical / Spike.
-THEN follow the matching pipeline below. DO NOT skip steps.
+CLASSIFY: Trivial / Standard / Critical / Spike
 
-=== Standard / Critical (16 steps) ===
-1. DOCS     Read README, ADRs, overlay, .ciel/map.json
-2. QUOI     Goal + NOT-X + DoD + intentions partagees
-3. ASK      Use 'question' tool. NEVER code on assumptions.
-4. AVEC QUOI  Check installed versions (package.json, etc.)
-5. DIVERGE   Explore 2-3 approaches before choosing.
-6. RECHERCHE  Dispatch @ciel-researcher if external lib.
-7. SECURITE  STRIDE (Critical only).
-8. CODEBASE  Dispatch @ciel-explorer for patterns + flux.
-9. EVALUER   Sizing + pre-mortem + alternatives + counterfactual.
-10. ASK2     Questions on the plan before implementing.
-11. FAIRE    Test-first (RED) + 6 quality gates.
-12. ADR      Document decisions in docs/adrs/ if significant.
-13. RELIRE   Dispatch @ciel-critic MODE=RELIRE.
-14. PROUVER  AVANT/APRES evidence + CI gate + PR body.
-15. MEMOIRE  Save .ciel/map.json + learnings.
-16. META     30s reflection (10 items).
+| Depth | Pipeline |
+|-------|----------|
+| Standard/Critical | DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2 -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META |
+| Trivial | QUOI -> FAIRE -> META |
+| Spike | QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (relaxed) -> META |
 
-=== Trivial ===
-QUOI -> FAIRE -> META (inline, no dispatch)
-
-=== Spike (prototype) ===
-QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (gates relaxed) -> META
-
-FAILURE TO FOLLOW THIS WORKFLOW IS A BUG. CORRECT IT IMMEDIATELY.
+USE the question tool for ASK/ASK2. NEVER skip steps. NEVER code on assumptions.
 `;
 
 const FAIRE_BEFORE_REMINDER = `
