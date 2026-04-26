@@ -19,7 +19,7 @@ set -euo pipefail
 # ============================================================
 { # <-- wrapper start
 
-CIEL_VERSION="5.1.1"
+CIEL_VERSION="5.1.2"
 GITHUB_RAW="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
 
 # ----- Config -----
@@ -110,6 +110,26 @@ log() {
 }
 
 # ============================================================
+#  PROMPT — read from /dev/tty even in curl-pipe mode
+# ============================================================
+prompt_confirm() {
+  local msg="$1"
+  local default="${2:-y}"
+  local answer
+
+  printf "  %s%s [%s]: " "$(_ansi '\033[0;33m?\033[0m ')" "$msg" "$( [ "$default" = "y" ] && echo "Y/n" || echo "y/N" )" >&2
+
+  # Try /dev/tty first (works when piped: curl ... | bash)
+  read -r answer < /dev/tty 2>/dev/null || read -r answer || answer="$default"
+
+  if [ "$default" = "n" ]; then
+    [ "$answer" = "y" ] || [ "$answer" = "Y" ]
+  else
+    [ "$answer" != "n" ] && [ "$answer" != "N" ]
+  fi
+}
+
+# ============================================================
 #  FLAG PARSING
 # ============================================================
 DO_CHECK_UPDATE=false
@@ -175,10 +195,9 @@ pre_flight() {
     say "Ciel installs files into your project. Run this from your project root."
     say "If this is your project root, you can continue anyway."
     say "Project files Ciel looks for: opencode.json, .opencode/, .claude/"
-    if [ "$DO_YES" = false ]; then
-      printf "  %sContinue anyway? [y/N]: " "$(_ansi '\033[0;33m?\033[0m ')" >&2
-      read -r confirm
-      [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && { say "Aborted."; exit 0; }
+    if [ "$DO_YES" = false ] && ! prompt_confirm "Continue anyway?" "n"; then
+      say "Aborted."
+      exit 0
     fi
   fi
 
@@ -696,10 +715,10 @@ main() {
   local PROJECT_ROOT
   PROJECT_ROOT=$(pwd)
   if [ "$DO_YES" = false ] && [ "$CURL_MODE" = true ]; then
-    printf "  %sInstall Ciel v%s in %s? [Y/n]: " \
-      "$(_ansi '\033[0;33m?\033[0m ')" "$CIEL_VERSION" "$PROJECT_ROOT" >&2
-    read -r confirm
-    [ "$confirm" = "n" ] || [ "$confirm" = "N" ] && { say "Aborted."; exit 0; }
+    if ! prompt_confirm "Install Ciel v${CIEL_VERSION} in ${PROJECT_ROOT}?" "y"; then
+      say "Aborted."
+      exit 0
+    fi
   fi
 
   # Install

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## v5.1.2 — 2026-04-26 — Fix: read stdin in curl-pipe mode
+
+### Fixed
+- **`read` sans stdin en curl-pipe** (`curl ... | bash`) : `read` lisait depuis le pipe (vide) au lieu du terminal. Ajout de `prompt_confirm()` qui lit depuis `/dev/tty` si disponible, sinon utilise la valeur par defaut.
+
+### Changed
+- **prompt_confirm()** : nouvelle fonction helper pour les prompts interactifs, resistant au curl-pipe
+
 ## v5.1.1 — 2026-04-26 — Fix: install script (trap + uninstall safe)
 
 ### Fixed
@@ -1434,7 +1442,8 @@ Direct user request for a total refactor aligned with Anthropic's Skills-first p
 
 **Changements** : architecture 5-layer, agents OBLIGATOIRES Standard/Critical, RECHERCHE output gate (6 items), FLUX 3 items test-spécifiques.
 
-[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.1...HEAD
+[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.2...HEAD
+[v5.1.2]: https://github.com/KaosKyun/Ciel/compare/v5.1.1...v5.1.2
 [v5.1.1]: https://github.com/KaosKyun/Ciel/compare/v5.1.0...v5.1.1
 [v5.1.0]: https://github.com/KaosKyun/Ciel/compare/v5.0.0...v5.1.0
 [v5.0.0]: https://github.com/KaosKyun/Ciel/compare/v4.0.3...v5.0.0
