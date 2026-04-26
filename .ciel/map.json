@@ -1,0 +1,15 @@
+{
+  "modules": [
+    {
+      "name": "plugins",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/plugins",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/plugins/ciel.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
+    }
+  ],
+  "lastUpdated": "2026-04-26T15:07:09.877Z"
+}
