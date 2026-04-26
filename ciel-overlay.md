@@ -171,3 +171,11 @@ Ciel/
 ## Version courante
 
 Voir fichier `VERSION` à la racine.
+
+## Leçons projet
+
+[2026-04-26] MISTAKE: les fichiers `.opencode/` (plugins/agents/commands) étaient supprimés du working tree mais toujours trackés dans git → RULE: toujours vérifier `git status` pour détecter les fichiers trackés supprimés accidentellement du working tree
+
+[2026-04-26] MISTAKE: le script `install.sh` copiait les fichiers OpenCode depuis `$SRC_DIR/.opencode/` mais les templates de distribution sont dans `$SRC_DIR/platforms/opencode/.opencode/` → RULE: l'install script doit copier depuis `platforms/opencode/.opencode/` (templates built), pas depuis `.opencode/` (propre config du projet Ciel)
+
+[2026-04-26] MISTAKE: le script `install.sh` générait un `opencode.json` minimal sans définitions d'agents → RULE: le `opencode.json` généré par install.sh doit inclure les 5 agents (ciel + 4 subagents) pour que le pipeline marche out-of-the-box

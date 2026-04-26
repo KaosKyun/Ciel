@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## v5.1.1 — 2026-04-26 — Fix: install script (trap + uninstall safe)
+
+### Fixed
+- **Install script `TMP_DIR: unbound variable`** : trap EXIT utilisait `'$TMP_DIR'` (single quote) → variable locale perdue apres `main()`. Fix: double quotes pour expansion immediate.
+- **Uninstall cassait OpenCode/Claude Code** : supprimait `.opencode/agents/`, `.opencode/commands/`, `.claude/settings.json` entiers. Fix: supprime seulement les fichiers Ciel, preserve les configs plateforme.
+
+### Changed
+- **Uninstall** : nettoyage selectif (fichiers Ciel uniquement, preserve les dossiers et fichiers de config existants)
+
 ## v5.1.0 — 2026-04-26 — Pipeline enforcement via plugin, install pro, JSON repair
 
 ### Added
@@ -1425,6 +1434,7 @@ Direct user request for a total refactor aligned with Anthropic's Skills-first p
 
 **Changements** : architecture 5-layer, agents OBLIGATOIRES Standard/Critical, RECHERCHE output gate (6 items), FLUX 3 items test-spécifiques.
 
-[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.0...HEAD
+[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.1...HEAD
+[v5.1.1]: https://github.com/KaosKyun/Ciel/compare/v5.1.0...v5.1.1
 [v5.1.0]: https://github.com/KaosKyun/Ciel/compare/v5.0.0...v5.1.0
 [v5.0.0]: https://github.com/KaosKyun/Ciel/compare/v4.0.3...v5.0.0

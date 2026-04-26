@@ -19,7 +19,7 @@ set -euo pipefail
 # ============================================================
 { # <-- wrapper start
 
-CIEL_VERSION="5.1.0"
+CIEL_VERSION="5.1.1"
 GITHUB_RAW="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
 
 # ----- Config -----
@@ -252,45 +252,131 @@ install_ciel_files() {
 
       # Copy or download plugin
       if $CURL_MODE; then
-        download_if_needed ".opencode/plugins/ciel.ts"
-        download_if_needed ".opencode/agents/ciel.md"
-        download_if_needed ".opencode/agents/ciel-researcher.md"
-        download_if_needed ".opencode/agents/ciel-explorer.md"
-        download_if_needed ".opencode/agents/ciel-critic.md"
-        download_if_needed ".opencode/agents/ciel-improver.md"
+        download_if_needed "platforms/opencode/.opencode/plugins/ciel.ts"
+        download_if_needed "platforms/opencode/.opencode/agents/ciel.md"
+        download_if_needed "platforms/opencode/.opencode/agents/ciel-researcher.md"
+        download_if_needed "platforms/opencode/.opencode/agents/ciel-explorer.md"
+        download_if_needed "platforms/opencode/.opencode/agents/ciel-critic.md"
+        download_if_needed "platforms/opencode/.opencode/agents/ciel-improver.md"
         for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
-          download_if_needed ".opencode/commands/${cmd}.md"
+          download_if_needed "platforms/opencode/.opencode/commands/${cmd}.md"
         done
-        ensure cp "$TMP_DIR/.opencode/plugins/ciel.ts" "$target_dir/.opencode/plugins/"
-        ensure cp "$TMP_DIR/.opencode/agents/"*.md "$target_dir/.opencode/agents/"
-        ensure cp "$TMP_DIR/.opencode/commands/"*.md "$target_dir/.opencode/commands/"
+        ensure cp "$TMP_DIR/platforms/opencode/.opencode/plugins/ciel.ts" "$target_dir/.opencode/plugins/"
+        ensure cp "$TMP_DIR/platforms/opencode/.opencode/agents/"*.md "$target_dir/.opencode/agents/"
+        ensure cp "$TMP_DIR/platforms/opencode/.opencode/commands/"*.md "$target_dir/.opencode/commands/"
       else
-        cp -n "$SRC_DIR/.opencode/plugins/ciel.ts" "$target_dir/.opencode/plugins/" 2>/dev/null && \
+        local OPENCODE_SRC="$SRC_DIR/platforms/opencode/.opencode"
+        cp -n "$OPENCODE_SRC/plugins/ciel.ts" "$target_dir/.opencode/plugins/" 2>/dev/null && \
           installed+=("plugin") || skipped+=("plugin")
-        cp -n "$SRC_DIR/.opencode/agents/"*.md "$target_dir/.opencode/agents/" 2>/dev/null && \
+        cp -n "$OPENCODE_SRC/agents/"*.md "$target_dir/.opencode/agents/" 2>/dev/null && \
           installed+=("agents") || skipped+=("agents")
-        cp -n "$SRC_DIR/.opencode/commands/"*.md "$target_dir/.opencode/commands/" 2>/dev/null && \
+        cp -n "$OPENCODE_SRC/commands/"*.md "$target_dir/.opencode/commands/" 2>/dev/null && \
           installed+=("commands") || skipped+=("commands")
       fi
       log "opencode: installed=${installed[*]}, skipped=${skipped[*]}"
 
-      # AGENTS.md (shared rules)
+      # AGENTS.md (from platform template)
       if [ ! -f "$target_dir/AGENTS.md" ]; then
         if $CURL_MODE; then
-          download_if_needed "AGENTS.md"
-          ensure cp "$TMP_DIR/AGENTS.md" "$target_dir/AGENTS.md"
+          download_if_needed "platforms/opencode/AGENTS.md"
+          ensure cp "$TMP_DIR/platforms/opencode/AGENTS.md" "$target_dir/AGENTS.md"
         elif [ "$SRC_DIR" != "$target_dir" ]; then
-          ensure cp "$SRC_DIR/AGENTS.md" "$target_dir/AGENTS.md"
+          ensure cp "$SRC_DIR/platforms/opencode/AGENTS.md" "$target_dir/AGENTS.md"
         fi
         installed+=("AGENTS.md")
       else
         skipped+=("AGENTS.md")
       fi
 
-      # opencode.json config
+      # opencode.json config with agent definitions
       local cfg="$target_dir/opencode.json"
       if [ ! -f "$cfg" ]; then
-        printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "plugin": ["./.opencode/plugins/ciel.ts"],\n  "instructions": ["AGENTS.md"]\n}\n' > "$cfg"
+        python3 - "$cfg" <<'PY'
+import json, os, sys
+target = sys.argv[1]
+data = {
+    "$schema": "https://opencode.ai/config.json",
+    "instructions": ["AGENTS.md"],
+    "plugin": ["./.opencode/plugins/ciel.ts"],
+    "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "question": "allow",
+        "skill": "allow"
+    },
+    "agent": {
+        "ciel": {
+            "description": "Ciel v5 — Primary orchestrator. Full pipeline. Dispatch subagents. Depth: Trivial/Standard/Critical.",
+            "mode": "primary",
+            "prompt": "{file:./.opencode/agents/ciel.md}",
+            "temperature": 0.2,
+            "permission": {
+                "edit": "allow",
+                "bash": "allow",
+                "question": "allow",
+                "skill": "allow",
+                "task": {
+                    "*": "deny",
+                    "ciel-researcher": "allow",
+                    "ciel-explorer": "allow",
+                    "ciel-critic": "allow",
+                    "ciel-improver": "allow"
+                }
+            }
+        },
+        "ciel-researcher": {
+            "description": "RECHERCHE — docs officielles, anti-patterns. WebFetch + WebSearch.",
+            "mode": "subagent",
+            "prompt": "{file:./.opencode/agents/ciel-researcher.md}",
+            "temperature": 0.1,
+            "permission": {
+                "read": "allow", "glob": "allow", "grep": "allow",
+                "bash": "allow", "webfetch": "allow", "websearch": "allow",
+                "write": "deny", "edit": "deny"
+            }
+        },
+        "ciel-explorer": {
+            "description": "CODEBASE + FLUX — pattern-fitness, data flow narration.",
+            "mode": "subagent",
+            "prompt": "{file:./.opencode/agents/ciel-explorer.md}",
+            "temperature": 0.1,
+            "permission": {
+                "read": "allow", "glob": "allow", "grep": "allow",
+                "bash": "allow",
+                "write": "deny", "edit": "deny"
+            }
+        },
+        "ciel-critic": {
+            "description": "RELIRE/CRITIQUER/RCA — hostile review, root-cause analysis.",
+            "mode": "subagent",
+            "prompt": "{file:./.opencode/agents/ciel-critic.md}",
+            "temperature": 0.1,
+            "permission": {
+                "read": "allow", "glob": "allow", "grep": "allow",
+                "bash": "allow",
+                "write": "deny", "edit": "deny"
+            }
+        },
+        "ciel-improver": {
+            "description": "Méta-amélioration Ciel — analyse sessions, skill patches.",
+            "mode": "subagent",
+            "prompt": "{file:./.opencode/agents/ciel-improver.md}",
+            "temperature": 0.1,
+            "permission": {
+                "read": "allow", "glob": "allow", "grep": "allow",
+                "bash": "allow", "webfetch": "allow", "websearch": "allow",
+                "write": "ask", "edit": "ask"
+            }
+        }
+    }
+}
+os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+with open(target, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
         installed+=("opencode.json")
       else
         if command -v jq &>/dev/null; then
@@ -349,6 +435,10 @@ install_ciel_files() {
       else
         skipped+=("AGENTS.md")
       fi
+      ;;
+
+    *)
+      warn "Unknown platform: $name"
       ;;
 
     generic)
@@ -461,27 +551,91 @@ print_summary() {
 do_uninstall() {
   header "Ciel v${CIEL_VERSION} — Uninstall"
   echo ""
-
-  if [ "$DO_YES" = false ]; then
-    printf "  %sThis will remove Ciel files from the current project.%s\\n" \
-      "$(_ansi '\033[0;33m')" "$(_ansi '\033[0m')"
-    printf "  %sContinue? [y/N]: " "$(_ansi '\033[0;33m?\033[0m ')" >&2
-    read -r confirm
-    [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && { say "Aborted."; exit 0; }
-  fi
-
   local count=0
+
+  # SAFETY: never remove entire directories or platform config files.
+  # Only remove Ciel-specific files. Removing .opencode/agents or
+  # .opencode/commands would break OpenCode entirely.
+  # Removing .claude/settings.json would break Claude Code.
+
+  # Ciel state directory
   rm -rf "$HOME/.ciel" 2>/dev/null && { ok "~/.ciel/ removed"; ((count++)); } || true
 
-  for f in .claude/settings.json .opencode/plugins/ciel.ts .opencode/agents .opencode/commands AGENTS.md CLAUDE.md; do
-    if [ -e "$f" ]; then
-      rm -rf "$f" 2>/dev/null && { ok "$f removed"; ((count++)); } || true
+  # OpenCode: Ciel plugin file only
+  if [ -f ".opencode/plugins/ciel.ts" ]; then
+    rm -f ".opencode/plugins/ciel.ts" 2>/dev/null && { ok ".opencode/plugins/ciel.ts removed"; ((count++)); } || true
+  fi
+
+  # OpenCode: Ciel agents only (not the whole directory)
+  for agent in ciel.md ciel-researcher.md ciel-explorer.md ciel-critic.md ciel-improver.md ciel-plan.md; do
+    if [ -f ".opencode/agents/$agent" ]; then
+      rm -f ".opencode/agents/$agent" 2>/dev/null && { ok ".opencode/agents/$agent removed"; ((count++)); } || true
     fi
   done
 
+  # OpenCode: Ciel commands only (not the whole directory)
+  for cmd in ciel-*.md; do
+    if [ -f ".opencode/commands/$cmd" ]; then
+      rm -f ".opencode/commands/$cmd" 2>/dev/null && { ok ".opencode/commands/$cmd removed"; ((count++)); } || true
+    fi
+  done
+
+  # Shared files
+  for f in AGENTS.md CLAUDE.md; do
+    if [ -f "$f" ]; then
+      rm -f "$f" 2>/dev/null && { ok "$f removed"; ((count++)); } || true
+    fi
+  done
+
+  # Claude Code: Ciel agents only
+  for agent in ciel-researcher.md ciel-explorer.md ciel-critic.md ciel-improver.md; do
+    if [ -f ".claude/agents/$agent" ]; then
+      rm -f ".claude/agents/$agent" 2>/dev/null && { ok ".claude/agents/$agent removed"; ((count++)); } || true
+    fi
+  done
+
+  # Claude Code: hooks (these are Ciel-specific files)
+  for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh; do
+    if [ -f ".claude/hooks/$hook" ]; then
+      rm -f ".claude/hooks/$hook" 2>/dev/null && { ok ".claude/hooks/$hook removed"; ((count++)); } || true
+    fi
+  done
+
+  # Claude Code settings: remove Ciel hook entries from JSON instead of deleting the file
+  if [ -f ".claude/settings.json" ] && command -v python3 &>/dev/null; then
+    local tmp; tmp=$(mktemp)
+    python3 -c "
+import json, sys
+with open('.claude/settings.json') as f:
+    cfg = json.load(f)
+hooks = cfg.get('hooks', {})
+# Remove Ciel-specific hooks
+for key in list(hooks.keys()):
+    if isinstance(hooks[key], list):
+        hooks[key] = [h for h in hooks[key] if 'ciel' not in json.dumps(h).lower()]
+# If empty, remove the hooks key
+if not hooks:
+    cfg.pop('hooks', None)
+with open('$tmp', 'w') as f:
+    json.dump(cfg, f, indent=2)
+" 2>/dev/null && mv "$tmp" ".claude/settings.json" && { ok ".claude/settings.json (Ciel hooks removed)"; ((count++)); } || true
+  elif [ -f ".claude/settings.json" ]; then
+    warn ".claude/settings.json preserved. Remove Ciel hooks manually."
+  fi
+
+  # opencode.json: remove Ciel plugin + instructions, keep rest
+  if [ -f "opencode.json" ] && command -v jq &>/dev/null; then
+    local tmp; tmp=$(mktemp)
+    jq '.plugin = ((.plugin // []) | map(select(. != "./.opencode/plugins/ciel.ts"))) | .instructions = ((.instructions // []) | map(select(. != "AGENTS.md")))' opencode.json > "$tmp" && mv "$tmp" opencode.json && { ok "opencode.json (Ciel references removed)"; ((count++)); } || true
+  elif [ -f "opencode.json" ]; then
+    warn "opencode.json preserved. Remove Ciel plugin reference manually:"
+    say "  jq '.plugin -= [\"./.opencode/plugins/ciel.ts\"] | .instructions -= [\"AGENTS.md\"]' opencode.json > tmp && mv tmp opencode.json"
+  fi
+
   echo ""
-  ok "${count} file(s) removed"
+  ok "${count} file(s) affected"
   say "Ciel has been uninstalled from this project."
+  say "Restart your editor for changes to take effect."
   exit 0
 }
 
@@ -524,7 +678,9 @@ main() {
     CURL_MODE=true
     TMP_DIR=$(mktemp -d)
     SRC_DIR="$TMP_DIR"
-    trap 'log "cleanup: $TMP_DIR"; rm -rf "$TMP_DIR"' EXIT
+    # Use double quotes so $TMP_DIR is expanded NOW (trap definition time),
+    # not later at EXIT time when local vars are out of scope (nounset error).
+    trap "log 'cleanup: $TMP_DIR'; rm -rf '$TMP_DIR'" EXIT
     say "Downloading Ciel v${CIEL_VERSION}..."
     # Quick connectivity check
     curl -fsSL --connect-timeout 5 "$GITHUB_RAW/VERSION" -o /dev/null 2>/dev/null || {

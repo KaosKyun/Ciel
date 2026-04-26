@@ -5,7 +5,7 @@
 # Zero-config, auto-detects platform (OpenCode or Claude Code).
 
 $ErrorActionPreference = "Stop"
-$CIEL_VERSION = "5.1.0"
+$CIEL_VERSION = "5.1.1"
 $GITHUB_RAW = "https://raw.githubusercontent.com/KaosKyun/Ciel/main"
 
 function ok($m)   { Write-Host "  v $m" -ForegroundColor Green }

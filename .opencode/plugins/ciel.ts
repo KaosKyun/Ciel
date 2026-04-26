@@ -23,6 +23,8 @@ import { basename, dirname, join } from "path";
 const CODE_EXT_RE = /\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql)$/i;
 const TEST_FILE_RE = /(\.test\.|\.spec\.|_test\.|_spec\.)(ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte)$/i;
 const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret|Payment|Account|Credential)/;
+const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration.*schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
+const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b/i;
 const CIEL_DIR = ".ciel";
 const MAP_FILE = join(CIEL_DIR, "map.json");
 const PARKING_FILE = join(CIEL_DIR, "parking.md");
@@ -365,35 +367,45 @@ const ciel: Plugin = async ({ client }) => {
       }
     },
 
-    // ----- MESSAGES TRANSFORM (pipeline enforcement) -----
-    // Inject a PIPELINE REMINDER as a system message BEFORE each user message.
-    // This is more effective than system prompt text because it's fresh and
-    // appears right before the user's message -- hard for the model to ignore.
+    // ----- MESSAGES TRANSFORM (depth classification) -----
+    // Read the most recent user message and classify depth.
+    // Does NOT modify the messages array -- splicing synthetic messages
+    // causes "U.parts.length undefined" crashes in the OpenCode SDK
+    // (the injected message lacks the expected message shape).
+    // Depth hints are injected via experimental.chat.system.transform instead.
     "experimental.chat.messages.transform": async (_input, output) => {
       const msgs = output?.messages;
       if (!Array.isArray(msgs) || msgs.length === 0) return;
 
-      // Find the last user message
-      let lastUserIdx = -1;
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        if (msgs[i]?.info?.role === "user") {
-          lastUserIdx = i;
-          break;
+      // Find the most recent user text part.
+      let prompt = "";
+      for (let i = msgs.length - 1; i >= 0 && !prompt; i--) {
+        const m = msgs[i];
+        if (m?.info?.role !== "user") continue;
+        const parts = m?.parts;
+        if (!Array.isArray(parts)) continue;
+        for (let j = parts.length - 1; j >= 0; j--) {
+          const p = parts[j];
+          if (p?.type === "text" && typeof p.text === "string") {
+            prompt = p.text;
+            break;
+          }
         }
       }
-      if (lastUserIdx === -1) return;
+      if (!prompt) return;
 
-      // Inject pipeline reminder right before the user message
-      const reminder: any = {
-        role: "system",
-        content: `[CIEL WORKFLOW] Start every response with depth classification (Trivial/Standard/Critical/Spike), then follow the pipeline step by step. Steps: DOCS > QUOI > ASK > AVEC QUOI > DIVERGE > RECHERCHE > SECURITE > CODEBASE > EVALUER > ASK2 > FAIRE > ADR > RELIRE > PROUVER > MEMOIRE > META. USE the 'question' tool for ASK/ASK2 -- never code on assumptions.`,
-        info: { role: "system" },
-      };
-
-      msgs.splice(lastUserIdx, 0, reminder);
-
-      // Also set depth hint for the system transform
-      lastDepthHint = "[CIEL] Classify depth before responding.";
+      let depth: string | null = null;
+      let reason = "";
+      if (CRITICAL_KEYWORD_RE.test(prompt)) {
+        depth = "Critical";
+        reason = "auth/security/payment keyword detected";
+      } else if (TRIVIAL_KEYWORD_RE.test(prompt)) {
+        depth = "Trivial";
+        reason = "rename/typo/docs keyword detected";
+      }
+      lastDepthHint = depth
+        ? `[CIEL] Depth: ${depth} (${reason}). Route the pipeline accordingly.`
+        : null;
     },
 
     // ----- COMPACTING (cross-session memory -- persist automatically) -----
