@@ -223,6 +223,18 @@ const ciel: Plugin = async ({ client }) => {
         sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
         taskCount = 0;
 
+        // Initialize .ciel/ directory if missing
+        ensureCielDir();
+        if (!existsSync(MAP_FILE)) {
+          writeFileSync(MAP_FILE, JSON.stringify({ modules: [], lastUpdated: new Date().toISOString() }, null, 2), "utf-8");
+        }
+        if (!existsSync(MEMORY_FILE)) {
+          writeFileSync(MEMORY_FILE, "{}", "utf-8");
+        }
+        if (!existsSync(PARKING_FILE)) {
+          writeFileSync(PARKING_FILE, "# Ciel Parking Lot -- Decouvertes fortuites\n\n", "utf-8");
+        }
+
         await client.app.log({
           body: { service: "ciel", level: "info", message: `Session ${sessionId} started` },
         });
@@ -391,8 +403,8 @@ const ciel: Plugin = async ({ client }) => {
       }
       if (!prompt) return;
 
-      let depth: string | null = null;
-      let reason = "";
+      let depth: string = "Standard";
+      let reason = "no specific keywords detected -- default to Standard";
       if (CRITICAL_KEYWORD_RE.test(prompt)) {
         depth = "Critical";
         reason = "auth/security/payment keyword detected";
@@ -404,9 +416,7 @@ const ciel: Plugin = async ({ client }) => {
         reason = "rename/typo/docs keyword detected";
       }
 
-      lastDepthHint = depth
-        ? `[CIEL] Depth: ${depth} (${reason}). Route accordingly.`
-        : null;
+      lastDepthHint = `[CIEL] Depth: ${depth} (${reason}). Route accordingly.`;
     },
 
     // ----- COMPACTING (cross-session memory -- persist automatically) -----
