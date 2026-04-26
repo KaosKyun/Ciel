@@ -219,7 +219,7 @@ const ciel: Plugin = async ({ client }) => {
     // ----- EVENTS -----
     event: async ({ event }) => {
       if (event.type === "session.created") {
-        const rawId = (event as any).info?.id ?? (event as any).sessionID ?? "unknown";
+        const rawId = (event as any).info?.id ?? (event as any).sessionID ?? (event as any).sessionId ?? (event as any).id ?? String(Date.now());
         sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
         taskCount = 0;
 
