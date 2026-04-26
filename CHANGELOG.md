@@ -1,5 +1,42 @@
 # Ciel — Changelog
 
+## v5.0.0 — 2026-04-26 — Refonte: pipeline 16 etapes, dual harness, memory persistante
+
+**BREAKING — Nouveau pipeline, nouvelle architecture harness.**
+
+### Added
+- **Pipeline 16 etapes** : DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2 -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META (vs 10 etapes v4)
+- **ASK window** : question tool (OpenCode) / plan mode (Claude Code) pour clarifier avant de coder
+- **DIVERGE** : exploration de 2-3 approches radicalement differentes avant d'en choisir une
+- **ADR auto** : documentation automatique des decisions architecturales (docs/adrs/)
+- **MEMOIRE** : .ciel/map.json + .ciel/memory.json + .ciel/learnings.md persistant
+- **SPIKE mode** : .ciel/exploration.active pour prototypes, gates assouplies
+- **Boy-scout rule** : gate 6 (laisser le code meilleur qu'avant)
+- **Parking lot** : .ciel/parking.md pour decouvertes fortuites
+- **Anti-rationalization tables** : dans 7 skills workflow pour prevenir les excuses agent
+- **Support Claude Code complet** : .claude/agents/ (4 subagents), .claude/hooks/ (4 hooks), .claude/rules/ (3 path-scoped), .claude/skills/ (63 skills)
+- **5 nouveaux skills v5** : ask-window, diverge, adr-auto, memoire, spike-mode
+
+### Changed
+- **Architecture duale** : OpenCode (plugin TS) + Claude Code (hooks) partagent la meme philosophie
+- **Install zero-config** : scripts/install.sh reduit de 691 a 256 lignes, scripts/install.ps1 de 744 a 129 lignes
+- **Plugin ciel.ts** : passe de 371 a 562 lignes avec support map, memory, parking, spike
+- **ciel.md agent** : 215 lignes (vs 143), pipeline 16 etapes, question tool, intentions partagees
+- **AGENTS.md** : 228 lignes (vs 157), pipeline v5 complet, LSP tool, SPIKE mode
+- **Skills** : 63 (vs 50), workflow liees explicitement au pipeline v5
+- **Version** : 5.0.0
+
+### Removed
+- `hooks/*.sh` (8 scripts v4, remplaces par `.opencode/plugins/ciel.ts` et `.claude/hooks/*.sh`)
+- Pipeline v4 (10 etapes, remplace par 16 etapes v5)
+- `scripts/lib/installers.sh` et `scripts/lib/platform.sh` (inlines dans install.sh)
+
+### Fixed
+- Exploration sans intention : scent-following avec intention partagee
+- Feedback humain obei aveuglement : critic mode FEEDBACK analyse et categorise
+- Pas de carte persistante : .ciel/map.json charge a chaque session
+- Claude Code et OpenCode traites differemment : philosophie invariante, implementation specifique
+
 ## v4.0.3 — 2026-04-23 — Fix: restore skills/ to repo (remote install was getting empty skills)
 
 ### Fixed

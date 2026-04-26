@@ -2,9 +2,9 @@
 description: Bootstrap or repair Ciel wiring. Auto-detects Claude Code vs OpenCode, fixes config so hooks fire. Backs up before writing. Use when hooks fail (no depth hint, no RELIRE reminder).
 ---
 
-# /ciel-init — Wire Ciel into the current project (Claude Code + OpenCode)
+# /ciel-init — Wire Ciel v5 into the current project (Claude Code + OpenCode)
 
-*Fixes the #1 Ciel failure mode across both platforms: hooks inactive because the config file references nonexistent filenames, is missing events, uses relative paths that do not resolve, or (on OpenCode) has no plugin entry.*
+*Fixes the most common Ciel failure mode: hooks/plugin inactive because files reference nonexistent paths, missing events, or wrong versions. Detects Ciel v5 and installs components accordingly.*
 
 Usage: `/ciel-init [--check] [--user] [--platform=claude|opencode]`
 
@@ -109,40 +109,68 @@ If the file already exists and does not parse as JSON (`jq . <file> > /dev/null`
 
 ### Step C2 — Build the expected hooks block
 
-Using `$CIEL_DIR`, the canonical Ciel hooks block is:
+Using `$CIEL_DIR`, the canonical Ciel v5 hooks block is:
 
 ```json
 {
-  "SessionStart": [
-    { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/session-start.sh", "statusMessage": "Ciel: session starting..." } ] }
-  ],
-  "UserPromptSubmit": [
-    { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/user-prompt-submit.sh", "statusMessage": "Ciel: classifying depth..." } ] }
-  ],
-  "PreToolUse": [
-    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-tool-write.sh", "statusMessage": "Ciel: FLUX check..." } ] },
-    { "matcher": "Agent", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-agent-gate.sh", "statusMessage": "Ciel: agent type gate..." } ] }
-  ],
-  "PostToolUse": [
-    { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/post-tool-write.sh", "statusMessage": "Ciel: RELIRE dispatch..." } ] }
-  ],
-  "Stop": [
-    { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/stop.sh", "statusMessage": "Ciel: META-CRITIQUER..." } ] }
-  ],
-  "SubagentStop": [
-    { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/subagent-stop.sh", "statusMessage": "Ciel: agent report size log..." } ] }
-  ],
-  "PreCompact": [
-    { "hooks": [ { "type": "command", "command": "bash $CIEL_DIR/hooks/pre-compact.sh", "statusMessage": "Ciel: session progress save..." } ] }
-  ]
+  "autoMemoryEnabled": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $CIEL_DIR/.claude/hooks/check-test-first.sh",
+            "statusMessage": "Ciel: checking test-first gate..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(rm *)",
+            "command": "bash $CIEL_DIR/.claude/hooks/block-destructive.sh",
+            "statusMessage": "Ciel: blocking destructive commands..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $CIEL_DIR/.claude/hooks/track-file.sh",
+            "statusMessage": "Ciel: tracking files for RELIRE..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $CIEL_DIR/.claude/hooks/meta-critiquer.sh",
+            "statusMessage": "Ciel: META-CRITIQUER..."
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 
 Expand `$CIEL_DIR` to its absolute value in each `command`. Never emit a relative path starting with `.claude/`.
 
-**Forbidden hook filenames** (do not resurrect these — they were renamed):
-- `pre-write-gate.sh` → use `pre-tool-write.sh`
-- `post-write-relire.sh` → use `post-tool-write.sh`
+**Forbidden legacy hook filenames** (v4 era — do not use):
+- `session-start.sh`, `user-prompt-submit.sh`, `pre-tool-write.sh`, `pre-agent-gate.sh`
+- `post-tool-write.sh`, `stop.sh`, `subagent-stop.sh`, `pre-compact.sh`
+- These were replaced by the 4 v5 hooks above
 
 ### Step C3 — Merge with existing config
 
@@ -164,16 +192,19 @@ Read the current `settings.json`. For the merged output:
 
 Print to the user:
 - Detected platform: **Claude**
+- Ciel version: **v5**
 - `$CIEL_DIR` detected
-- Target file edited
+- Target file edited (hooks block updated or created)
 - Backup path
 - Summary of what changed (events added, entries renamed/fixed, entries preserved)
+- Subagents installed (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)
 
 Then give the verification steps:
 1. Restart Claude Code.
-2. In the new session, send any prompt. A `system-reminder` should contain `"CIEL depth hint:"`.
-3. Make a Write or Edit call. A `system-reminder` should contain a `"CIEL "` prefix.
-4. End the session. The Stop hook should trigger `meta-critiquer`.
+2. In the new session, verify auto memory is working: `/memory` should show enabled.
+3. Make a Write or Edit call. The hook should block if no test file exists.
+4. Run `claude --agent ciel-researcher "research something"` to test subagents.
+5. End the session. The SubagentStop hook should trigger meta-critiquer.
 
 ---
 
@@ -193,12 +224,13 @@ Create the directory tree under the project root (even if `--user` is passed, th
 ```
 .opencode/
   plugins/
-    ciel.ts
+    ciel.ts          # v5 plugin (16-step pipeline, ASK, map, spike, parking)
   agents/
-    ciel-researcher.md
-    ciel-explorer.md
-    ciel-critic.md
-    ciel-improver.md
+    ciel.md            # v5 primary orchestrator
+    ciel-researcher.md # v5 researcher (version changelog, waterfall)
+    ciel-explorer.md   # v5 explorer (LSP, scent-following, git history)
+    ciel-critic.md     # v5 critic (5 modes: RELIRE/CRITIQUER/RCA/FEEDBACK/INVESTIGATE)
+    ciel-improver.md   # meta-agent
   commands/
     ciel.md
     ciel-init.md
@@ -207,14 +239,38 @@ Create the directory tree under the project root (even if `--user` is passed, th
     ciel-create-skill.md
     ciel-recommend.md
     ciel-update.md
+    ciel-audit.md
 ```
 
-Source every file from `$CIEL_DIR/platforms/opencode/.opencode/`. Steps:
+Also create `.claude/` structure for Claude Code compatibility (if the project uses Claude Code):
+
+```
+.claude/
+  agents/
+    ciel-researcher.md     # with memory: user, model: haiku
+    ciel-explorer.md       # with memory: project, isolation: worktree
+    ciel-critic.md         # with memory: local, model: opus
+    ciel-improver.md
+  hooks/
+    check-test-first.sh    # test-first gate (exit 2 = block)
+    block-destructive.sh   # security gate (blocks rm -rf)
+    track-file.sh          # file tracking for RELIRE threshold
+    meta-critiquer.sh      # post-task reflection
+  settings.json            # hooks config
+```
+
+Source every file from `$CIEL_DIR/`. Steps:
 
 1. `mkdir -p ./.opencode/plugins ./.opencode/agents ./.opencode/commands`
-2. `cp "$CIEL_DIR/platforms/opencode/.opencode/plugins/ciel.ts" "./.opencode/plugins/ciel.ts"`
-3. `cp "$CIEL_DIR/platforms/opencode/.opencode/agents/"*.md "./.opencode/agents/"`
-4. `cp "$CIEL_DIR/platforms/opencode/.opencode/commands/"*.md "./.opencode/commands/"`
+2. `cp "$CIEL_DIR/.opencode/plugins/ciel.ts" "./.opencode/plugins/ciel.ts"`
+3. `cp "$CIEL_DIR/.opencode/agents/"*.md "./.opencode/agents/"`
+4. `cp "$CIEL_DIR/.opencode/commands/"*.md "./.opencode/commands/"`
+5. `cp "$CIEL_DIR/CLAUDE.md" "./CLAUDE.md"` (if not exists)
+6. `mkdir -p ./.claude/agents ./.claude/hooks`
+7. `cp "$CIEL_DIR"/.claude/agents/*.md "./.claude/agents/"`
+8. `cp "$CIEL_DIR"/.claude/hooks/*.sh "./.claude/hooks/"`
+9. `cp "$CIEL_DIR/.claude/settings.json" "./.claude/settings.json"`
+10. `chmod +x ./.claude/hooks/*.sh`
 
 If the source directory does not exist (unbuilt repo), regenerate it first:
 ```
@@ -285,16 +341,22 @@ Wrap Step O4 with a backup:
 
 Print to the user:
 - Detected platform: **OpenCode**
+- Ciel version: **v5**
 - `$CIEL_DIR` detected
 - Target file edited (`opencode.json`)
 - Backup path (if one was made)
-- Primitives installed: plugin, 4 subagents, 7 commands, `AGENTS.md`
+- Primitives installed: plugin v5, 5 agents (ciel + 4 subagents), 8 commands, `AGENTS.md`, `CLAUDE.md`, `.claude/` agents + hooks
+- `.ciel/` directory structure created (map.json, memory.json, parking.md, learnings.md)
+- Enable LSP navigation: `OPENCODE_EXPERIMENTAL_LSP_TOOL=true opencode`
 
 Then give the verification steps:
-1. Restart `opencode` (or run `opencode --reload-config` if the running session supports it).
-2. Send any prompt containing "auth" or "password" → the next model turn should show a system segment `"[CIEL] Depth: Critical"`.
-3. Ask the assistant to edit a `.ts` file. The tool call result should end with a `[CIEL]` or `[CIEL CRITIQUE]` reminder line.
-4. After 3+ code files are written, subsequent turns should include `"[CIEL RELIRE REQUIRED]"` in the system prompt until you dispatch `@ciel-critic`.
+1. Restart `opencode`.
+2. Send a message containing "auth" or "password" → depth classification should show `"[CIEL] Depth: Critical"`.
+3. Ask the assistant to edit a `.ts` file. The tool result should contain `[CIEL]` or `[CIEL CRITIQUE]` reminder.
+4. After 3+ code files, subsequent turns should include `"[CIEL RELIRE REQUIRED]"` until you dispatch `@ciel-critic`.
+5. Send an ambiguous request → the agent should use the `question` tool (ASK window).
+6. Check `.ciel/map.json` after exploring -- should contain auto-detected modules.
+7. For SPIKE mode: create `.ciel/exploration.active` file, gates will be assouplies.
 
 ---
 

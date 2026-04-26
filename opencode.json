@@ -7,83 +7,107 @@
     "./.opencode/plugins/ciel.ts"
   ],
   "permission": {
-    "task": {
-      "*": "allow"
-    }
+    "question": "allow",
+    "skill": "allow",
+    "doom_loop": "ask",
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "grep *": "allow",
+      "npm *": "allow",
+      "pnpm *": "allow",
+      "npx *": "allow",
+      "tsc *": "allow",
+      "node *": "allow",
+      "curl *": "allow",
+      "rm *": "deny",
+      "git push *": "ask",
+      "git commit *": "ask",
+      "gh *": "ask"
+    },
+    "edit": "allow",
+    "webfetch": "allow",
+    "websearch": "allow"
   },
   "agent": {
     "ciel": {
-      "description": "Ciel — Primary orchestrator. Full pipeline: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → FAIRE → RELIRE → PROUVER. Dispatch subagents for Standard/Critical tasks.",
+      "description": "Ciel v5 — Primary orchestrator. Full pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → SÉCURITÉ → CODEBASE → ÉVALUER → ASK2 → FAIRE → ADR → RELIRE → PROUVER → MÉMOIRE → META. Dispatch subagents. Depth: Trivial/Standard/Critical/Spike.",
       "mode": "primary",
       "prompt": "{file:./.opencode/agents/ciel.md}",
-      "temperature": 0.7,
-      "tools": {
-        "read": true,
-        "glob": true,
-        "grep": true,
-        "bash": true,
-        "write": true,
-        "edit": true,
-        "webfetch": true,
-        "websearch": true
+      "temperature": 0.2,
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "question": "allow",
+        "skill": "allow",
+        "task": {
+          "*": "deny",
+          "ciel-researcher": "allow",
+          "ciel-explorer": "allow",
+          "ciel-critic": "allow",
+          "ciel-improver": "allow"
+        }
       }
     },
     "ciel-researcher": {
-      "description": "RECHERCHE — docs officielles, anti-patterns. WebFetch + WebSearch.",
+      "description": "RECHERCHE — docs officielles, anti-patterns, version changelog. WebFetch + WebSearch.",
       "mode": "subagent",
       "prompt": "{file:./.opencode/agents/ciel-researcher.md}",
       "temperature": 0.1,
-      "tools": {
-        "read": true,
-        "webfetch": true,
-        "websearch": true,
-        "write": false,
-        "edit": false,
-        "bash": false
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "write": "deny",
+        "edit": "deny"
       }
     },
     "ciel-explorer": {
-      "description": "CODEBASE + FLUX — pattern-fitness, flux-narrator. Read-only.",
+      "description": "CODEBASE + FLUX — pattern-fitness, scent-following, git history, LSP navigation.",
       "mode": "subagent",
       "prompt": "{file:./.opencode/agents/ciel-explorer.md}",
       "temperature": 0.1,
-      "tools": {
-        "read": true,
-        "glob": true,
-        "grep": true,
-        "write": false,
-        "edit": false,
-        "bash": false
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": "allow",
+        "lsp": "allow",
+        "write": "deny",
+        "edit": "deny"
       }
     },
     "ciel-critic": {
-      "description": "RELIRE/CRITIQUER/RCA — hostile review. Bash allowed.",
+      "description": "RELIRE/CRITIQUER/RCA/FEEDBACK/INVESTIGATE — hostile review, feedback processing, uncertainty investigation.",
       "mode": "subagent",
       "prompt": "{file:./.opencode/agents/ciel-critic.md}",
       "temperature": 0.1,
-      "tools": {
-        "read": true,
-        "glob": true,
-        "grep": true,
-        "bash": true,
-        "write": false,
-        "edit": false
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": "allow",
+        "write": "deny",
+        "edit": "deny"
       }
     },
     "ciel-improver": {
-      "description": "Méta-amélioration Ciel — analyse sessions, skill patches. SDK Client pour evals.",
+      "description": "Méta-amélioration Ciel — analyse sessions, skill patches, eval harness.",
       "mode": "subagent",
       "prompt": "{file:./.opencode/agents/ciel-improver.md}",
       "temperature": 0.1,
-      "tools": {
-        "read": true,
-        "glob": true,
-        "grep": true,
-        "bash": true,
-        "webfetch": true,
-        "websearch": true,
-        "write": false,
-        "edit": false
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "write": "ask",
+        "edit": "ask"
       }
     }
   }

@@ -1,14 +1,13 @@
 ---
 name: evaluer-sizer
-description: How to size and assess risk before coding — back-of-envelope sizing, pre-mortem (2 failure modes), recent-churn check, alternative-named gate, and counterfactual ("what if we do nothing?"). Prevents under-thinking scope and missing simpler solutions.
-allowed-tools: Read, Bash
+description: How to size and assess risk before coding — back-of-envelope sizing, pre-mortem (2 failure modes), recent-churn check, diverged alternatives (v5), and counterfactual ("what if we do nothing?"). For Ciel v5 pipeline step 9 (EVALUER). Use after DIVERGE and RECHERCHE, before ASK2.
 ---
 
-# Pre-Implementation Sizing — 4 Cheap Gates
+# Pre-Implementation Sizing — 5 Cheap Gates (Ciel v5)
 
 ## What this covers
 
-How to sanity-check an approach before committing to it. These 4 gates take 2 minutes and prevent hours of wasted work.
+How to sanity-check an approach before committing to it. In v5, this step follows DIVERGE (etape 5) which explored 2-3 approaches. Here we evaluate the selected approach. These 5 gates take 2 minutes and prevent hours of wasted work.
 
 ## Core principle
 
@@ -22,7 +21,7 @@ Compute rough estimates:
 - Throughput: req/s × processing time per req
 - Storage: items × avg size × retention
 
-Does the solution fit in the budget? If caching requires 10 GB and the server has 2 GB → wrong solution, don't start.
+Does the solution fit in the budget? If caching requires 10 GB and the server has 2 GB -> wrong solution, don't start.
 
 ## Gate 2: Pre-mortem
 
@@ -30,7 +29,7 @@ State explicitly: "In production, this could fail in these 2 ways:"
 1. <failure mode 1>
 2. <failure mode 2>
 
-Can't imagine 2 failure modes → don't understand the system well enough.
+Can't imagine 2 failure modes -> don't understand the system well enough.
 
 ## Gate 3: Recent churn
 
@@ -40,25 +39,33 @@ git log --oneline --since="7 days" -- <impacted files>
 
 If 2+ commits in the last week touched the same module:
 - Read those commits BEFORE proposing your fix
-- Someone already fixed this area twice this week → incomplete mental model
+- Someone already fixed this area twice this week -> incomplete mental model
 - Your "fix" might be the 3rd attempt at the same bug
 
-## Gate 4: Alternative + counterfactual
+## Gate 4: Diverged approach comparison (v5)
 
-**Alternative**: "I chose X over Y because [reason]." No Y named → think harder.
+Compare the approaches explored during DIVERGE (etape 5):
+- Approach A (from DIVERGE): <summary>
+- Approach B (from DIVERGE): <summary>
+- Selected: <A or B> because <reason>
+- Why NOT the other: <specific limitation, not "it's worse">
 
-**Counterfactual**: "What if we do NOTHING?" If doing nothing solves 80% of the problem with 0 risk → reconsider scope.
+If only 1 approach was explored -> DIVERGE was incomplete.
+
+## Gate 5: Counterfactual
+
+**Counterfactual**: "What if we do NOTHING?" If doing nothing solves 80% of the problem with 0 risk -> reconsider scope.
 
 ## Output format
 
 ```
-## ÉVALUER
+## EVALUER
 
 ### Sizing
 - Memory: <estimate>
 - Connections: <estimate>
 - Throughput: <estimate>
-- Fit: <yes — within budget | no — what breaks>
+- Fit: <yes -- within budget | no -- what breaks>
 
 ### Pre-mortem (2 ways this could fail)
 1. <failure mode>
@@ -67,26 +74,39 @@ If 2+ commits in the last week touched the same module:
 ### Recent churn
 - Commits in last 7 days: <N>
 - Relevant: <list>
-- Read them? <yes — findings>
+- Read them? <yes -- findings>
 
-### Alternative
-- Chose: <X> over <Y> because <reason>
+### Diverged approach comparison (v5)
+- A: <summary>
+- B: <summary>
+- Selected: <A/B> because <reason>
 
 ### Counterfactual
 - What if nothing? <consequence>
-- 80% solve with 0 risk? <yes → reconsider | no → proceed>
+- 80% solve with 0 risk? <yes -> reconsider | no -> proceed>
 ```
 
 ## How to verify
 
 - [ ] Sizing has concrete numbers (request rate, data volume, latency budget)?
-- [ ] Pre-mortem identifies ≥ 2 specific failure modes?
+- [ ] Pre-mortem identifies >= 2 specific failure modes?
 - [ ] Recent churn checked (git log for affected files)?
-- [ ] ≥ 1 alternative considered?
+- [ ] >= 2 approaches compared from DIVERGE?
 - [ ] Counterfactual stated ("what if we don't do this")?
+- [ ] Selected approach justified with specific reason?
+
+## Common rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "I'll size it as I go" | Sizing after coding is guessing. Sizing before prevents committing to the wrong approach. |
+| "I can't estimate without coding" | Back-of-envelope takes 2 minutes. 2 minutes of thinking saves 2 hours of coding the wrong thing. |
+| "Pre-mortem is pessimistic" | Pre-mortem is the cheapest bug fix you'll ever write. Imagining failure costs nothing. Production failure costs everything. |
+| "Diverging is a waste of time, the first approach is fine" | The first approach is rarely the best. It's just the first. Generating 2-3 approaches takes 5 minutes. Committing to the wrong one takes days. |
 
 ## Common mistakes
 
 - **Hand-waving sizing**: "small footprint" without numbers
 - **Pre-mortem = tests**: "might have bugs" is useless. "Query times out at > 10k notifications" is useful.
 - **Fake alternatives**: "React over Assembly" is not real. "Page vs cursor pagination because API is public" is real.
+- **Single-approach bias (v5)**: if DIVERGE was skipped, EVALUER cannot compare alternatives. Go back to DIVERGE.

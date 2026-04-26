@@ -68,8 +68,8 @@ limit_for() {
   eval "echo \${$var:-0}"
 }
 
-# Ciel hook regex — single source of truth, shared between bash hooks, PS1 hooks,
-# and the OpenCode TS plugin. Keep these in sync with hooks/*.sh source.
+# Ciel v5 hook regex — the old hooks/*.sh were removed in v5.
+# Now uses .opencode/plugins/ciel.ts (OpenCode) or .claude/hooks/*.sh (Claude Code).
 CIEL_CODE_EXT_RE='\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql)$'
 CIEL_CRITICAL_FILE_RE='(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret)'
 CIEL_CRITICAL_KEYWORD_RE='\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration.*schema|2fa|mfa|encryption|credential|cookie.*security)\b'
@@ -125,7 +125,7 @@ Principle: "Understand before generating. Verify before claiming done."
 - Standard: hook/route/component — full pipeline, dispatch researcher + explorer
 - Critical: auth/DB/security — full pipeline + STRIDE + security regression check
 
-## 10-step pipeline (compressed)
+## 16-step pipeline v5 (compressed)
 1. QUOI — goal in 1 sentence + NOT-X + definition of done
 2. AVEC QUOI — read real installed versions, load ciel-overlay.md
 3. RECHERCHE — 1 WebSearch + 1 anti-pattern + framework philosophy + version changelog
@@ -248,7 +248,7 @@ build_opencode() {
   # opencode.json — registers plugin + instructions
   emit_opencode_config "$out/opencode.json"
 
-  # Plugin (TS port of hooks/*.sh)
+  # Plugin (TS, v5 pipeline)
   emit_opencode_plugin "$out/.opencode/plugins/ciel.ts"
 
   # 4 subagents (skills bundled inline — no skills primitive on OpenCode)
@@ -718,7 +718,7 @@ Ciel is installed as OpenCode-native primitives:
 
 | Level | Example | Pipeline |
 |-------|---------|----------|
-| **Trivial** | rename, typo, 1-line fix | `quoi-framer` → `pattern-fitness-check` → `faire-gatekeeper` → inline review → push |
+| **Trivial** | rename, typo, 1-line fix | `QUOI` → `FAIRE` → `META` |
 | **Standard** | hook, route, component, service | Full pipeline, dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
 | **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + `@ciel-critic` mandatory |
 
@@ -787,7 +787,7 @@ bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright,context7
 EOF
 }
 
-# Emit the OpenCode TS plugin (port of hooks/*.sh).
+# Emit the OpenCode TS plugin (v5 pipeline).
 #
 # API reference (verified against @opencode-ai/plugin/dist/index.d.ts):
 #   - tool.execute.before(input, output: { args })            — CANNOT inject
@@ -814,7 +814,7 @@ emit_opencode_plugin() {
   # Inject the regex globals into the TS source so there is a single source of truth.
   cat > "$out" <<EOF
 // Ciel — OpenCode plugin (v${CIEL_VERSION})
-// Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
+// Ciel v5 plugin. Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
 //   - experimental.chat.system.transform → push depth hint + sticky RELIRE
@@ -1220,7 +1220,7 @@ Ciel is installed as Codex-native primitives:
 
 | Level | Example | Pipeline |
 |-------|---------|----------|
-| **Trivial** | rename, typo, 1-line fix | quoi-framer → pattern-fitness-check → faire-gatekeeper → inline review → push |
+| **Trivial** | rename, typo, 1-line fix | QUOI → FAIRE → META |
 | **Standard** | hook, route, component, service | Full pipeline, spawn @ciel-researcher + @ciel-explorer in parallel before coding |
 | **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + @ciel-critic mandatory |
 

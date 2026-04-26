@@ -1,68 +1,107 @@
-// Ciel — OpenCode plugin (v4.0.0)
-// Mandatory workflow injection for ciel primary agent
+// Ciel -- OpenCode plugin (v5.0.0)
+// Full 16-step pipeline: DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE
+//   -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2
+//   -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META
 //
 // Injection model:
-//   - shell.env → inject CIEL_SESSION_ID, CIEL_DEPTH into all shell execution
-//   - experimental.chat.system.transform → CIEL WORKFLOW + depth hint + RELIRE + overlay
-//   - experimental.chat.messages.transform → depth classification
-//   - session.* events → tracking, META-CRITIQUER, RELIRE reminders
-//   - tool.execute.before → FAIRE gates reminder (NON-BLOCKING)
-//   - tool.execute.after → file tracking + RELIRE trigger
-//   - tool helper → custom ciel-status tool
+//   - shell.env -> inject CIEL_SESSION_ID, CIEL_DEPTH, CIEL_MODE
+//   - experimental.chat.system.transform -> CIEL WORKFLOW v5 + overlay + state
+//   - experimental.chat.messages.transform -> depth classification
+//   - session.* events -> tracking, META-CRITIQUER, RELIRE reminders
+//   - tool.execute.before -> FAIRE gates reminder + critical file detection
+//   - tool.execute.after -> file tracking + RELIRE trigger + map update
+//   - experimental.session.compacting -> persist learnings + map
+//   - tool helper -> custom ciel-status tool
 
 import type { Plugin } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { basename, dirname, join } from "path";
+
+// ----- Constants -----
 
 const CODE_EXT_RE = /\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql)$/i;
 const TEST_FILE_RE = /\.(test|spec|_test|_spec)\.(ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte)$/i;
-const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret)/;
-const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration\.schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
-const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b/i;
+const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret|Payment|Account|Credential)/;
+const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit\.card|migration\.schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
+const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one\.line|fix\.typo|spelling)\b/i;
+const SPIKE_KEYWORD_RE = /\b(spike|exploration|prototype|draft|rough|experimental|poc|proof.of.concept|throwaway)\b/i;
+const CIEL_DIR = ".ciel";
+const MAP_FILE = join(CIEL_DIR, "map.json");
+const PARKING_FILE = join(CIEL_DIR, "parking.md");
+const LEARNINGS_FILE = join(CIEL_DIR, "learnings.md");
+const EXPLORATION_FLAG = join(CIEL_DIR, "exploration.active");
+const MEMORY_FILE = join(CIEL_DIR, "memory.json");
 
-// MANDATORY WORKFLOW INJECTION — Added to EVERY system prompt
+// ----- V5 WORKFLOW INJECTION -----
+
 const CIEL_WORKFLOW_INSTRUCTION = `
-[CIEL MANDATORY WORKFLOW — ALWAYS ACTIVE]
+[CIEL MANDATORY WORKFLOW v5 -- ALWAYS ACTIVE]
 
-You are using Ciel deep-reasoning workflow. For EVERY user message:
+You are using Ciel deep-reasoning workflow v5. For EVERY user message:
 
-1. **ALWAYS classify depth first** (Trivial/Standard/Critical)
-2. **ALWAYS follow the pipeline**:
-   - Trivial: Direct response
-   - Standard: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → PLAN → FAIRE → RELIRE → PROUVER
-   - Critical: Same + STRIDE analysis + security-regression-check
-
-3. **ALWAYS dispatch subagents** when required:
-   - @ciel-researcher: External libs, APIs, unknown patterns
-   - @ciel-explorer: Codebase analysis (3+ files)
-   - @ciel-critic: 5+ files changed OR critical files (auth/, security/, *Service.*)
-
+1. **ALWAYS classify depth first** (Trivial/Standard/Critical/Spike) before any action
+2. **ALWAYS follow the pipeline** based on depth (see below)
+3. **ALWAYS dispatch subagents** when required
 4. **NEVER skip gates**: test-first, alternatives, idiomatic, quality, removal
+5. **ASK before assuming**: use the 'question' tool to clarify ambiguities
+6. **META-CRITIQUER after EVERY completed task** (always, non-negotiable)
 
-5. **META-CRITIQUER — after EVERY completed task** (after PROUVER or direct response):
-   Do a 30-second reflection before your final output:
-   - (1) Did depth classification match the actual work done?
-   - (2) Any new failure mode discovered?
-   - (3) Did the user correct something? → persist to learnings
-   - (4) Any stale branches to clean?
-   - (5) Any uncovered issues left?
-   - (6) Context health — suggest /compact if > 50%?
-   - (7) Any dead code introduced?
+Pipeline (16 steps):
+  Standard/Critical:
+    1.  DOCS     -- Lire README, ADRs, tickets, overlay, .ciel/map.json
+    2.  QUOI     -- Goal + NOT-X + Definition of Done + intentions partagees
+    3.  ASK      -- Utiliser 'question' tool pour clarifier les ambiguites
+    4.  AVEC QUOI -- Verifier versions installees (package.json, etc.)
+    5.  DIVERGE  -- Explorer 2-3 approches radicalement differentes
+    6.  RECHERCHE -- Dispatch @ciel-researcher si lib externe ou API inconnue
+    7.  SECURITE -- STRIDE + security-regression-check (Critical only)
+    8.  CODEBASE -- Dispatch @ciel-explorer pour pattern-fitness + flux
+    9.  EVALUER  -- Sizing + pre-mortem + alternatives + counterfactual
+    10. ASK2     -- Questions sur le plan avant d'implementer
+    11. FAIRE    -- Test-first (RED), 5 quality gates
+    12. ADR      -- Documenter les decisions architecturales dans docs/adrs/
+    13. RELIRE   -- Dispatch @ciel-critic MODE=RELIRE
+    14. PROUVER  -- AVANT/APRES evidence + CI gate + PR body
+    15. MEMOIRE  -- Sauvegarder la carte (.ciel/map.json) + apprentissages
+    16. META     -- 30s post-task reflection
 
-This is NOT optional. Every conversation must follow this workflow.
+  Trivial:
+    QUOI -> FAIRE -> META (inline, no dispatch)
+
+  Spike (prototype/exploration):
+    QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (gates assouplies) -> META
+    -> .ciel/exploration.active est cree -> les gates de qualite sont levees
+    -> Le code explore doit etre refait proprement ensuite
 `;
 
-// FAIRE gate reminder injected BEFORE every write/edit via tool.execute.before
 const FAIRE_BEFORE_REMINDER = `
-[CIEL FAIRE GATES — BEFORE WRITE/EDIT]
+[CIEL FAIRE GATES -- BEFORE WRITE/EDIT]
 Before executing this write/edit, verify:
 1. TEST-FIRST (RED): Have you written tests FIRST? If this is source code, a corresponding test file must exist or be created first.
-2. ALTERNATIVES: Can you justify X over Y in a comment or commit message?
+2. ALTERNATIVES: Can you justify X over Y? (comment or commit message)
 3. IDIOMATIC: Are you using the framework's idiomatic pattern? If bypassing, justify why.
-4. QUALITY: complexity < 15, nesting < 4, functions < 50 lines.
-5. REMOVAL: If deleting code — who uses it? What replaces it? What degrades?
+4. QUALITY: complexity < 15, nesting < 4, functions < 50 lines
+5. REMOVAL: If deleting code -- who uses it? What replaces it? What degrades?
+6. BOY-SCOUT: Did you leave the code better than you found it?
 `;
+
+const META_CRITIQUER = `
+[CIEL META-CRITIQUER -- 30s POST-TASK REFLECTION]
+After completing the task, reflect on:
+(1) Depth match -- etait-ce Trivial/Standard/Critical/Spike correct ?
+(2) Failure mode -- nouveau mode d'echec decouvert ?
+(3) User correction -- l'utilisateur a-t-il corrige quelque chose ? -> persist dans learnings
+(4) Stale branches -- branches a nettoyer ?
+(5) Uncovered issues -- problemes non resolus ?
+(6) Context health -- suggerer /compact si > 50% ?
+(7) Dead code -- code mort introduit ?
+(8) Map update -- la carte du projet (.ciel/map.json) est-elle a jour ?
+(9) Parking -- y a-t-il des decouvertes fortuites a noter dans .ciel/parking.md ?
+(10) Boy-scout -- le code est-il meilleur qu'avant ?
+`;
+
+// ----- Helpers -----
 
 function getTestPathForSource(sourcePath: string): string[] {
   const base = basename(sourcePath);
@@ -104,6 +143,32 @@ function isSourceFile(filePath: string): boolean {
   return CODE_EXT_RE.test(filePath) && !isTestFile(filePath);
 }
 
+function isSpikeMode(): boolean {
+  return existsSync(EXPLORATION_FLAG);
+}
+
+function ensureCielDir(): void {
+  if (!existsSync(CIEL_DIR)) {
+    mkdirSync(CIEL_DIR, { recursive: true });
+  }
+}
+
+function writeParkingEntry(entry: string): void {
+  ensureCielDir();
+  const timestamp = new Date().toISOString().split("T")[0];
+  const formatted = `- [${timestamp}] ${entry}\n`;
+  try {
+    const existing = existsSync(PARKING_FILE) ? readFileSync(PARKING_FILE, "utf-8") : "";
+    const header = "# Ciel Parking Lot -- Decouvertes fortuites\n\n";
+    const content = existing.startsWith("#") ? existing : header + existing;
+    writeFileSync(PARKING_FILE, content + formatted, "utf-8");
+  } catch {
+    // silent
+  }
+}
+
+// ----- Plugin -----
+
 const ciel: Plugin = async ({ client }) => {
   const writtenFiles = new Set<string>();
   const MAX_TRACKED_FILES = 100;
@@ -112,12 +177,15 @@ const ciel: Plugin = async ({ client }) => {
   let overlayContent: string | null = null;
   let faireBlocked: { filePath: string; gate: string; candidates: string[] } | null = null;
   let sessionId: string = "unknown";
+  let taskCount: number = 0;
+  let readDocsAttempted: boolean = false;
+  let askWindowUsed: boolean = false;
 
   return {
-    // ─── CUSTOM TOOLS ───
+    // ----- CUSTOM TOOLS -----
     tool: {
       "ciel-status": tool({
-        description: "Shows current Ciel session state: depth classification, files changed, RELIRE status, FAIRE gate state. Use when user asks 'what's the Ciel status' or 'show Ciel state'.",
+        description: "Shows current Ciel session state: depth classification, files changed, RELIRE status, FAIRE gate state, spike mode. Use when user asks 'what is the Ciel status' or 'show Ciel state'.",
         args: {},
         async execute(_args, _context) {
           const changed = Array.from(writtenFiles);
@@ -127,6 +195,10 @@ const ciel: Plugin = async ({ client }) => {
             filesChanged: changed.length,
             files: changed.slice(0, 10),
             relireRequired: relireSticky,
+            spikeMode: isSpikeMode(),
+            taskCount,
+            askWindowUsed,
+            readDocsAttempted,
             faireBlocked: faireBlocked ? {
               file: faireBlocked.filePath,
               gate: faireBlocked.gate,
@@ -137,31 +209,34 @@ const ciel: Plugin = async ({ client }) => {
       }),
     },
 
-    // ─── SHELL ENV — inject Ciel context into all shell execution ───
+    // ----- SHELL ENV -----
     "shell.env": async (_input, output) => {
       output.env.CIEL_SESSION_ID = sessionId;
       output.env.CIEL_DEPTH = lastDepthHint ?? "unclassified";
+      output.env.CIEL_MODE = isSpikeMode() ? "spike" : "standard";
     },
 
-    // ─── EVENTS ───
+    // ----- EVENTS -----
     event: async ({ event }) => {
       if (event.type === "session.created") {
         const rawId = (event as any).info?.id ?? (event as any).sessionID ?? "unknown";
         sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
+        taskCount = 0;
 
         await client.app.log({
           body: { service: "ciel", level: "info", message: `Session ${sessionId} started` },
         });
 
+        // Load overlay
         if (existsSync("./ciel-overlay.md")) {
           try {
             const rawOverlay = readFileSync("./ciel-overlay.md", "utf-8");
             overlayContent = rawOverlay.replace(
               /##\s*\S*sensitive[:\s]*true\S*\s*\n([\s\S]*?)(?=\n##\s|\n*$)/gi,
-              "## [REDACTED — sensitive section]\n"
+              "## [REDACTED -- sensitive section]\n"
             );
           } catch {
-            // Silent fail
+            // silent
           }
         }
 
@@ -169,6 +244,8 @@ const ciel: Plugin = async ({ client }) => {
         relireSticky = false;
         lastDepthHint = null;
         faireBlocked = null;
+        readDocsAttempted = false;
+        askWindowUsed = false;
       }
 
       if (event.type === "session.diff") {
@@ -189,7 +266,8 @@ const ciel: Plugin = async ({ client }) => {
       }
 
       if (event.type === "session.idle") {
-        lastDepthHint = "CIEL STOP — 30s META-CRITIQUER: (1) depth match? (2) failure mode? (3) user correction → overlay? (4) stale branches?";
+        taskCount++;
+        lastDepthHint = `CIEL STOP -- META-CRITIQUER: (1) depth match? (2) failure mode? (3) user correction -> learnings? (4) stale branches? (8) map update? (9) parking note?`;
         relireSticky = true;
         faireBlocked = null;
       }
@@ -214,17 +292,17 @@ const ciel: Plugin = async ({ client }) => {
       }
 
       if (event.type === "session.compacted") {
-        // Post-compaction: state was persisted by session.compacting hook
         await client.app.log({
-          body: { service: "ciel", level: "info", message: `Session ${sessionId} compacted — state preserved` },
+          body: { service: "ciel", level: "info", message: `Session ${sessionId} compacted -- state preserved` },
         });
       }
     },
 
+    // ----- SYSTEM TRANSFORM -----
     "experimental.chat.system.transform": async (_input, output) => {
       if (!Array.isArray(output?.system)) return;
 
-      // MANDATORY WORKFLOW INJECTION (FIRST — highest priority)
+      // Mandatory workflow injection (first -- highest priority)
       output.system.push(CIEL_WORKFLOW_INSTRUCTION);
 
       // Overlay injection
@@ -232,19 +310,51 @@ const ciel: Plugin = async ({ client }) => {
         output.system.push(`Project Overlay:\n${overlayContent}`);
       }
 
+      // Load .ciel/map.json if it exists
+      if (existsSync(MAP_FILE)) {
+        try {
+          const mapContent = readFileSync(MAP_FILE, "utf-8");
+          output.system.push(`Project Map (.ciel/map.json):\n${mapContent}`);
+        } catch {
+          // silent
+        }
+      }
+
+      // Load .ciel/memory.json if it exists
+      if (existsSync(MEMORY_FILE)) {
+        try {
+          const memoryContent = readFileSync(MEMORY_FILE, "utf-8");
+          output.system.push(`Session Memory (.ciel/memory.json):\n${memoryContent}`);
+        } catch {
+          // silent
+        }
+      }
+
+      // SPIKE mode indicator
+      if (isSpikeMode()) {
+        output.system.push(
+          "[CIEL SPIKE MODE] Exploration/prototype mode active. Quality gates are ASSOUPLIES.\n" +
+          "This code is experimental. FIXME/TODO markers required. Must be refactored properly after.\n" +
+          "To exit spike mode, remove .ciel/exploration.active"
+        );
+      }
+
       // Depth hint
       if (lastDepthHint) {
         output.system.push(lastDepthHint);
       }
 
-      // FAIRE gate blocked — inject full Ciel workflow trigger
+      // META-CRITIQUER always injected
+      output.system.push(META_CRITIQUER);
+
+      // FAIRE gate blocked
       if (faireBlocked) {
         output.system.push(
           `[CIEL FAIRE GATE TRIGGERED] You just wrote ${faireBlocked.filePath} without a corresponding test file.\n\n` +
           `This means you skipped the Ciel workflow. You MUST now:\n` +
-          `1. Classify depth (Trivial/Standard/Critical)\n` +
-          `2. Follow the pipeline: QUOI → AVEC QUOI → RECHERCHE → CODEBASE → PLAN → FAIRE → RELIRE → PROUVER\n` +
-          `3. Dispatch subagents if required (@ciel-researcher for external libs, @ciel-explorer for 3+ files)\n` +
+          `1. Classify depth (Trivial/Standard/Critical/Spike)\n` +
+          `2. Follow the pipeline: DOCS -> QUOI -> ASK -> AVEC QUOI -> ... -> FAIRE -> RELIRE -> PROUVER -> MEMOIRE -> META\n` +
+          `3. Dispatch subagents if required (@ciel-researcher, @ciel-explorer)\n` +
           `4. Write the test file FIRST, then implement\n\n` +
           `Candidates checked: ${faireBlocked.candidates.slice(0, 3).join(", ")}\n\n` +
           `Do NOT continue writing source code until tests exist. Follow the full Ciel pipeline.`
@@ -255,11 +365,12 @@ const ciel: Plugin = async ({ client }) => {
       if (relireSticky) {
         const changed = Array.from(writtenFiles);
         output.system.push(
-          `[CIEL RELIRE REQUIRED] ${changed.length} files changed. Dispatch @ciel-critic MODE=RELIRE — 3 RISQUES + FIX/ACCEPT/DEFER.`
+          `[CIEL RELIRE REQUIRED] ${changed.length} files changed. Dispatch @ciel-critic MODE=RELIRE -- 3 RISQUES + FIX/ACCEPT/DEFER.`
         );
       }
     },
 
+    // ----- MESSAGES TRANSFORM (depth classification) -----
     "experimental.chat.messages.transform": async (_input, output) => {
       const msgs = output?.messages;
       if (!Array.isArray(msgs) || msgs.length === 0) return;
@@ -270,7 +381,7 @@ const ciel: Plugin = async ({ client }) => {
         if (m?.info?.role !== "user") continue;
         const parts = m?.parts;
         if (!Array.isArray(parts)) continue;
-        for (let j = parts.length - 1; j >= 0; j++) {
+        for (let j = parts.length - 1; j >= 0; j--) {
           const p = parts[j];
           if (p?.type === "text" && typeof p.text === "string") {
             prompt = p.text;
@@ -285,6 +396,9 @@ const ciel: Plugin = async ({ client }) => {
       if (CRITICAL_KEYWORD_RE.test(prompt)) {
         depth = "Critical";
         reason = "auth/security/payment keyword detected";
+      } else if (SPIKE_KEYWORD_RE.test(prompt)) {
+        depth = "Spike";
+        reason = "spike/exploration/prototype keyword detected -- gates assouplies";
       } else if (TRIVIAL_KEYWORD_RE.test(prompt)) {
         depth = "Trivial";
         reason = "rename/typo/docs keyword detected";
@@ -295,13 +409,32 @@ const ciel: Plugin = async ({ client }) => {
         : null;
     },
 
+    // ----- COMPACTING (cross-session memory -- persist automatically) -----
     "experimental.session.compacting": async (_input, output) => {
+      // Persist .ciel/memory.json
+      try {
+        ensureCielDir();
+        const memory = {
+          sessionId,
+          depthHint: lastDepthHint,
+          filesChanged: Array.from(writtenFiles).slice(-20),
+          taskCount,
+          timestamp: new Date().toISOString(),
+        };
+        writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2), "utf-8");
+      } catch {
+        // silent
+      }
+
+      // Inject context for the LLM to update learnings and map
       output.context.push(
-        "CIEL PRE-COMPACT — Invoke learnings-capture skill NOW. Persist: (1) user corrections, (2) failure modes, (3) failed approaches + why they failed."
+        "CIEL PRE-COMPACT -- Persist if needed: (1) user corrections -> .ciel/learnings.md, " +
+        "(2) project map updates -> .ciel/map.json. " +
+        "Memory already saved at .ciel/memory.json"
       );
     },
 
-    // ─── BEFORE HOOK — FAIRE gates reminder (NON-BLOCKING) ───
+    // ----- BEFORE HOOK -- FAIRE gates -----
     "tool.execute.before": async (input: any, output: any) => {
       if (!["write", "edit"].includes(input.tool)) return;
       const filePath: string = output?.args?.filePath ?? "";
@@ -310,8 +443,8 @@ const ciel: Plugin = async ({ client }) => {
       // Skip for the plugin itself and test files
       if (filePath.includes("ciel.ts") || isTestFile(filePath)) return;
 
-      // Gate 1: TEST-FIRST (RED) — set flag if writing source without test
-      if (isSourceFile(filePath) && !sourceFileHasTest(filePath)) {
+      // Gate 1: TEST-FIRST (RED) -- only block if NOT in SPIKE mode
+      if (isSourceFile(filePath) && !sourceFileHasTest(filePath) && !isSpikeMode()) {
         const testCandidates = getTestPathForSource(filePath);
         faireBlocked = { filePath, gate: "test-first", candidates: testCandidates };
       } else {
@@ -321,8 +454,13 @@ const ciel: Plugin = async ({ client }) => {
       // Gate 2: CRITICAL FILE WARNING
       if (CRITICAL_FILE_RE.test(filePath)) {
         await client.app.log({
-          body: { service: "ciel", level: "warn", message: `CRITICAL FILE: ${filePath} — stride-analyzer + security-regression-check required` },
+          body: { service: "ciel", level: "warn", message: `CRITICAL FILE: ${filePath} -- stride-analyzer + security-regression-check required` },
         });
+      }
+
+      // Gate 3: PARKING LOT -- detect if this is a tangential discovery
+      if (filePath.includes("parking") || filePath.includes("FIXME") || filePath.includes("TODO")) {
+        writeParkingEntry(`Tangential file noted during task: ${filePath}`);
       }
 
       // Inject FAIRE reminder into the tool output
@@ -334,9 +472,19 @@ const ciel: Plugin = async ({ client }) => {
       }
     },
 
-    // ─── AFTER HOOK — file tracking + RELIRE trigger ───
+    // ----- AFTER HOOK -- file tracking + map update -----
     "tool.execute.after": async (input: any, output: any) => {
-      if (!["write", "edit"].includes(input.tool)) return;
+      const toolName: string = input?.tool ?? "";
+
+      // Track ASK window usage for any question tool call
+      if (toolName === "question") {
+        askWindowUsed = true;
+        return; // question tool has no file path, nothing else to do
+      }
+
+      // Only process write/edit tools for file tracking
+      if (!["write", "edit"].includes(toolName)) return;
+
       const filePath: string =
         output?.metadata?.filepath ??
         output?.metadata?.filediff?.file ??
@@ -354,15 +502,58 @@ const ciel: Plugin = async ({ client }) => {
       }
 
       const isCritical = CRITICAL_FILE_RE.test(filePath);
+      const spike = isSpikeMode();
 
       const reminder = isCritical
-        ? `\n\n[CIEL CRITIQUE] ${filePath} — FAIRE gates + stride-analyzer + test-first (RED). Dispatch @ciel-critic MODE=RELIRE.`
-        : `\n\n[CIEL] ${filePath} — FAIRE gates: alternatives, idiomatic, test-first.`;
+        ? `\n\n[CIEL CRITIQUE] ${filePath} -- FAIRE gates + stride-analyzer + test-first (RED). Dispatch @ciel-critic MODE=RELIRE.`
+        : spike
+        ? `\n\n[CIEL SPIKE] ${filePath} -- gates assouplies. Marquer comme experimental (FIXME/TODO).`
+        : `\n\n[CIEL] ${filePath} -- FAIRE gates: alternatives, idiomatic, test-first, boy-scout.`;
 
       if (typeof output?.output === "string") {
         output.output += reminder;
       } else if (output) {
         output.output = reminder.trimStart();
+      }
+
+      // Track DOCS phase attempt
+      if (!readDocsAttempted && (filePath.endsWith("README.md") || filePath.endsWith("AGENTS.md") || filePath.endsWith("CLAUDE.md") || filePath.includes("ciel-overlay") || filePath.endsWith("docs/"))) {
+        readDocsAttempted = true;
+      }
+
+      // Update .ciel/map.json with modules discovered during exploration
+      if (filePath.endsWith(".ts") || filePath.endsWith(".tsx") || filePath.endsWith(".js") || filePath.endsWith(".py") || filePath.endsWith(".go") || filePath.endsWith(".rs")) {
+        try {
+          ensureCielDir();
+          let map: any = { modules: [], lastUpdated: new Date().toISOString() };
+          if (existsSync(MAP_FILE)) {
+            map = JSON.parse(readFileSync(MAP_FILE, "utf-8"));
+          }
+          // Simple heuristic: the directory 2 levels deep is a module
+          const parts = filePath.replace(/^\.\//, "").split("/");
+          if (parts.length >= 2) {
+            const moduleName = parts[parts.length - 2];
+            const existingModule = map.modules?.find((m: any) => m.name === moduleName);
+            if (!existingModule) {
+              map.modules = map.modules || [];
+              map.modules.push({
+                name: moduleName,
+                path: parts.slice(0, -1).join("/"),
+                key_files: [{ path: filePath, responsibility: "auto-detected" }],
+              });
+            } else {
+              const existingFile = existingModule.key_files?.find((f: any) => f.path === filePath);
+              if (!existingFile) {
+                existingModule.key_files = existingModule.key_files || [];
+                existingModule.key_files.push({ path: filePath, responsibility: "auto-detected" });
+              }
+            }
+            map.lastUpdated = new Date().toISOString();
+            writeFileSync(MAP_FILE, JSON.stringify(map, null, 2), "utf-8");
+          }
+        } catch {
+          // silent
+        }
       }
     },
   };

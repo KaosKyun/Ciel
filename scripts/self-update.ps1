@@ -10,10 +10,10 @@
 $ErrorActionPreference = "Stop"
 
 $REPO              = "KaosKyun/Ciel"
-$LOCAL_SKILL       = "$HOME/.claude/skills/ciel/SKILL.md"
-$LOCAL_COMMAND_DIR = Join-Path (Get-Location) ".claude/commands"
-$LOCAL_HOOKS_DIR   = "$HOME/.claude/plugins/ciel/hooks"
-$VERSION_FILE      = "$HOME/.claude/plugins/ciel/.version"
+$LOCAL_AGENTS_DIR     = Join-Path (Get-Location) ".claude/agents"
+$LOCAL_HOOKS_DIR      = Join-Path (Get-Location) ".claude/hooks"
+$LOCAL_OPENCODE_PLUGIN = Join-Path (Get-Location) ".opencode/plugins"
+$VERSION_FILE         = Join-Path (Get-Location) ".ciel/version"
 
 Write-Host "Ciel update check..."
 

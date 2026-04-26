@@ -32,8 +32,11 @@
 
 Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 
-- `.opencode/plugins/ciel.ts` — Plugin principal OpenCode
-- `hooks/*` — Scripts d'automation (9 hooks)
+- `.opencode/plugins/ciel.ts` — Plugin principal OpenCode (v5)
+- `.claude/settings.json` — Hooks Claude Code
+- `.claude/hooks/*.sh` — Scripts d'automation Claude Code (4 hooks)
+- `.claude/agents/*.md` — Définitions agents Claude Code
+- `hooks/*` — Scripts d'automation (8 hooks)
 - `skills/ciel/` — Orchestrator principal
 - `skills/workflow/` — Pipeline CRÉER/CRITIQUER
 - `skills/security/` — Security hardening
@@ -48,7 +51,8 @@ Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 - **Runners:** ubuntu-latest
 - **Build local:** `cd .opencode && npm install`
 - **Test local:** `cd .opencode && npx tsx test-ciel.ts`
-- **Lint:** `shellcheck hooks/*.sh`
+- **Lint:** `shellcheck hooks/*.sh .claude/hooks/*.sh`
+- **Type check dans le plugin:** activer OPENCODE_EXPERIMENTAL_LSP_TOOL=true pour le navigateur LSP
 - **Staging URL:** https://staging.ciel-plugin.dev (simulé)
 - **Deploy staging:** `git push origin main`
 - **Délai deploy:** ~1-2 minutes
@@ -87,6 +91,11 @@ Aucun secret requis pour la CI actuelle.
 
 - `[2026-04] MISTAKE: hooks non testés avant merge → RULE: Toujours exécuter test-hooks.yml en local avant push`
 - `[2026-04] MISTAKE:忘记更新 VERSION 文件 → RULE: Mettre à jour VERSION avant de créer un tag release`
+- `[2026-04] MISTAKE: Ciel v4 pipeline trop procédural, sans ASK window → RULE: Ciel v5 a 16 étapes avec ASK (question tool) + DIVERGE + ADR + MEMOIRE + META renforcé`
+- `[2026-04] MISTAKE: exploration sans intention → RULE: Ciel v5 explorer recoit INTENTION (pas la solution), utilise LSP + git history pour scent-following`
+- `[2026-04] MISTAKE: feedback humain obei aveuglement → RULE: Ciel critic v5 mode FEEDBACK analyse et categorise (ACCEPT/CHALLENGE/INVESTIGATE/DEFER)`
+- `[2026-04] MISTAKE: pas de carte persistante du projet → RULE: .ciel/map.json charge a chaque session, mis a jour apres chaque exploration`
+- `[2026-04] MISTAKE: Claude Code et OpenCode traites differemment → RULE: philosophie Ciel invariante, implementation specifique a chaque harness`
 
 ---
 
@@ -101,6 +110,9 @@ Aucun secret requis pour la CI actuelle.
 - **Hooks shell validés** — Tous les scripts `.sh` doivent passer `shellcheck`
 - **Documentation à jour** — CHANGELOG.md doit être mis à jour avant chaque release
 - **Tests avant implémentation** — Suivre le workflow FAIRE (test-first RED)
+- **ASK avant d'assumer** — Utiliser le `question` tool d'OpenCode pour clarifier les ambiguites (ASK window)
+- **LSP tool disponible** — `OPENCODE_EXPERIMENTAL_LSP_TOOL=true` active le LSP pour explorer avec goToDefinition
+- **SPIKE mode** — `.ciel/exploration.active` pour les prototypes, gates assouplies
 - **Byte limits strictes** — Chaque platform a ses limites (6KB-65KB), validation CI bloquante
 - **7 platforms supportées** — Cursor, Windsurf, Codex, OpenCode, Kilocode, Ollama, LM Studio
 
@@ -111,20 +123,33 @@ Aucun secret requis pour la CI actuelle.
 ```
 Ciel/
 ├── .github/workflows/     # CI/CD (7 workflows)
-│   ├── ci.yml             # CI principale (6 jobs)
+│   ├── ci.yml             # CI principale (6 jobs + validation Claude Code)
 │   ├── test-hooks.yml     # Test hooks (3 jobs)
 │   ├── platform-validation.yml # Validation 7 platforms
 │   ├── skill-integrity.yml # Validation skills
 │   ├── matrix-build.yml   # Build parallèle release
 │   ├── deploy-staging.yml # Déploiement staging
 │   └── release.yml        # Release GitHub
-├── .opencode/             # Configuration OpenCode
-│   ├── agents/            # 6 agents (plan, build, researcher, explorer, critic, improver)
-│   ├── commands/          # 9 commandes slash
-│   └── plugins/           # ciel.ts (plugin principal)
+├── .opencode/             # Configuration OpenCode (v5)
+│   ├── agents/            # 5 agents (ciel, ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)
+│   ├── commands/          # 8 commandes slash
+│   └── plugins/           # ciel.ts (plugin principal v5)
+├── .claude/               # Configuration Claude Code (v5)
+│   ├── agents/            # 4 subagents (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)
+│   ├── hooks/             # 4 hooks (check-test-first, block-destructive, track-file, meta-critiquer)
+│   ├── settings.json      # Hooks configuration
+│   └── rules/             # Path-scoped rules (à venir)
+├── .ciel/                 # État persistant Ciel
+│   ├── map.json           # Carte du projet
+│   ├── memory.json        # Mémoire cross-session
+│   ├── parking.md         # Découvertes fortuites
+│   └── learnings.md       # Leçons apprises
+├── CLAUDE.md              # Instructions Claude Code (importe AGENTS.md)
+├── AGENTS.md              # Instructions OpenCode (v5) + philosophie
+├── ciel-overlay.md        # Overlay projet
 ├── agents/                # Définitions agents (source)
 ├── commands/              # Commandes slash (source)
-├── hooks/                 # 9 hooks bash/powershell
+├── hooks/                 # 8 hooks bash/powershell
 ├── skills/                # ~50 compétences Ciel
 ├── scripts/               # Installation, build, tests
 │   ├── install.sh         # Installateur universel

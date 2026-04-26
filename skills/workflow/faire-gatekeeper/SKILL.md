@@ -1,105 +1,99 @@
 ---
 name: faire-gatekeeper
-description: How to implement code safely — 9 quality gates covering alternatives, idiomatic patterns, code quality, removal safety, test-first discipline, before-state capture, alignment, volume, and chunked validation. A checklist for implementation discipline.
-allowed-tools: Read, Grep, Bash
+description: How to implement code safely — 6 quality gates for Ciel v5 (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode assouplit les gates. A checklist for implementation discipline during FAIRE (etape 11).
 ---
 
-# Implementation Safety — 9 Quality Gates
+# Implementation Safety — 6 Quality Gates (Ciel v5)
 
 ## What this covers
 
-How to implement code with discipline. These gates run during coding, not before — they catch problems as they happen.
+How to implement code with discipline during Ciel v5 FAIRE phase (etape 11). These gates run during coding and are enforced by the plugin or hooks. SPIKE mode assouplit certain gates.
 
 ## Core principle
 
-**Check gates per-file, not per-task.** Each write/edit gets its own gate check.
+**Check gates per-file, not per-task.** Each write/edit gets its own gate check. In SPIKE mode, gates 1 and 6 are optional but the code must be marked FIXME/TODO.
 
-## The 9 gates
+## The 6 gates (v5)
 
-### 1. Alternatives gate
+### Gate 1: Test-first (RED)
 
-"I chose X over Y because [reason]." No Y named → research alternatives first.
+Do not write source code before the test exists. If no `*.test.*` file exists:
+- OpenCode: plugin blocks via tool.execute.before
+- Claude Code: hook blocks via exit 2
 
-### 2. Idiomatic gate — justify any framework bypass
+**SPIKE mode**: gate assouplie. Le code explore peut etre ecrit sans test, mais doit etre marque FIXME/TODO.
+
+### Gate 2: Alternatives
+
+"I chose X over Y because [reason]." No Y named -> research alternatives first.
+
+### Gate 3: Idiomatic
 
 Common bypass signals that need justification:
-- `window.*` / `document.*` in React → why not hook/ref/router?
-- `for` + raw SQL → why not batch/ORM?
-- `catch(e) { return null }` → why not Result/sealed class?
-- `as X` without type guard → why not `is X`?
-- Copying a block for the 3rd+ time → why not extract a helper?
+- `window.*` / `document.*` in React -> why not hook/ref/router?
+- `for` + raw SQL -> why not batch/ORM?
+- `catch(e) { return null }` -> why not Result/sealed class?
+- `as X` without type guard -> why not `is X`?
+- Copying a block for the 3rd+ time -> why not extract a helper?
 
-Each bypass signal detected → justification required.
+### Gate 4: Quality
 
-### 3. Quality gates
+- Complexity: < 15 (cyclomatic)
+- Nesting: < 4 levels
+- Function length: < 50 lines
+- File length: < 400 lines
 
-- Cyclomatic complexity < 15 per function
-- Nesting depth < 4
-- Function length < 50 lines
+**SPIKE mode**: quality gate assouplie. Le code explore peut etre long ou complexe, mais doit etre marque FIXME/TODO.
 
-If any gate fails → refactor before committing.
+### Gate 5: Removal safety
 
-### 4. Removal gate (before removing cache, feature, config, or dependency)
+If you are DELETING code:
+- Who uses it? (grep for imports/references)
+- What replaces it?
+- What degrades if not replaced?
+- Is there a migration path?
 
-1. **Who uses it?** — grep all consumers
-2. **What replaces it?** — identify the alternative
-3. **What degrades?** — trace the impact path
+### Gate 6: Boy-scout (v5)
 
-"I don't know" → investigate before acting.
-
-### 5. Test gate (before implementation code)
-
-- Test written BEFORE implementation? (RED first)
-- Test verifies observable behavior, not just code execution?
-- Failure path tested at same priority as happy path?
-
-### 6. Before-state capture (bug fix only)
-
-Capture broken behavior IMMEDIATELY, before writing any code:
-- Log excerpt showing the error
-- Curl output showing wrong response
-- Screenshot showing wrong UI
-
-### 7. Alignment checkpoint (3+ files)
-
-When 3+ files have been touched: re-read the task goal. Did scope grow? Is the approach still best?
-
-### 8. Volume gate
-
-Creating 3+ PRs in the same session → PAUSE. Verify labels + staging evidence on each PR before opening the next.
-
-### 9. Chunked validation
-
-After each file: compile? types OK? 2 consecutive fails → STOP. Don't keep coding through compilation errors.
+After the change: is the code better than before?
+- Minor improvements count: better naming, removed dead code, added missing test
+- If the file was already touched, leaving it better is cheap
+- If nothing to improve, note "status quo" explicitly
 
 ## Output format
 
 ```
-## GATES
+## FAIRE gates
 
-- [✓/⚠/✗] Alternatives: <chose X over Y | missing>
-- [✓/⚠/✗] Idiomatic: <bypass signal? justification?>
-- [✓/⚠/✗] Quality: <complexity/nesting/length ok?>
-- [✓/⚠/✗] Removal: <who/what/degrades clear?>
-- [✓/⚠/✗] Test-first: <RED first?>
-- [✓/⚠/✗] Before-state: <captured?>
-- [✓/⚠/✗] Alignment: <scope matches goal?>
-- [✓/⚠/✗] Volume: <PR count?>
-- [✓/⚠/✗] Chunked: <compile ok?>
-
-⚠ = review before continuing
-✗ = blocking — address or accept risk
+Gate 1 (test-first): <PASS | BLOCKED | SPIKE>
+Gate 2 (alternatives): <X > Y because ...>
+Gate 3 (idiomatic): <PASS | bypass justified: ...>
+Gate 4 (quality): <complexity N, nesting N, length N | PASS>
+Gate 5 (removal): <no removal | safe: ...>
+Gate 6 (boy-scout): <improved: ... | status quo>
 ```
 
 ## How to verify
 
-- [ ] All 9 gates checked (alternatives, idiomatic, quality, removal, test, before-state, alignment, volume, chunked)?
-- [ ] Failed gates logged with ✓/⚠/✗ status?
-- [ ] Gates are non-blocking (context injection, not write prevention)?
-- [ ] Per-file basis applied (each write/edit gets its own check)?
+- [ ] Test exists (or spike mode active)?
+- [ ] Alternative considered and documented?
+- [ ] No unjustified framework bypass?
+- [ ] Complexity < 15, nesting < 4, function < 50 lines?
+- [ ] Removals checked for dependents?
+- [ ] Code better than before?
+
+## SPIKE mode behavior
+
+When `.ciel/exploration.active` exists:
+- Gate 1 (test-first): assouplie
+- Gate 4 (quality): assouplie
+- Gates 2, 3, 5: toujours actives
+- Gate 6 (boy-scout): recommandee mais pas bloquante
+- Le code explore DOIT etre marque FIXME ou TODO
 
 ## Key rules
 
-- **Never block writes**: gates inject context, they don't prevent writes. Failed gates are warnings.
-- **Per-file basis**: each write/edit gets its own check.
-- **Quality thresholds**: match project linter config if stricter.
+- **Gates are non-negotiable in Standard/Critical mode**: plugin/hooks enforce them
+- **SPIKE mode is for exploration only**: gates are assouplies, but code must be refactored properly after
+- **Gate 5 matters most**: deleting code without checking dependents is the fastest way to break production
+- **Boy-scout is the cheapest improvement**: if you already read the file, clean it up

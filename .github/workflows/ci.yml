@@ -38,20 +38,21 @@ jobs:
           shellcheck --version
           echo "Running ShellCheck on hooks (errors only, warnings allowed)..."
           failed=0
-          for file in hooks/*.sh; do
-            if [ -f "$file" ]; then
-              echo "Checking $file..."
-              # Only fail on errors (return code 2+), not warnings (return code 1)
-              shellcheck "$file" || {
-                exit_code=$?
-                if [ $exit_code -ge 2 ]; then
-                  echo "✗ $file has errors"
-                  failed=1
-                else
-                  echo "⚠ $file has warnings (allowed)"
-                fi
-              }
-            fi
+          for dir in hooks .claude/hooks; do
+            for file in "$dir"/*.sh; do
+              if [ -f "$file" ]; then
+                echo "Checking $file..."
+                shellcheck "$file" || {
+                  exit_code=$?
+                  if [ $exit_code -ge 2 ]; then
+                    echo "✗ $file has errors"
+                    failed=1
+                  else
+                    echo "⚠ $file has warnings (allowed)"
+                  fi
+                }
+              fi
+            done
           done
           if [ $failed -eq 1 ]; then
             echo "✗ Some hooks have ShellCheck errors"
@@ -113,12 +114,32 @@ jobs:
           
       - name: Validate agent definitions
         run: |
-          echo "Checking agent files exist..."
+          echo "Checking OpenCode agent files exist..."
           for agent in ciel ciel-researcher ciel-explorer ciel-critic ciel-improver; do
             if [ -f ".opencode/agents/${agent}.md" ]; then
               echo "✓ .opencode/agents/${agent}.md exists"
             else
               echo "✗ .opencode/agents/${agent}.md missing"
+              exit 1
+            fi
+          done
+
+          echo "Checking Claude Code agent files exist..."
+          for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+            if [ -f ".claude/agents/${agent}.md" ]; then
+              echo "✓ .claude/agents/${agent}.md exists"
+            else
+              echo "✗ .claude/agents/${agent}.md missing"
+              exit 1
+            fi
+          done
+
+          echo "Checking Claude Code hook files exist..."
+          for hook in check-test-first block-destructive track-file meta-critiquer; do
+            if [ -f ".claude/hooks/${hook}.sh" ]; then
+              echo "✓ .claude/hooks/${hook}.sh exists"
+            else
+              echo "✗ .claude/hooks/${hook}.sh missing"
               exit 1
             fi
           done

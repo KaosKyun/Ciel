@@ -21,9 +21,9 @@
 # Project-level overlay created by install.sh (per-machine, not source of truth)
 ciel-overlay.md
 
-# Project-level Claude Code config created by /ciel-init (per-machine)
-# settings.json contains absolute $CIEL_DIR hook paths specific to this machine
-.claude/settings.json
+# Claude Code generated/build files (not source of truth)
+.claude/skills/
+.claude/settings.local.json
 .claude/settings.json.bak-*
 
 # OpenCode config backups created by install.sh
