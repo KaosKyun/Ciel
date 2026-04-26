@@ -218,11 +218,23 @@ const ciel: Plugin = async ({ client }) => {
 
     // ----- EVENTS -----
     event: async ({ event }) => {
-      if (event.type === "session.created") {
-        const rawId = (event as any).info?.id ?? (event as any).sessionID ?? (event as any).sessionId ?? (event as any).id ?? String(Date.now());
+      // Log all event types for debugging session ID detection
+      if (event.type && !event.type.startsWith("tool.") && event.type !== "session.diff") {
+        await client.app.log({
+          body: { service: "ciel", level: "debug", message: `Event: ${event.type}` },
+        });
+      }
+
+      if (event.type === "session.created" || event.type === "session.updated" || event.type === "session.status") {
+        // Try multiple locations for session ID
+        const evt = event as any;
+        const rawId = evt?.info?.id ?? evt?.sessionID ?? evt?.sessionId ?? evt?.id ?? evt?.session?.id ?? `s-${Date.now().toString(36)}`;
         sessionId = typeof rawId === "string" ? rawId.slice(0, 8) : "unknown";
         taskCount = 0;
+      }
 
+      // Always ensure .ciel/ directory exists (runs on ANY session event)
+      if (event.type === "session.created" || event.type === "session.updated" || event.type === "session.status" || event.type === "session.diff") {
         // Initialize .ciel/ directory if missing
         ensureCielDir();
         if (!existsSync(MAP_FILE)) {
