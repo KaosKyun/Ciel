@@ -16,8 +16,12 @@ DIRNAME=$(dirname "$FILE_PATH")
 EXT="${BASENAME##*.}"
 NAME="${BASENAME%.*}"
 
-# Skip test files, config files, and the plugin itself
-if echo "$FILE_PATH" | grep -qiE '\.(test|spec)\.' || echo "$FILE_PATH" | grep -qiE '(ciel\.ts|CLAUDE\.md|AGENTS\.md|settings\.json)' || echo "$BASENAME" | grep -qiE '(^\.)'; then
+# Skip non-source files: tests, migrations, config, docs, env, dotfiles
+if echo "$FILE_PATH" | grep -qiE '\.(test|spec)\.' || \
+   echo "$FILE_PATH" | grep -qiE '(ciel\.ts|CLAUDE\.md|AGENTS\.md|settings\.json)' || \
+   echo "$BASENAME" | grep -qiE '(^\.)' || \
+   echo "$FILE_PATH" | grep -qiE '\.(sql|md|json|yaml|yml|toml|cfg|ini|env|lock|svg|png|jpg|ico)$' || \
+   echo "$FILE_PATH" | grep -qiE '/migrations/|/seeders/'; then
   exit 0
 fi
 
