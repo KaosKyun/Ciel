@@ -414,7 +414,7 @@ PY
       ;;
 
     claude)
-      ensure mkdir -p "$target_dir/.claude/agents" "$target_dir/.claude/hooks"
+      ensure mkdir -p "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands"
 
       if $CURL_MODE; then
         for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
@@ -423,10 +423,20 @@ PY
         for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh; do
           download_if_needed ".claude/hooks/${hook}"
         done
+        # NOTE: ciel.md is NOT copied — /ciel is handled by the skill (skills/ciel/SKILL.md)
+        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+          download_if_needed "commands/${cmd}.md"
+        done
         download_if_needed ".claude/settings.json"
         download_if_needed "CLAUDE.md"
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
+        # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
+        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+          if [ -f "$TMP_DIR/commands/${cmd}.md" ]; then
+            ensure cp "$TMP_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/"
+          fi
+        done
         ensure cp "$TMP_DIR/.claude/settings.json" "$target_dir/.claude/settings.json"
         ensure cp "$TMP_DIR/CLAUDE.md" "$target_dir/CLAUDE.md"
       else
@@ -434,6 +444,13 @@ PY
           installed+=("agents") || skipped+=("agents")
         cp -n "$SRC_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null && \
           installed+=("hooks") || skipped+=("hooks")
+        # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
+        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+          if [ -f "$SRC_DIR/commands/${cmd}.md" ]; then
+            cp -n "$SRC_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/" 2>/dev/null && \
+              installed+=("${cmd}") || skipped+=("${cmd}")
+          fi
+        done
         cp -n "$SRC_DIR/.claude/settings.json" "$target_dir/.claude/settings.json" 2>/dev/null && \
           installed+=("settings.json") || skipped+=("settings.json")
         cp -n "$SRC_DIR/CLAUDE.md" "$target_dir/CLAUDE.md" 2>/dev/null && \
@@ -617,6 +634,13 @@ do_uninstall() {
   for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh; do
     if [ -f ".claude/hooks/$hook" ]; then
       rm -f ".claude/hooks/$hook" 2>/dev/null && { ok ".claude/hooks/$hook removed"; ((count++)); } || true
+    fi
+  done
+
+  # Claude Code: sub-commands only (/ciel is from skills/ciel/SKILL.md)
+  for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+    if [ -f ".claude/commands/${cmd}.md" ]; then
+      rm -f ".claude/commands/${cmd}.md" 2>/dev/null && { ok ".claude/commands/${cmd}.md removed"; ((count++)); } || true
     fi
   done
 
