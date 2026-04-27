@@ -244,7 +244,11 @@ download_if_needed() {
   local rel_path="$1"
   local dest="$TMP_DIR/$rel_path"
   mkdir -p "$(dirname "$dest")"
-  ensure curl -fsSL "$GITHUB_RAW/$rel_path" -o "$dest"
+  # Gracefully skip 404 — some files exist only on one platform
+  curl -fsSL "$GITHUB_RAW/$rel_path" -o "$dest" 2>/dev/null || {
+    log "skip (404): $rel_path"
+    return 0
+  }
   log "downloaded: $rel_path"
 }
 
@@ -439,7 +443,8 @@ PY
           download_if_needed ".claude/hooks/${hook}"
         done
         # NOTE: ciel.md is NOT copied — /ciel is handled by the skill (skills/ciel/SKILL.md)
-        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+        # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
+        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
           download_if_needed "commands/${cmd}.md"
         done
         download_if_needed ".claude/settings.json"
@@ -452,7 +457,8 @@ PY
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
-        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+        # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
+        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
           if [ -f "$TMP_DIR/commands/${cmd}.md" ]; then
             ensure cp "$TMP_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/"
           fi
@@ -465,7 +471,8 @@ PY
         cp -n "$SRC_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null && \
           installed+=("hooks") || skipped+=("hooks")
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
-        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+        # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
+        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
           if [ -f "$SRC_DIR/commands/${cmd}.md" ]; then
             cp -n "$SRC_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/" 2>/dev/null && \
               installed+=("${cmd}") || skipped+=("${cmd}")
@@ -665,7 +672,8 @@ do_uninstall() {
   done
 
   # Claude Code: sub-commands only (/ciel is from skills/ciel/SKILL.md)
-  for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+  # ciel-improve is OpenCode-only, not in .claude/commands/
+  for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
     if [ -f ".claude/commands/${cmd}.md" ]; then
       rm -f ".claude/commands/${cmd}.md" 2>/dev/null && { ok ".claude/commands/${cmd}.md removed"; ((count++)); } || true
     fi
