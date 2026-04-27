@@ -414,7 +414,7 @@ PY
       ;;
 
     claude)
-      ensure mkdir -p "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands"
+      ensure mkdir -p "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands" "$target_dir/.claude/skills/ciel"
 
       if $CURL_MODE; then
         for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
@@ -429,6 +429,11 @@ PY
         done
         download_if_needed ".claude/settings.json"
         download_if_needed "CLAUDE.md"
+        # Ciel skill (/ciel command on Claude Code)
+        download_if_needed "skills/ciel/SKILL.md"
+        download_if_needed "skills/ciel/reference.md"
+        ensure cp "$TMP_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md"
+        ensure cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md"
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
@@ -451,6 +456,12 @@ PY
               installed+=("${cmd}") || skipped+=("${cmd}")
           fi
         done
+        # Ciel skill (/ciel command on Claude Code)
+        mkdir -p "$target_dir/.claude/skills/ciel"
+        cp -n "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null && \
+          installed+=("ciel skill") || skipped+=("ciel skill")
+        cp -n "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null && \
+          installed+=("ciel reference") || skipped+=("ciel reference")
         cp -n "$SRC_DIR/.claude/settings.json" "$target_dir/.claude/settings.json" 2>/dev/null && \
           installed+=("settings.json") || skipped+=("settings.json")
         cp -n "$SRC_DIR/CLAUDE.md" "$target_dir/CLAUDE.md" 2>/dev/null && \
