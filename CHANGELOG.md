@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## v5.1.5 — 2026-04-26 — Fix: download 404 tolerant + Claude commands
+
+### Fixed
+- **Install curl 404 crash** : `download_if_needed` utilisait `ensure curl` qui exit 2 sur 404. Maintenant les 404 sont ignores (fichier optionnel).
+- **Claude Code commandes** : `ciel-improve` retire de la liste Claude Code (OpenCode-only, dans `.opencode/commands/`).
+- **Parent paths bloquants** : `mkdir -p` verifie maintenant tous les parents (`.claude`, `.claude/skills`) avant de creer.
+
 ## v5.1.4 — 2026-04-26 — Fix: multi-platform install + file blocking dir
 
 ### Fixed
@@ -1455,7 +1462,8 @@ Direct user request for a total refactor aligned with Anthropic's Skills-first p
 
 **Changements** : architecture 5-layer, agents OBLIGATOIRES Standard/Critical, RECHERCHE output gate (6 items), FLUX 3 items test-spécifiques.
 
-[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.4...HEAD
+[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.5...HEAD
+[v5.1.5]: https://github.com/KaosKyun/Ciel/compare/v5.1.4...v5.1.5
 [v5.1.4]: https://github.com/KaosKyun/Ciel/compare/v5.1.3...v5.1.4
 [v5.1.3]: https://github.com/KaosKyun/Ciel/compare/v5.1.2...v5.1.3
 [v5.1.2]: https://github.com/KaosKyun/Ciel/compare/v5.1.1...v5.1.2
