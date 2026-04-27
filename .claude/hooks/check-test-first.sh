@@ -1,22 +1,21 @@
 #!/bin/bash
-# CIEL FAIRE GATE: test-first (RED)
-# Checks if a test file exists before allowing source code edits
-# exit 2 = block, exit 0 = allow
+# CIEL FAIRE REMINDER: test-first (RED)
+# Reminds you if you're editing source code without a corresponding test file.
+# Never blocks — exit 0 always.
+# Remove or disable this hook if you find it intrusive:
+#   jq 'del(.hooks.PreToolUse[0])' .claude/settings.json > tmp && mv tmp .claude/settings.json
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""')
 
-if [ -z "$FILE_PATH" ]; then
-  exit 0
-fi
+[ -z "$FILE_PATH" ] && exit 0
 
-# Extract filename and dir
 BASENAME=$(basename "$FILE_PATH")
 DIRNAME=$(dirname "$FILE_PATH")
 EXT="${BASENAME##*.}"
 NAME="${BASENAME%.*}"
 
-# Skip non-source files: tests, migrations, config, docs, env, dotfiles
+# Skip non-source files
 if echo "$FILE_PATH" | grep -qiE '\.(test|spec)\.' || \
    echo "$FILE_PATH" | grep -qiE '(ciel\.ts|CLAUDE\.md|AGENTS\.md|settings\.json)' || \
    echo "$BASENAME" | grep -qiE '(^\.)' || \
@@ -25,25 +24,12 @@ if echo "$FILE_PATH" | grep -qiE '\.(test|spec)\.' || \
   exit 0
 fi
 
-# Check if test file exists
-TEST_EXISTS=false
+# Check if a test file exists
 for candidate in "$DIRNAME/${NAME}.test.${EXT}" "$DIRNAME/${NAME}.spec.${EXT}" "$DIRNAME/__tests__/${NAME}.${EXT}" "$DIRNAME/tests/${NAME}.${EXT}"; do
-  if [ -f "$candidate" ]; then
-    TEST_EXISTS=true
-    break
-  fi
+  [ -f "$candidate" ] && exit 0
 done
 
-if [ "$TEST_EXISTS" = false ] && [ -f "$CLAUD_PROJECT_DIR/.ciel/exploration.active" ]; then
-  # SPIKE mode: allow but warn
-  echo "[CIEL SPIKE] No test found for $FILE_PATH but spike mode active -- gates assouplies" >&2
-  exit 0
-fi
-
-if [ "$TEST_EXISTS" = false ]; then
-  echo "[CIEL FAIRE GATE] No test file found for $FILE_PATH. Write the test FIRST before editing source code." >&2
-  echo "Candidates checked: ${NAME}.test.${EXT}, ${NAME}.spec.${EXT}, __tests__/${NAME}.${EXT}" >&2
-  exit 2
-fi
-
+# No test found — warn but DO NOT BLOCK
+echo "[CIEL REMINDER] Editing source without tests: $FILE_PATH" >&2
+echo "  Consider writing tests first (TDD). Candidates: ${NAME}.test.${EXT}" >&2
 exit 0
