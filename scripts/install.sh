@@ -421,6 +421,13 @@ PY
       ;;
 
     claude)
+      # Safely create dirs — remove any file blocking the path
+      for d in "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands" "$target_dir/.claude/skills/ciel"; do
+        if [ -f "$d" ]; then
+          warn "Removing file $d (blocking directory creation)"
+          rm -f "$d" 2>/dev/null || true
+        fi
+      done
       ensure mkdir -p "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands" "$target_dir/.claude/skills/ciel"
 
       if $CURL_MODE; then
@@ -464,6 +471,7 @@ PY
           fi
         done
         # Ciel skill (/ciel command on Claude Code)
+        if [ -f "$target_dir/.claude/skills" ]; then rm -f "$target_dir/.claude/skills" 2>/dev/null || true; fi
         mkdir -p "$target_dir/.claude/skills/ciel"
         cp -n "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null && \
           installed+=("ciel skill") || skipped+=("ciel skill")
