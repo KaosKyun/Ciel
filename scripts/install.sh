@@ -421,8 +421,9 @@ PY
       ;;
 
     claude)
-      # Safely create dirs — remove any file blocking the path
-      for d in "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands" "$target_dir/.claude/skills/ciel"; do
+      # Safely create dirs — any parent that is a file blocks mkdir -p
+      # Check each target AND its parent paths
+      for d in "$target_dir/.claude" "$target_dir/.claude/agents" "$target_dir/.claude/hooks" "$target_dir/.claude/commands" "$target_dir/.claude/skills" "$target_dir/.claude/skills/ciel"; do
         if [ -f "$d" ]; then
           warn "Removing file $d (blocking directory creation)"
           rm -f "$d" 2>/dev/null || true
