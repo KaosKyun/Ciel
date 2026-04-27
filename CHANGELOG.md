@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## v5.1.3 — 2026-04-26 — Fix: sync Claude Code files (skill, commands, reference)
+
+### Fixed
+- **Claude Code skill** : mise a jour du skill ciel (361→52 lignes, pipeline 16 etapes, subagents)
+- **Claude Code commands** : 7 commandes copiees dans `.claude/commands/` (`ciel-init`, `ciel-update`, etc.)
+- **Claude Code skill local** : `reference.md` manquant copie depuis la source
+
 ## v5.1.2 — 2026-04-26 — Fix: read stdin in curl-pipe mode
 
 ### Fixed
@@ -1442,7 +1449,8 @@ Direct user request for a total refactor aligned with Anthropic's Skills-first p
 
 **Changements** : architecture 5-layer, agents OBLIGATOIRES Standard/Critical, RECHERCHE output gate (6 items), FLUX 3 items test-spécifiques.
 
-[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.2...HEAD
+[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.3...HEAD
+[v5.1.3]: https://github.com/KaosKyun/Ciel/compare/v5.1.2...v5.1.3
 [v5.1.2]: https://github.com/KaosKyun/Ciel/compare/v5.1.1...v5.1.2
 [v5.1.1]: https://github.com/KaosKyun/Ciel/compare/v5.1.0...v5.1.1
 [v5.1.0]: https://github.com/KaosKyun/Ciel/compare/v5.0.0...v5.1.0
