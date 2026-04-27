@@ -211,17 +211,24 @@ pre_flight() {
 # ============================================================
 #  ARCHITECTURE DETECTION
 # ============================================================
-detect_platform() {
+detect_platforms() {
+  local result=""
+  # Detect by project files
   if [ -f "./opencode.json" ] || [ -d "./.opencode" ]; then
-    echo "opencode"
-  elif [ -f "./.claude/settings.json" ] || [ -d "./.claude/agents" ]; then
-    echo "claude"
+    result="opencode"
   elif command -v opencode &>/dev/null; then
-    echo "opencode"
+    result="opencode"
+  fi
+  if [ -f "./.claude/settings.json" ] || [ -d "./.claude/agents" ] || [ -d "./.claude" ]; then
+    result="${result} claude"
   elif command -v claude &>/dev/null; then
-    echo "claude"
-  else
+    result="${result} claude"
+  fi
+  if [ -z "$result" ]; then
     echo "unknown"
+  else
+    # Remove leading space and remove duplicates
+    echo "$result" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ *//;s/ *$//'
   fi
 }
 
@@ -713,15 +720,16 @@ main() {
   # Pre-flight checks
   pre_flight
 
-  # Platform detection
-  local PLATFORM
-  PLATFORM=$(detect_platform)
-  log "platform: $PLATFORM"
+  # Detect all platforms
+  local PLATFORMS
+  PLATFORMS=$(detect_platforms)
+  log "platforms: $PLATFORMS"
 
-  if [ "$PLATFORM" = "unknown" ]; then
-    err "Could not auto-detect OpenCode or Claude Code."
-    say "Run this from your project root (where opencode.json or .claude/ lives)."
-    exit 1
+  if [ "$PLATFORMS" = "unknown" ]; then
+    # Even without project files, install at least generic files
+    warn "No recognized platform config found."
+    say "Installing shared files (.ciel/, AGENTS.md) — run from opencode project root for full install."
+    PLATFORMS="generic"
   fi
 
   # Detect install mode (curl pipe vs local file)
@@ -732,11 +740,8 @@ main() {
     CURL_MODE=true
     TMP_DIR=$(mktemp -d)
     SRC_DIR="$TMP_DIR"
-    # Use double quotes so $TMP_DIR is expanded NOW (trap definition time),
-    # not later at EXIT time when local vars are out of scope (nounset error).
     trap "log 'cleanup: $TMP_DIR'; rm -rf '$TMP_DIR'" EXIT
     say "Downloading Ciel v${CIEL_VERSION}..."
-    # Quick connectivity check
     curl -fsSL --connect-timeout 5 "$GITHUB_RAW/VERSION" -o /dev/null 2>/dev/null || {
       err "Cannot reach GitHub. Check internet connection."
       exit 2
@@ -756,18 +761,23 @@ main() {
     fi
   fi
 
-  # Install
+  # Install for ALL detected platforms
   if $DO_UPDATE; then
     say "Update mode — reinstalling all files..."
   fi
-  install_ciel_files "$PROJECT_ROOT" "$PLATFORM"
+  local p
+  for p in $PLATFORMS; do
+    log "installing for platform: $p"
+    install_ciel_files "$PROJECT_ROOT" "$p"
+    # Verify each platform
+    verify_files "$PROJECT_ROOT" "$p"
+  done
 
-  # Verify
-  verify_files "$PROJECT_ROOT" "$PLATFORM"
-
-  # Summary
+  # Summary — show all installed platforms
   echo ""
-  print_summary "$PLATFORM" "$PROJECT_ROOT"
+  for p in $PLATFORMS; do
+    print_summary "$p" "$PROJECT_ROOT"
+  done
   echo ""
 
   log "install complete (exit 0)"
