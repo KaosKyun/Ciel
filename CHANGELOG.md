@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## v5.1.4 — 2026-04-26 — Fix: multi-platform install + file blocking dir
+
+### Fixed
+- **Install sur `.claude/skills` fichier** : quand une install precedente cassee avait cree `.claude/skills` comme fichier, `mkdir -p` echouait. Maintenant le fichier est supprime avant de creer le dossier.
+- **Install multi-platform** : detecte et installe pour TOUTES les plateformes presentes (OpenCode + Claude Code), pas une seule.
+
 ## v5.1.3 — 2026-04-26 — Fix: sync Claude Code files (skill, commands, reference)
 
 ### Fixed
@@ -1449,7 +1455,8 @@ Direct user request for a total refactor aligned with Anthropic's Skills-first p
 
 **Changements** : architecture 5-layer, agents OBLIGATOIRES Standard/Critical, RECHERCHE output gate (6 items), FLUX 3 items test-spécifiques.
 
-[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.3...HEAD
+[Unreleased]: https://github.com/KaosKyun/Ciel/compare/v5.1.4...HEAD
+[v5.1.4]: https://github.com/KaosKyun/Ciel/compare/v5.1.3...v5.1.4
 [v5.1.3]: https://github.com/KaosKyun/Ciel/compare/v5.1.2...v5.1.3
 [v5.1.2]: https://github.com/KaosKyun/Ciel/compare/v5.1.1...v5.1.2
 [v5.1.1]: https://github.com/KaosKyun/Ciel/compare/v5.1.0...v5.1.1
