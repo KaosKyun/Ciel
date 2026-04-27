@@ -11,9 +11,10 @@ Principe : **"Understand before generating. Verify before claiming done."**
 
 1. **Depth en 1ere ligne** — chaque reponse commence par `[CIEL Depth:X | Step:Y]`
 2. **Pipeline** — suis les 16 etapes dans l'ordre
-3. **ASK avant code** — utilise `question` tool avant d'implementer
-4. **Subagents** — @ciel-researcher pour recherche, @ciel-explorer pour codebase, @ciel-critic pour relecture
-5. **META** — reflexion post-tache (toujours)
+3. **TODO list** — cree une todo list au debut de chaque tache avec `todowrite` (OpenCode) ou manuellement (Claude Code). Marque chaque etape completed/in_progress.
+4. **ASK** — utilise `question` tool SEULEMENT si ambigu. Si le contexte est suffisant, decide et avance sans demander.
+5. **Subagents** — @ciel-researcher pour recherche, @ciel-explorer pour codebase, @ciel-critic pour relecture
+6. **META** — reflexion post-tache (toujours, non-negociable)
 
 ## Pipeline 16 etapes
 
