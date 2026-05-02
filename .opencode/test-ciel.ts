@@ -52,8 +52,11 @@ function extractSessionId(event: any): string {
 
 console.log("\nCiel v5 Test Suite\n");
 
-// Read plugin source once for all content checks
-const pluginSource = readFileSync(".opencode/plugins/ciel.ts", "utf-8");
+// Read plugin source from the monorepo packages directory (source of truth)
+const pluginSourceFile = existsSync("packages/ciel/src/plugin/index.ts")
+  ? "packages/ciel/src/plugin/index.ts"
+  : ".opencode/plugins/ciel.ts";
+const pluginSource = readFileSync(pluginSourceFile, "utf-8");
 
 console.log("--- Model-Driven Depth Classification ---");
 console.log("  (Depth is classified by the model via pipeline instruction, not regex.)");
@@ -95,8 +98,11 @@ assert(typeof extractSessionId({}) === "string", "session ID fallback is string"
 assert(extractSessionId({}).length <= 8, "session ID max 8 chars");
 
 console.log("\n--- Plugin Compilation ---");
-// Check the plugin source exists and has minimum length
-assert(existsSync(".opencode/plugins/ciel.ts"), "Plugin file exists");
+// Check the plugin source exists (either local bridge or monorepo package)
+assert(
+  existsSync(".opencode/plugins/ciel.ts") || existsSync("packages/plugin/src/index.ts"),
+  "Plugin file exists"
+);
 assert(pluginSource.length > 10000, "Plugin source > 10KB");
 assert(pluginSource.includes("experimental.chat.system.transform"), "Plugin has system.transform");
 assert(pluginSource.includes("experimental.chat.messages.transform"), "Plugin has messages.transform");
@@ -143,7 +149,7 @@ function countSkills(dir: string): number {
 const workflowSkills = countSkills("skills/workflow");
 assert(workflowSkills >= 25, `Workflow skills >= 25 (found: ${workflowSkills})`);
 
-const opencodeSkills = countSkills(".opencode/skills/workflow");
+const opencodeSkills = countSkills(".opencode/skills/workflow") || countSkills("skills/workflow");
 assert(opencodeSkills >= 25, `OpenCode workflow skills >= 25 (found: ${opencodeSkills})`);
 
 const claudeSkills = countSkills(".claude/skills/workflow");

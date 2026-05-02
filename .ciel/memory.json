@@ -1,20 +1,7 @@
 {
-  "version": "5.1.0",
-  "lastRelease": "2026-04-26",
-  "filesChanged": [
-    "VERSION",
-    "CHANGELOG.md",
-    "scripts/install.sh",
-    "scripts/install.ps1",
-    ".opencode/plugins/ciel.ts",
-    ".opencode/agents/ciel.md",
-    "docs/README.md",
-    ".claude/settings.json",
-    ".opencode/test-ciel.ts",
-    ".opencode/commands/ciel-update.md",
-    "commands/ciel-update.md"
-  ],
-  "taskCount": 2,
-  "pipelineFollowed": true,
-  "timestamp": "2026-04-26T20:50:00.000Z"
+  "sessionId": "s-moofgk",
+  "depthHint": null,
+  "filesChanged": [],
+  "taskCount": 0,
+  "timestamp": "2026-05-02T14:19:56.716Z"
 }

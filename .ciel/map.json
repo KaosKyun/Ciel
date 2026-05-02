@@ -76,10 +76,116 @@
           "change": "Tests mis a jour pour matcher le nouveau pipeline enforcement (CIEL WORKFLOW au lieu de CIEL MANDATORY WORKFLOW)"
         }
       ]
+    },
+    {
+      "name": "src",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/index.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/opencode.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/claude.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/utils.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/init.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/uninstall.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/src/check.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
+    },
+    {
+      "name": "test",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/test",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/cli/test/index.test.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/plugin/test/index.test.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/test/cli.test.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/test/plugin.test.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
+    },
+    {
+      "name": ".opencode",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/test-ciel.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
+    },
+    {
+      "name": "cli",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli/opencode.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli/uninstall.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli/index.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli/version.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli/check.ts",
+          "responsibility": "auto-detected"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/cli/init.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
+    },
+    {
+      "name": "bin",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/bin",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/bin/ciel.js",
+          "responsibility": "auto-detected"
+        }
+      ]
     }
   ],
   "orphans": [
     ".opencode/agents/ciel-plan.md — cree mais non reference. Agent read-only pour planification. A supprimer ou integrer."
   ],
-  "lastUpdated": "2026-04-26T16:53:01.016Z"
+  "lastUpdated": "2026-05-02T14:17:05.957Z"
 }

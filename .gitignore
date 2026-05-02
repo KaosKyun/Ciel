@@ -18,6 +18,17 @@
 # Ciel local manifest snapshots (for debugging)
 .ciel-manifest.debug.json
 
+# Build artifacts (compiled JS from tsx/tsc in root, not in packages/*)
+/scripts/*.js
+/scripts/*.js.map
+/scripts/*.d.ts
+/scripts/*.d.ts.map
+/test-ciel.js
+/test-ciel.js.map
+/test-ciel.d.ts
+/test-ciel.d.ts.map
+/tsconfig.tsbuildinfo
+
 # Project-level overlay created by install.sh (per-machine, not source of truth)
 ciel-overlay.md
 
@@ -36,3 +47,10 @@ opencode.json.bak-*
 
 # Nested git repo (separate project)
 Ciel/
+
+# Monorepo build artifacts
+packages/*/dist/
+packages/*/node_modules/
+
+# Root node_modules (created by npm workspaces)
+node_modules/

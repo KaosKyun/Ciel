@@ -449,11 +449,11 @@ PY
         done
         download_if_needed ".claude/settings.json"
         download_if_needed "CLAUDE.md"
-        # Ciel skill (/ciel command on Claude Code)
+        # Ciel skill (/ciel command on Claude Code) — skip if file not on CDN
         download_if_needed "skills/ciel/SKILL.md"
         download_if_needed "skills/ciel/reference.md"
-        ensure cp "$TMP_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md"
-        ensure cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md"
+        [ -f "$TMP_DIR/skills/ciel/SKILL.md" ] && cp "$TMP_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" || true
+        [ -f "$TMP_DIR/skills/ciel/reference.md" ] && cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" || true
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
@@ -637,7 +637,7 @@ do_uninstall() {
   fi
 
   # OpenCode: Ciel agents only (not the whole directory)
-  for agent in ciel.md ciel-researcher.md ciel-explorer.md ciel-critic.md ciel-improver.md ciel-plan.md; do
+  for agent in ciel.md ciel-researcher.md ciel-explorer.md ciel-critic.md ciel-improver.md; do
     if [ -f ".opencode/agents/$agent" ]; then
       rm -f ".opencode/agents/$agent" 2>/dev/null && { ok ".opencode/agents/$agent removed"; ((count++)); } || true
     fi
