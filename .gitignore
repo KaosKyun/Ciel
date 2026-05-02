@@ -54,3 +54,6 @@ packages/*/node_modules/
 
 # Root node_modules (created by npm workspaces)
 node_modules/
+
+# NPM pack artifacts
+*.tgz
