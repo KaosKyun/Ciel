@@ -1,4 +1,4 @@
-# Ciel v5
+# Ciel v6
 
 [![CI](https://github.com/KaosKyun/Ciel/workflows/CI/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/ci.yml)
 [![Release](https://github.com/KaosKyun/Ciel/workflows/Release/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/release.yml)

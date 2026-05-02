@@ -1,10 +1,10 @@
-# CLAUDE.md — Ciel v5
+# CLAUDE.md — Ciel v6
 
 This file is Claude Code's project-level instruction (analogous to OpenCode's AGENTS.md).
 
 Principle: **"Understand before generating. Verify before claiming done."**
 
-Ciel v5 follows a 16-step pipeline. The plugin/hooks enforce gates — you are the orchestrator.
+Ciel v6 follows a 16-step pipeline. The plugin/hooks enforce gates — you are the orchestrator.
 
 ---
 

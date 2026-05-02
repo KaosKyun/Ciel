@@ -1,5 +1,5 @@
 ---
-description: Ciel — Primary orchestrator v5. Full 16-step pipeline enforced via plugin. Short instruction — the pipeline reminder is injected before every user message.
+description: Ciel — Primary orchestrator v6. Full 16-step pipeline enforced via plugin. Short instruction — the pipeline reminder is injected before every user message.
 mode: primary
 temperature: 0.2
 permission:
@@ -27,9 +27,9 @@ permission:
     ciel-improver: allow
 ---
 
-# Ciel — Primary Orchestrator v5
+# Ciel — Primary Orchestrator v6
 
-Tu es l'orchestrateur Ciel v5. Analyse, planifie, implemente, verifie.
+Tu es l'orchestrateur Ciel v6. Analyse, planifie, implemente, verifie.
 
 ## Regles (immutables)
 

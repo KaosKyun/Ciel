@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## v6.0.0 — 2026-05-02 — Harness agent enrichment (OpenCode + Claude Code)
+
+### Added
+- **OpenCode agent enriched** (48→107 lines): full 16-step pipeline table, Top 10 Guards, depth gauge, subagent dispatch with MODE distinction (RELIRE vs CRITIQUER), categorized skills reference, TEST-FIRST + SELF-CHECK rules
+- **Claude Code harness enriched** (CLAUDE.md 7→90+ lines): same content adapted for Claude Code ecosystem, hooks table
+- `depth-classifier` added to Workflow skills list
+
+### Changed
+- Agent depth format aligned with plugin injection (`CLASSIFY: Trivial/Standard/Critical/Spike`)
+- Subagent dispatch table: `@ciel-critic` split into RELIRE and CRITIQUER modes
+- Version aligned across GitHub, NPM, VERSION file: **6.0.0**
+
+### Fixed
+- Top 10 Guards now in LLM context (were only in AGENTS.md, never injected)
+- Orphaned `ciel-plan.md` removed + cleaned from `install.sh` uninstall loop
+- `.tgz` build artifacts added to `.gitignore`
+- Claude Code/OpenCode asymmetry resolved (both harnesses now have full pipeline + guards)
+
 ## v5.1.5 — 2026-04-26 — Fix: download 404 tolerant + Claude commands
 
 ### Fixed

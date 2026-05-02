@@ -182,10 +182,20 @@
           "responsibility": "auto-detected"
         }
       ]
+    },
+    {
+      "name": "plugin",
+      "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/plugin",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projet/Ciel/packages/ciel/src/plugin/index.ts",
+          "responsibility": "auto-detected"
+        }
+      ]
     }
   ],
   "orphans": [
     ".opencode/agents/ciel-plan.md — cree mais non reference. Agent read-only pour planification. A supprimer ou integrer."
   ],
-  "lastUpdated": "2026-05-02T14:17:05.957Z"
+  "lastUpdated": "2026-05-02T16:53:07.759Z"
 }
