@@ -5,7 +5,7 @@
 //
 // Injection model:
 //   - shell.env -> inject CIEL_SESSION_ID, CIEL_DEPTH, CIEL_MODE
-//   - experimental.chat.system.transform -> CIEL WORKFLOW v5 + overlay + state
+//   - experimental.chat.system.transform -> CIEL WORKFLOW v6 + overlay + state
 //   - experimental.chat.messages.transform -> depth classification
 //   - session.* events -> tracking, META-CRITIQUER, RELIRE reminders
 //   - tool.execute.before -> FAIRE gates reminder + critical file detection

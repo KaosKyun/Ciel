@@ -22,7 +22,7 @@
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "^1.14.20"
+    "@opencode-ai/plugin": "1.14.20"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

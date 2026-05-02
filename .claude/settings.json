@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v5] Session started -- depth classification active\""
+            "command": "echo \"[CIEL v6] Session started -- depth classification active\""
           }
         ]
       }
