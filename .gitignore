@@ -46,7 +46,7 @@ opencode.json.bak-*
 .claude/session-progress.md
 
 # Nested git repo (separate project)
-Ciel/
+/Ciel/
 
 # Monorepo build artifacts
 packages/*/dist/
