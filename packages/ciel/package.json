@@ -1,0 +1,45 @@
+{
+  "name": "@neikyun/ciel",
+  "version": "5.2.16",
+  "description": "Ciel — Deep-reasoning pipeline for LLM-assisted development. OpenCode plugin + multi-platform CLI (OpenCode, Claude Code, more).",
+  "main": "./dist/plugin/index.js",
+  "types": "./dist/plugin/index.d.ts",
+  "bin": {
+    "ciel": "bin/ciel.js"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "bin",
+    "scripts/postinstall.cjs",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/copy-assets.cjs && tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('assets',{recursive:true,force:true})\"",
+    "test": "npx tsx --test test/**/*.test.ts",
+    "postinstall": "node scripts/postinstall.cjs",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.14.20"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "opencode",
+    "claude-code",
+    "ai-agent",
+    "ciel",
+    "plugin",
+    "pipeline",
+    "deep-reasoning"
+  ]
+}
