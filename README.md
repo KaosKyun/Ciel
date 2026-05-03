@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/KaosKyun/Ciel/workflows/CI/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/ci.yml)
 [![Release](https://github.com/KaosKyun/Ciel/workflows/Release/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/release.yml)
+[![npm](https://img.shields.io/npm/v/@neikyun/ciel?color=blue)](https://www.npmjs.com/package/@neikyun/ciel)
 
 > *Named after the Primordial Sage from Tensura — the advisor who reasons at infinite speed before Rimuru acts.*
 
@@ -13,7 +14,7 @@ Principle: **"Understand before generating. Verify before claiming done."**
 
 ## The problem it solves
 
-| LLM default behavior | Ciel v5 solution |
+| LLM default behavior | Ciel v6 solution |
 |---|---|
 | Skip research ("I already know this") | `research/` skills + `@ciel-researcher` in forked context |
 | Code on assumptions ("I'll fix it later") | **ASK window**: question tool (OpenCode) / plan mode (Claude Code) |
@@ -29,6 +30,15 @@ Principle: **"Understand before generating. Verify before claiming done."**
 ---
 
 ## Quick install
+
+### NPM (recommended)
+
+```bash
+npm install -D @neikyun/ciel
+npx ciel init
+```
+
+### Curl
 
 ```bash
 cd /path/to/your/project
@@ -98,7 +108,7 @@ ciel/
 
 ## 5 Agents
 
-| Agent | Mode | Role | Particularites v5 |
+| Agent | Mode | Role | Particularites v6 |
 |-------|------|------|-------------------|
 | `ciel` | primary | Orchestrateur pipeline 16 etapes | ASK window, intentions partagees, depth gauge SPIKE |
 | `ciel-researcher` | subagent | Recherche docs + version changelog | Waterfall, anti-hallucination, skills prechargees |
@@ -112,7 +122,7 @@ ciel/
 
 ## 63 Skills
 
-Les skills sont organisees en 6 categories. Les workflow skills sont liees explicitement au pipeline v5 et incluent des tables d'anti-rationalization.
+Les skills sont organisees en 6 categories. Les workflow skills sont liees explicitement au pipeline v6 et incluent des tables d'anti-rationalization.
 
 | Categorie | Nb | Exemples |
 |-----------|----|----------|
@@ -125,7 +135,16 @@ Les skills sont organisees en 6 categories. Les workflow skills sont liees expli
 
 ---
 
-## New in v5
+## New in v6
+
+- **Harness enrichment**: agents OpenCode (48→107 lignes) et Claude Code (CLAUDE.md 7→90+ lignes) avec pipeline complet, Top 10 Guards, subagent dispatch rules
+- **NPM distribution**: `npm install -D @neikyun/ciel` + `npx ciel init`
+- **Version aligned**: 6.0.0 across GitHub, NPM, VERSION file
+- **Dependency pinned**: `@opencode-ai/plugin` exact version, no caret
+- **Tests renforces**: 31 tests (15→31, +16 behavioral)
+- **ciel-plan.md**: nettoye (merge dans l'agent primaire)
+
+## Legacy v5 features
 
 - **Pipeline 16 etapes** (vs 10): DOCS, ASK, DIVERGE, ADR, MEMOIRE, SPIKE
 - **ASK window**: question tool (OpenCode) / plan mode (Claude Code) — ne codez pas sur des assumptions
