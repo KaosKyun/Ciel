@@ -52,6 +52,16 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Check NPM_TOKEN
+        run: |
+          if [ "${{ secrets.NPM_TOKEN == '' }}" = "true" ]; then
+            echo "::error::NPM_TOKEN secret not set."
+            echo "Create a Granular Access Token with 'bypass 2fa' on https://www.npmjs.com/settings/neikyun/tokens"
+            echo "Then add as secret: https://github.com/KaosKyun/Ciel/settings/secrets/actions"
+            exit 1
+          fi
+          echo "✓ NPM_TOKEN is set"
+
       - name: Get version
         id: version
         run: |
@@ -72,14 +82,16 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/ciel
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry-run }}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "=== Dry run mode ==="
             npm publish --dry-run
           else
             echo "=== Publishing @neikyun/ciel v${{ steps.version.outputs.version }} ==="
-            # Trusted Publisher (OIDC) : pas de token nécessaire
-            # setup-node + id-token:write = auth automatique
+            # Auth via NPM_TOKEN (granular access token with bypass-2fa)
+            # Provenance via GitHub OIDC (id-token:write)
             npm publish --provenance --access public
           fi
 
