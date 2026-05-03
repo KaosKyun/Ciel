@@ -131,8 +131,13 @@ function installClaude(targetDir, assets) {
   count += copyDir(join(assets, ".claude/hooks"), join(targetDir, ".claude/hooks"));
   count += copyDir(join(assets, "commands"), join(targetDir, ".claude/commands"));
   count += copyDir(join(assets, "skills"), join(targetDir, ".claude/skills"));
+  // Settings — only copy if missing (preserves user config on update)
   const settings = join(assets, ".claude/settings.json");
-  if (existsSync(settings)) { copyFileSync(settings, join(targetDir, ".claude/settings.json")); count++; }
+  const settingsDest = join(targetDir, ".claude/settings.json");
+  if (existsSync(settings) && !existsSync(settingsDest)) {
+    copyFileSync(settings, settingsDest);
+    count++;
+  }
   const claudeMd = join(assets, "CLAUDE.md");
   if (existsSync(claudeMd)) { copyFileSync(claudeMd, join(targetDir, "CLAUDE.md")); count++; }
   return count;

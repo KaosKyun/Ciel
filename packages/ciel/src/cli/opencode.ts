@@ -124,13 +124,10 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
     }
   }
 
-  // Generate or patch opencode.json
-  const configPath = join(targetDir, "opencode.json");
+  // Copy AGENTS.md if not present (first install only)
   const agentsMdPath = join(targetDir, "AGENTS.md");
-
-  // Copy AGENTS.md if not present
   const agentsMdSrc = join(srcDir, "platforms/opencode/AGENTS.md");
-  if (existsSync(agentsMdSrc) && (!existsSync(agentsMdPath) || force)) {
+  if (existsSync(agentsMdSrc) && !existsSync(agentsMdPath)) {
     try {
       copyFileSync(agentsMdSrc, agentsMdPath);
       installed.push("AGENTS.md");
@@ -139,12 +136,12 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
     }
   }
 
-  // Generate opencode.json if not present
-  if (!existsSync(configPath) || force) {
+  // Generate or patch opencode.json (NEVER overwrite — always merge)
+  const configPath = join(targetDir, "opencode.json");
+  if (!existsSync(configPath)) {
     generateOpencodeConfig(configPath);
     installed.push("opencode.json");
   } else {
-    // Try to patch existing config
     patchOpencodeConfig(configPath);
     installed.push("opencode.json (patched)");
   }

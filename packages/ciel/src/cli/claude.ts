@@ -137,16 +137,18 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     }
   }
 
-  // .claude/settings.json
+  // .claude/settings.json — NEVER overwrite existing (preserves user MCP/hooks)
   const settingsSrc = join(srcDir, ".claude/settings.json");
   const settingsDest = join(targetDir, ".claude/settings.json");
-  if (existsSync(settingsSrc) && (!existsSync(settingsDest) || force)) {
+  if (existsSync(settingsSrc) && !existsSync(settingsDest)) {
     try {
       copyFileSync(settingsSrc, settingsDest);
       installed.push(".claude/settings.json");
     } catch {
       skipped.push(".claude/settings.json");
     }
+  } else if (existsSync(settingsDest)) {
+    skipped.push(".claude/settings.json (preserved)");
   }
 
   return { installed, skipped };
