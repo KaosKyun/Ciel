@@ -53,6 +53,9 @@ const TEMPLATE_PATTERNS = [
   // Ciel skill files (for Claude Code)
   { src: "skills/ciel/SKILL.md", dest: "skills/ciel/SKILL.md" },
   { src: "skills/ciel/reference.md", dest: "skills/ciel/reference.md" },
+
+  // Compiled plugin JS (for local reference, no node_modules needed)
+  { src: "packages/ciel/dist/plugin/index.js", dest: "dist/plugin/index.js" },
 ];
 
 let count = 0;

@@ -79,9 +79,18 @@ function installOpenCode(targetDir, assets) {
   cleanDir(join(targetDir, ".opencode/agents"));
   cleanDir(join(targetDir, ".opencode/commands"));
   cleanDir(join(targetDir, ".opencode/skills"));
-  // Nettoyer ancien plugin curl
-  const old = join(targetDir, ".opencode/plugins/ciel.ts");
-  if (existsSync(old)) { try { unlinkSync(old); count++; } catch {} }
+  // Nettoyer anciens plugins
+  for (const old of ["ciel.ts", "ciel.js"]) {
+    const p = join(targetDir, ".opencode/plugins", old);
+    if (existsSync(p)) { try { unlinkSync(p); count++; } catch {} }
+  }
+  // Copier le plugin JS compilé (auto-suffisant, pas de node_modules requis)
+  const pluginJs = join(__dirname, "..", "dist/plugin/index.js");
+  if (existsSync(pluginJs)) {
+    mkdirSync(join(targetDir, ".opencode/plugins"), { recursive: true });
+    copyFileSync(pluginJs, join(targetDir, ".opencode/plugins/ciel.js"));
+    count++;
+  }
   // Copier agents
   count += copyDir(join(assets, "platforms/opencode/.opencode/agents"), join(targetDir, ".opencode/agents"));
   // Copier commandes
@@ -93,15 +102,15 @@ function installOpenCode(targetDir, assets) {
     copyFileSync(join(assets, "platforms/opencode/AGENTS.md"), join(targetDir, "AGENTS.md"));
     count++;
   }
-  // Patcher opencode.json
+  // Patcher opencode.json (local plugin path)
   try {
     const cfgPath = join(targetDir, "opencode.json");
     if (existsSync(cfgPath)) {
       let cfg = JSON.parse(readFileSync(cfgPath, "utf-8"));
       if (!cfg.plugin) cfg.plugin = [];
-      // Remplacer ancienne ref locale par npm
-      cfg.plugin = cfg.plugin.filter(p => p !== "./.opencode/plugins/ciel.ts");
-      if (!cfg.plugin.includes("@neikyun/ciel")) cfg.plugin.push("@neikyun/ciel");
+      // Remplacer anciennes refs par le chemin local
+      cfg.plugin = cfg.plugin.filter(p => p !== "@neikyun/ciel" && p !== "./.opencode/plugins/ciel.ts");
+      if (!cfg.plugin.includes("./.opencode/plugins/ciel.js")) cfg.plugin.push("./.opencode/plugins/ciel.js");
       if (!cfg.instructions) cfg.instructions = [];
       if (!cfg.instructions.includes("AGENTS.md")) cfg.instructions.push("AGENTS.md");
       writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n", "utf-8");

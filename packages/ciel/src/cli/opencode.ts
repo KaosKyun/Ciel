@@ -28,6 +28,26 @@ export function detectOpenCode(targetDir: string): boolean {
 }
 
 /**
+ * Find the compiled plugin JS file from various install locations.
+ * Returns the absolute path to dist/plugin/index.js or null.
+ */
+function findPluginJs(srcDir: string): string | null {
+  const candidates = [
+    // NPM local: node_modules/@neikyun/ciel/dist/plugin/index.js
+    join(srcDir, "dist/plugin/index.js"),
+    // NPM global: from assets/, go up to package root
+    join(srcDir, "..", "dist/plugin/index.js"),
+    join(srcDir, "../..", "dist/plugin/index.js"),
+    // Dev mode: from repo root
+    join(srcDir, "packages/ciel/dist/plugin/index.js"),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
  * Install Ciel files for OpenCode platform.
  */
 export function installOpenCode(opts: OpenCodeOptions): InstallResult {
@@ -35,8 +55,6 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
   const installed: string[] = [];
   const skipped: string[] = [];
 
-  const pluginSrc = join(srcDir, "platforms/opencode/.opencode/plugins/ciel.ts");
-  const pluginDest = join(targetDir, ".opencode/plugins/ciel.ts");
   const agentsSrc = join(srcDir, "platforms/opencode/.opencode/agents");
   const agentsDest = join(targetDir, ".opencode/agents");
   const commandsSrc = join(srcDir, "platforms/opencode/.opencode/commands");
@@ -47,11 +65,21 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
   mkdirSync(agentsDest, { recursive: true });
   mkdirSync(commandsDest, { recursive: true });
 
-  // Copy plugin
-  if (existsSync(pluginSrc)) {
-    const action = copyIfNewer(pluginSrc, pluginDest, force);
-    if (action === "copied") installed.push(".opencode/plugins/ciel.ts");
-    else skipped.push("plugin");
+  // Copy compiled plugin JS (self-contained, no node_modules needed)
+  const pluginJs = findPluginJs(srcDir);
+  if (pluginJs) {
+    const pluginDest = join(targetDir, ".opencode/plugins/ciel.js");
+    const action = copyIfNewer(pluginJs, pluginDest, force);
+    if (action === "copied") installed.push(".opencode/plugins/ciel.js");
+    else skipped.push("plugin.js");
+  } else {
+    // Fallback: try old .ts source (dev mode)
+    const pluginTs = join(srcDir, "platforms/opencode/.opencode/plugins/ciel.ts");
+    if (existsSync(pluginTs)) {
+      const pluginTsDest = join(targetDir, ".opencode/plugins/ciel.ts");
+      const action = copyIfNewer(pluginTs, pluginTsDest, force);
+      if (action === "copied") installed.push(".opencode/plugins/ciel.ts");
+    }
   }
 
   // Copy agents
@@ -127,7 +155,7 @@ function generateOpencodeConfig(configPath: string): void {
   const config = {
     $schema: "https://opencode.ai/config.json",
     instructions: ["AGENTS.md"],
-    plugin: ["@neikyun/ciel"],
+    plugin: ["./.opencode/plugins/ciel.js"],
     permission: {
       edit: "allow",
       bash: "allow",
@@ -233,10 +261,12 @@ function patchOpencodeConfig(configPath: string): void {
     const raw = readFileSync(configPath, "utf-8");
     const config = JSON.parse(raw);
 
-    // Ensure plugin array contains the Ciel plugin
+    // Ensure plugin array contains the local Ciel plugin
     if (!config.plugin) config.plugin = [];
-    if (!config.plugin.includes("@neikyun/ciel")) {
-      config.plugin.push("@neikyun/ciel");
+    // Replace old npm reference with local path
+    config.plugin = config.plugin.filter((p: string) => p !== "@neikyun/ciel" && p !== "./.opencode/plugins/ciel.ts");
+    if (!config.plugin.includes("./.opencode/plugins/ciel.js")) {
+      config.plugin.push("./.opencode/plugins/ciel.js");
     }
 
     // Ensure instructions contain AGENTS.md
