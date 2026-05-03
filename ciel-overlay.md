@@ -61,13 +61,9 @@ Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 
 | Workflow | Fichier | Déclencheur | Purpose |
 |----------|---------|-------------|---------|
-| **CI** | `.github/workflows/ci.yml` | push main + PR | Lint hooks, test Node.js, validate config, byte limits, TypeScript |
-| **Test Hooks** | `.github/workflows/test-hooks.yml` | push hooks/ + PR | Test individuel + integration des hooks (8 cas) |
-| **Platform Validation** | `.github/workflows/platform-validation.yml` | push platforms/** | Validation 7 platforms (Cursor, Windsurf, Codex, OpenCode, Kilocode, Ollama, LM Studio) |
-| **Skill Integrity** | `.github/workflows/skill-integrity.yml` | push skills/** | Validation YAML frontmatter, taille ≤500 lignes, URLs |
-| **Matrix Build** | `.github/workflows/matrix-build.yml` | tag v* | Build parallèle multi-platforms pour release |
-| **Deploy Staging** | `.github/workflows/deploy-staging.yml` | push main | Déploiement staging automatique + health check |
-| **Release** | `.github/workflows/release.yml` | tag v* | Release GitHub + SBOM + artifacts multi-platforms |
+| **CI** | `.github/workflows/ci.yml` | push main + PR | Lint hooks, test Ciel, validate agents/permissions/parity, skills, plugin size |
+| **Test Hooks** | `.github/workflows/test-hooks.yml` | push hooks/ + PR | Test .claude/hooks/ (9 cas) + hooks/ legacy |
+| **Publish NPM** | `.github/workflows/publish-npm.yml` | tag v* | Publie @neikyun/ciel sur npm avec provenance Sigstore |
 
 ---
 
@@ -122,14 +118,10 @@ Aucun secret requis pour la CI actuelle.
 
 ```
 Ciel/
-├── .github/workflows/     # CI/CD (7 workflows)
-│   ├── ci.yml             # CI principale (6 jobs + validation Claude Code)
-│   ├── test-hooks.yml     # Test hooks (3 jobs)
-│   ├── platform-validation.yml # Validation 7 platforms
-│   ├── skill-integrity.yml # Validation skills
-│   ├── matrix-build.yml   # Build parallèle release
-│   ├── deploy-staging.yml # Déploiement staging
-│   └── release.yml        # Release GitHub
+├── .github/workflows/     # CI/CD (3 workflows)
+│   ├── ci.yml             # CI principale (10 jobs)
+│   ├── test-hooks.yml     # Test hooks (9 cas .claude/hooks/)
+│   └── publish-npm.yml    # Publication npm @neikyun/ciel
 ├── .opencode/             # Configuration OpenCode (v5)
 │   ├── agents/            # 5 agents (ciel, ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)
 │   ├── commands/          # 8 commandes slash

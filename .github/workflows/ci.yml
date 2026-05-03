@@ -303,116 +303,72 @@ jobs:
           echo "✓ Agent parity check complete"
           if [ "$failed" -eq 1 ]; then exit 1; fi
 
-  validate-byte-limits:
-    name: Validate Byte Limits
+  validate-skills:
+    name: Validate Skills (YAML + size)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          submodules: false
-          set-safe-directory: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: .opencode/package-lock.json
-
-      - name: Install dependencies
-        working-directory: .opencode
-        run: npm ci
-
-      - name: Build platforms
+      - name: Validate YAML frontmatter + line count
         run: |
-          echo "Building platforms for validation..."
-          chmod +x scripts/build-platforms.sh
-          ./scripts/build-platforms.sh --target=all
+          echo "=== Validating Skills ==="
+          failed=0
+          for skill in skills/*/SKILL.md; do
+            [ ! -f "$skill" ] && continue
+            name=$(basename "$(dirname "$skill")")
+            # Check YAML frontmatter (--- at start)
+            if ! head -1 "$skill" | grep -q '^---$'; then
+              echo "✗ $name: missing opening ---"
+              failed=1; continue
+            fi
+            # Check closing ---
+            if ! grep -q '^---$' <(tail -n +2 "$skill" | head -20); then
+              echo "✗ $name: missing closing ---"
+              failed=1; continue
+            fi
+            # Check description
+            if ! grep -q '^description:' "$skill"; then
+              echo "✗ $name: missing description"
+              failed=1; continue
+            fi
+            # Check line count ≤500
+            lines=$(wc -l < "$skill")
+            if [ "$lines" -gt 500 ]; then
+              echo "✗ $name: $lines lines (max 500)"
+              failed=1; continue
+            fi
+            echo "✓ $name: valid ($lines lines)"
+          done
+          if [ "$failed" -eq 1 ]; then exit 1; fi
+          echo "✓ All skills valid"
 
-      - name: Validate byte limits
+  validate-plugin-size:
+    name: Validate Plugin Size (≤65KB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check OpenCode plugin size
         run: |
-          echo "=== Validating byte limits ==="
-          
-          # Cursor: ≤6KB
-          if [ -f "platforms/cursor/.cursor/rules/ciel.mdc" ]; then
-            size=$(wc -c < "platforms/cursor/.cursor/rules/ciel.mdc")
-            if [ "$size" -le 6144 ]; then
-              echo "✓ Cursor: $size bytes (≤6144)"
-            else
-              echo "✗ Cursor: $size bytes exceeds 6144 limit"
-              exit 1
-            fi
-          fi
-          
-          # Windsurf rules: ≤6KB each
-          if [ -d "platforms/windsurf/.windsurf/rules" ]; then
-            for f in platforms/windsurf/.windsurf/rules/*.md; do
-              if [ -f "$f" ]; then
-                size=$(wc -c < "$f")
-                if [ "$size" -le 6144 ]; then
-                  echo "✓ Windsurf $(basename $f): $size bytes (≤6144)"
-                else
-                  echo "✗ Windsurf $(basename $f): $size bytes exceeds 6144 limit"
-                  exit 1
-                fi
-              fi
-            done
-          fi
-          
-          # Codex AGENTS.md: ≤32KB
-          if [ -f "platforms/codex/AGENTS.md" ]; then
-            size=$(wc -c < "platforms/codex/AGENTS.md")
-            if [ "$size" -le 32768 ]; then
-              echo "✓ Codex AGENTS.md: $size bytes (≤32768)"
-            else
-              echo "✗ Codex AGENTS.md: $size bytes exceeds 32768 limit"
-              exit 1
-            fi
-          fi
-          
-          # OpenCode plugin: ≤65KB
-          if [ -f "platforms/opencode/.opencode/plugins/ciel.ts" ]; then
-            size=$(wc -c < "platforms/opencode/.opencode/plugins/ciel.ts")
+          if [ -f ".opencode/plugins/ciel.ts" ]; then
+            size=$(wc -c < ".opencode/plugins/ciel.ts")
             if [ "$size" -le 65536 ]; then
-              echo "✓ OpenCode plugin: $size bytes (≤65536)"
+              echo "✓ ciel.ts: $size bytes (≤65536)"
             else
-              echo "✗ OpenCode plugin: $size bytes exceeds 65536 limit"
+              echo "✗ ciel.ts: $size bytes exceeds 65536 limit"
               exit 1
             fi
-          fi
-          
-          # Kilocode: ≤6KB
-          if [ -f "platforms/kilocode/.kilocode/rules/ciel.md" ]; then
-            size=$(wc -c < "platforms/kilocode/.kilocode/rules/ciel.md")
-            if [ "$size" -le 6144 ]; then
-              echo "✓ Kilocode: $size bytes (≤6144)"
-            else
-              echo "✗ Kilocode: $size bytes exceeds 6144 limit"
-              exit 1
-            fi
-          fi
-          
-          echo "=== All byte limits validated ==="
-
-  build-check:
-    name: Build Check (Dry Run)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          submodules: false
-          set-safe-directory: true
-
-      - name: Run build-platforms.sh --dry-run
-        run: |
-          if [ -f scripts/build-platforms.sh ]; then
-            chmod +x scripts/build-platforms.sh
-            echo "Running build-platforms.sh --dry-run..."
-            ./scripts/build-platforms.sh --dry-run || echo "Dry run completed (exit code: $?)"
           else
-            echo "scripts/build-platforms.sh not found, skipping..."
+            echo "⚠ ciel.ts not found"
+          fi
+
+      - name: Check CLAUDE.md size
+        run: |
+          if [ -f "CLAUDE.md" ]; then
+            size=$(wc -c < "CLAUDE.md")
+            echo "✓ CLAUDE.md: $size bytes"
           fi
