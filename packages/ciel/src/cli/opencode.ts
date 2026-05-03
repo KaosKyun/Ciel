@@ -1,0 +1,268 @@
+// OpenCode platform installer logic
+// Handles detection, file copy, and config generation for OpenCode projects
+
+import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync } from "fs";
+import { join, dirname } from "path";
+import { ok, warn } from "./utils";
+
+export interface OpenCodeOptions {
+  targetDir: string;
+  srcDir: string;
+  force: boolean;
+  quiet: boolean;
+}
+
+export interface InstallResult {
+  installed: string[];
+  skipped: string[];
+}
+
+/**
+ * Detect if the project has OpenCode configuration.
+ */
+export function detectOpenCode(targetDir: string): boolean {
+  return (
+    existsSync(join(targetDir, "opencode.json")) ||
+    existsSync(join(targetDir, ".opencode"))
+  );
+}
+
+/**
+ * Install Ciel files for OpenCode platform.
+ */
+export function installOpenCode(opts: OpenCodeOptions): InstallResult {
+  const { targetDir, srcDir, force } = opts;
+  const installed: string[] = [];
+  const skipped: string[] = [];
+
+  const pluginSrc = join(srcDir, "platforms/opencode/.opencode/plugins/ciel.ts");
+  const pluginDest = join(targetDir, ".opencode/plugins/ciel.ts");
+  const agentsSrc = join(srcDir, "platforms/opencode/.opencode/agents");
+  const agentsDest = join(targetDir, ".opencode/agents");
+  const commandsSrc = join(srcDir, "platforms/opencode/.opencode/commands");
+  const commandsDest = join(targetDir, ".opencode/commands");
+
+  // Create directories
+  mkdirSync(join(targetDir, ".opencode/plugins"), { recursive: true });
+  mkdirSync(agentsDest, { recursive: true });
+  mkdirSync(commandsDest, { recursive: true });
+
+  // Copy plugin
+  if (existsSync(pluginSrc)) {
+    const action = copyIfNewer(pluginSrc, pluginDest, force);
+    if (action === "copied") installed.push(".opencode/plugins/ciel.ts");
+    else skipped.push("plugin");
+  }
+
+  // Copy agents
+  const agentFiles = [
+    "ciel.md",
+    "ciel-researcher.md",
+    "ciel-explorer.md",
+    "ciel-critic.md",
+    "ciel-improver.md",
+  ];
+  for (const agent of agentFiles) {
+    const src = join(agentsSrc, agent);
+    const dest = join(agentsDest, agent);
+    if (existsSync(src)) {
+      const action = copyIfNewer(src, dest, force);
+      if (action === "copied") installed.push(`.opencode/agents/${agent}`);
+    }
+  }
+
+  // Copy commands
+  const commandFiles = [
+    "ciel-init.md",
+    "ciel-update.md",
+    "ciel-refresh.md",
+    "ciel-improve.md",
+    "ciel-eval.md",
+    "ciel-create-skill.md",
+    "ciel-recommend.md",
+    "ciel-audit.md",
+    "ciel.md",
+  ];
+  for (const cmd of commandFiles) {
+    const src = join(commandsSrc, cmd);
+    const dest = join(commandsDest, cmd);
+    if (existsSync(src)) {
+      const action = copyIfNewer(src, dest, force);
+      if (action === "copied") installed.push(`.opencode/commands/${cmd}`);
+    }
+  }
+
+  // Generate or patch opencode.json
+  const configPath = join(targetDir, "opencode.json");
+  const agentsMdPath = join(targetDir, "AGENTS.md");
+
+  // Copy AGENTS.md if not present
+  const agentsMdSrc = join(srcDir, "platforms/opencode/AGENTS.md");
+  if (existsSync(agentsMdSrc) && (!existsSync(agentsMdPath) || force)) {
+    try {
+      copyFileSync(agentsMdSrc, agentsMdPath);
+      installed.push("AGENTS.md");
+    } catch {
+      skipped.push("AGENTS.md");
+    }
+  }
+
+  // Generate opencode.json if not present
+  if (!existsSync(configPath) || force) {
+    generateOpencodeConfig(configPath);
+    installed.push("opencode.json");
+  } else {
+    // Try to patch existing config
+    patchOpencodeConfig(configPath);
+    installed.push("opencode.json (patched)");
+  }
+
+  return { installed, skipped };
+}
+
+/**
+ * Generate a complete opencode.json with Ciel agent definitions.
+ */
+function generateOpencodeConfig(configPath: string): void {
+  const config = {
+    $schema: "https://opencode.ai/config.json",
+    instructions: ["AGENTS.md"],
+    plugin: ["@neikyun/ciel"],
+    permission: {
+      edit: "allow",
+      bash: "allow",
+      webfetch: "allow",
+      websearch: "allow",
+      question: "allow",
+      skill: "allow",
+    },
+    agent: {
+      ciel: {
+        description:
+          "Ciel v6 — Primary orchestrator. Full pipeline. Dispatch subagents. Depth: Trivial/Standard/Critical.",
+        mode: "primary",
+        prompt: "{file:./.opencode/agents/ciel.md}",
+        temperature: 0.2,
+        permission: {
+          edit: "allow",
+          bash: "allow",
+          question: "allow",
+          skill: "allow",
+          task: {
+            "*": "deny",
+            "ciel-researcher": "allow",
+            "ciel-explorer": "allow",
+            "ciel-critic": "allow",
+            "ciel-improver": "allow",
+          },
+        },
+      },
+      "ciel-researcher": {
+        description: "RECHERCHE — docs officielles, anti-patterns. WebFetch + WebSearch.",
+        mode: "subagent",
+        prompt: "{file:./.opencode/agents/ciel-researcher.md}",
+        temperature: 0.1,
+        permission: {
+          read: "allow",
+          glob: "allow",
+          grep: "allow",
+          bash: "allow",
+          webfetch: "allow",
+          websearch: "allow",
+          write: "deny",
+          edit: "deny",
+        },
+      },
+      "ciel-explorer": {
+        description: "CODEBASE + FLUX — pattern-fitness, data flow narration.",
+        mode: "subagent",
+        prompt: "{file:./.opencode/agents/ciel-explorer.md}",
+        temperature: 0.1,
+        permission: {
+          read: "allow",
+          glob: "allow",
+          grep: "allow",
+          bash: "allow",
+          write: "deny",
+          edit: "deny",
+        },
+      },
+      "ciel-critic": {
+        description:
+          "RELIRE/CRITIQUER/RCA — hostile review, root-cause analysis.",
+        mode: "subagent",
+        prompt: "{file:./.opencode/agents/ciel-critic.md}",
+        temperature: 0.1,
+        permission: {
+          read: "allow",
+          glob: "allow",
+          grep: "allow",
+          bash: "allow",
+          write: "deny",
+          edit: "deny",
+        },
+      },
+      "ciel-improver": {
+        description: "Méta-amélioration Ciel — analyse sessions, skill patches.",
+        mode: "subagent",
+        prompt: "{file:./.opencode/agents/ciel-improver.md}",
+        temperature: 0.1,
+        permission: {
+          read: "allow",
+          glob: "allow",
+          grep: "allow",
+          bash: "allow",
+          webfetch: "allow",
+          websearch: "allow",
+          write: "ask",
+          edit: "ask",
+        },
+      },
+    },
+  };
+
+  mkdirSync(dirname(configPath), { recursive: true });
+  writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+}
+
+/**
+ * Patch existing opencode.json to add Ciel plugin reference.
+ */
+function patchOpencodeConfig(configPath: string): void {
+  try {
+    const raw = readFileSync(configPath, "utf-8");
+    const config = JSON.parse(raw);
+
+    // Ensure plugin array contains the Ciel plugin
+    if (!config.plugin) config.plugin = [];
+    if (!config.plugin.includes("@neikyun/ciel")) {
+      config.plugin.push("@neikyun/ciel");
+    }
+
+    // Ensure instructions contain AGENTS.md
+    if (!config.instructions) config.instructions = [];
+    if (!config.instructions.includes("AGENTS.md")) {
+      config.instructions.push("AGENTS.md");
+    }
+
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+  } catch {
+    warn("Could not patch opencode.json — add plugin reference manually");
+  }
+}
+
+/**
+ * Copy file only if destination doesn't exist or force is true.
+ * Returns "copied", "skipped", or "missing".
+ */
+function copyIfNewer(src: string, dest: string, force: boolean): string {
+  if (!existsSync(src)) return "missing";
+  if (existsSync(dest) && !force) return "skipped";
+  try {
+    mkdirSync(dirname(dest), { recursive: true });
+    copyFileSync(src, dest);
+    return "copied";
+  } catch {
+    return "skipped";
+  }
+}
