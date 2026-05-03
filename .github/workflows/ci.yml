@@ -83,13 +83,12 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        working-directory: .opencode
         run: |
-          if [ -f test-ciel.ts ]; then
+          if [ -f .opencode/test-ciel.ts ]; then
             echo "Running Ciel v5 test suite..."
-            npx tsx test-ciel.ts
+            npx tsx .opencode/test-ciel.ts
           else
-            echo "ERROR: test-ciel.ts not found"
+            echo "ERROR: .opencode/test-ciel.ts not found"
             exit 1
           fi
 
