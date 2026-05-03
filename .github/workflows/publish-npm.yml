@@ -1,6 +1,15 @@
-# Publication NPM — @neikyun/ciel
+# Publication NPM — @neikyun/ciel via Trusted Publisher (OIDC)
 # Déclencheur: tag v* (release) ou workflow_dispatch (manual)
 # Publie le package sur npmjs.com après build + test
+#
+# Prérequis (à faire une fois) :
+#   1. Aller sur https://www.npmjs.com/settings/neikyun/packages
+#   2. Sélectionner @neikyun/ciel → "Access" → "Trusted Publishers"
+#   3. Ajouter :
+#      - GitHub repo: KaosKyun/Ciel
+#      - Workflow: publish-npm.yml
+#      - Environment: npm-production
+#   4. Plus besoin de token npm — OIDC génère un token temporaire à chaque run
 
 name: Publish NPM
 
@@ -11,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       dry-run:
-        description: 'Dry run (--dry-run)'
+        description: 'Dry run (--dry-run, no actual publish)'
         type: boolean
         default: true
 
@@ -21,7 +30,7 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write  # Pour provenance (npm attestation)
+  id-token: write  # OIDC pour npm Trusted Publisher + provenance attestation
 
 jobs:
   publish:
@@ -72,22 +81,21 @@ jobs:
             npm publish --dry-run
           else
             echo "=== Publishing @neikyun/ciel v${{ steps.version.outputs.version }} ==="
+            # Trusted Publisher (OIDC) : pas de token nécessaire
+            # setup-node + id-token:write = auth automatique
             npm publish --provenance --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Verify publication
         run: |
           echo "=== Verifying publication ==="
           VERSION="${{ steps.version.outputs.version }}"
-          # Wait a moment for npm to propagate
           sleep 5
           INFO=$(npm view @neikyun/ciel@"$VERSION" version 2>/dev/null || true)
           if [ "$INFO" = "$VERSION" ]; then
             echo "✓ @neikyun/ciel v$VERSION confirmed on npm"
           else
-            echo "⚠ Could not verify (may take a moment to propagate)"
+            echo "⚠ Could not verify (may take a moment)"
             echo "  Check: https://www.npmjs.com/package/@neikyun/ciel/v/$VERSION"
           fi
 
