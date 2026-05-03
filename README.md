@@ -31,21 +31,28 @@ Principle: **"Understand before generating. Verify before claiming done."**
 
 ## Quick install
 
-### NPM (recommended)
-
 ```bash
-npm install -D @neikyun/ciel
-npx ciel init
-```
-
-### Curl
-
-```bash
+npm install -g @neikyun/ciel   # global, 1 fois
 cd /path/to/your/project
-curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh | bash
+ciel init                        # installe dans le projet
 ```
 
-Zero-config. Auto-detecte OpenCode ou Claude Code. Idempotent.
+Zero-config. Auto-detecte OpenCode et/ou Claude Code. **Ne touche pas `node_modules`.**
+
+### Update
+
+```bash
+ciel check                       # vérifie NPM
+npm update -g @neikyun/ciel     # update binaire
+ciel update                      # réinstalle dans le projet
+```
+
+### Uninstall
+
+```bash
+ciel uninstall                   # retire tout
+npm uninstall -g @neikyun/ciel  # retire le binaire
+```
 
 ---
 
