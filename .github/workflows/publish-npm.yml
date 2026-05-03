@@ -52,15 +52,7 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Check NPM_TOKEN
-        run: |
-          if [ "${{ secrets.NPM_TOKEN == '' }}" = "true" ]; then
-            echo "::error::NPM_TOKEN secret not set."
-            echo "Create a Granular Access Token with 'bypass 2fa' on https://www.npmjs.com/settings/neikyun/tokens"
-            echo "Then add as secret: https://github.com/KaosKyun/Ciel/settings/secrets/actions"
-            exit 1
-          fi
-          echo "✓ NPM_TOKEN is set"
+
 
       - name: Get version
         id: version
