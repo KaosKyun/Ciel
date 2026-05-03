@@ -1,6 +1,6 @@
 {
   "name": "@neikyun/ciel",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "description": "Ciel — Deep-reasoning pipeline for LLM-assisted development. OpenCode plugin + multi-platform CLI (OpenCode, Claude Code, more).",
   "main": "./dist/plugin/index.js",
   "types": "./dist/plugin/index.d.ts",
@@ -20,14 +20,6 @@
     "test": "npx tsx --test test/**/*.test.ts",
     "postinstall": "node scripts/postinstall.cjs",
     "prepublishOnly": "npm run build && npm test"
-  },
-  "peerDependencies": {
-    "@opencode-ai/plugin": "^1.14.20"
-  },
-  "peerDependenciesMeta": {
-    "@opencode-ai/plugin": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

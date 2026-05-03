@@ -224,12 +224,10 @@ describe("CLI package structure", () => {
     assert.ok(pkg.version.startsWith("6."), `Version should be 6.x, got ${pkg.version}`);
   });
 
-  it("@opencode-ai/plugin is peer dependency (optional)", () => {
+  it("has zero runtime/peer dependencies (arborist-safe)", () => {
     const pkg = require("../package.json");
-    const dep = pkg.peerDependencies?.["@opencode-ai/plugin"];
-    assert.ok(dep, "Should have @opencode-ai/plugin as peer dep");
-    assert.ok(pkg.peerDependenciesMeta?.["@opencode-ai/plugin"]?.optional, "Should be optional peer dep");
-    assert.ok(!pkg.dependencies?.["@opencode-ai/plugin"], "Should NOT be a hard dependency (avoid arborist conflicts)");
+    assert.ok(!pkg.dependencies || Object.keys(pkg.dependencies).length === 0, "Should have zero runtime deps");
+    assert.ok(!pkg.peerDependencies || Object.keys(pkg.peerDependencies).length === 0, "Should have zero peer deps");
   });
 });
 
