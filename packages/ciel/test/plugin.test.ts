@@ -224,12 +224,12 @@ describe("CLI package structure", () => {
     assert.ok(pkg.version.startsWith("6."), `Version should be 6.x, got ${pkg.version}`);
   });
 
-  it("@opencode-ai/plugin dependency is pinned (no caret)", () => {
+  it("@opencode-ai/plugin is peer dependency (optional)", () => {
     const pkg = require("../package.json");
-    const dep = pkg.dependencies["@opencode-ai/plugin"];
-    assert.ok(dep, "Should depend on @opencode-ai/plugin");
-    assert.ok(!dep.startsWith("^"), `Dependency should be pinned, got ${dep}`);
-    assert.ok(!dep.startsWith("~"), `Dependency should be pinned, got ${dep}`);
+    const dep = pkg.peerDependencies?.["@opencode-ai/plugin"];
+    assert.ok(dep, "Should have @opencode-ai/plugin as peer dep");
+    assert.ok(pkg.peerDependenciesMeta?.["@opencode-ai/plugin"]?.optional, "Should be optional peer dep");
+    assert.ok(!pkg.dependencies?.["@opencode-ai/plugin"], "Should NOT be a hard dependency (avoid arborist conflicts)");
   });
 });
 
