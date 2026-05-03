@@ -51,8 +51,6 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
-          cache-dependency-path: packages/ciel/package-lock.json
 
       - name: Get version
         id: version
@@ -62,7 +60,6 @@ jobs:
           echo "Publishing @neikyun/ciel v$VERSION"
 
       - name: Install dependencies
-        working-directory: packages/ciel
         run: npm ci
 
       - name: Run tests
