@@ -15,7 +15,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.cjs",
+    "build": "tsc --build && node scripts/copy-assets.cjs",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('assets',{recursive:true,force:true})\"",
     "test": "tsx --test test/*.test.ts",
     "postinstall": "node scripts/postinstall.cjs",
