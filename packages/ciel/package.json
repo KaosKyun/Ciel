@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc && node scripts/copy-assets.cjs",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('assets',{recursive:true,force:true})\"",
-    "test": "tsx --test test/**/*.test.ts",
+    "test": "tsx --test test/*.test.ts",
     "postinstall": "node scripts/postinstall.cjs",
     "prepublishOnly": "npm run build && npm test"
   },
