@@ -62,13 +62,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        working-directory: packages/ciel
-        run: npm test
-
       - name: Build
         working-directory: packages/ciel
         run: npm run build
+
+      - name: Run tests
+        working-directory: packages/ciel
+        run: npm test
 
       - name: Publish to npm
         working-directory: packages/ciel
