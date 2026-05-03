@@ -66,10 +66,6 @@ jobs:
         working-directory: packages/ciel
         run: npm run build
 
-      - name: Debug — list dist contents
-        working-directory: packages/ciel
-        run: find dist -type f 2>/dev/null || echo "dist/ not found"
-
       - name: Run tests
         working-directory: packages/ciel
         run: npm test
