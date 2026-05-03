@@ -40,13 +40,15 @@ function resolveSourceDir(): string | null {
     join(process.cwd(), "../.."),
     // Dev: running from packages/ (sub-workspace)
     join(process.cwd(), ".."),
-    // npm: bundled assets in package
+    // npm: bundled assets (compiled CLI: __dirname = dist/cli/)
+    join(__dirname, "..", "..", "assets"),
+    // npm: installed globally (__dirname = dist/cli/ → go up to root)
+    join(__dirname, "..", ".."),
+    // npm: one level from assets (if __dirname is assets/)
     join(__dirname, "..", "assets"),
-    // npm: installed globally
+    // npm: npx cache deeper
     join(__dirname, ".."),
-    // npm: one more level up (npx cache)
     join(__dirname, "../.."),
-    // npm: two levels up (npx cache, deeper)
     join(__dirname, "../../.."),
   ];
 
@@ -66,6 +68,8 @@ function resolveSourceDir(): string | null {
 async function downloadTemplatesToTemp(): Promise<string | null> {
   const tmpDir = mkdtempSync(join(tmpdir(), "ciel-templates-"));
   const templatePaths = [
+    // Compiled plugin JS (for local reference, no node_modules needed)
+    "platforms/opencode/.opencode/plugins/ciel.js",
     // OpenCode agents
     "platforms/opencode/.opencode/agents/ciel.md",
     "platforms/opencode/.opencode/agents/ciel-researcher.md",

@@ -33,13 +33,17 @@ export function detectOpenCode(targetDir: string): boolean {
  */
 function findPluginJs(srcDir: string): string | null {
   const candidates = [
-    // NPM local: node_modules/@neikyun/ciel/dist/plugin/index.js
+    // NPM local: assets/dist/plugin/index.js (bundled by copy-assets)
     join(srcDir, "dist/plugin/index.js"),
     // NPM global: from assets/, go up to package root
     join(srcDir, "..", "dist/plugin/index.js"),
     join(srcDir, "../..", "dist/plugin/index.js"),
+    // GitHub download: platforms/opencode/.opencode/plugins/ciel.js
+    join(srcDir, "platforms/opencode/.opencode/plugins/ciel.js"),
     // Dev mode: from repo root
     join(srcDir, "packages/ciel/dist/plugin/index.js"),
+    // Direct path (if srcDir is already the plugin dir)
+    join(srcDir, "ciel.js"),
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
