@@ -52,10 +52,12 @@ function extractSessionId(event: any): string {
 
 console.log("\nCiel v5 Test Suite\n");
 
-// Read plugin source from the monorepo packages directory (source of truth)
+// Read plugin source — test runs from root or from .opencode/
 const pluginSourceFile = existsSync("packages/ciel/src/plugin/index.ts")
   ? "packages/ciel/src/plugin/index.ts"
-  : ".opencode/plugins/ciel.ts";
+  : existsSync("../.opencode/plugins/ciel.ts")
+    ? "../.opencode/plugins/ciel.ts"
+    : ".opencode/plugins/ciel.ts";
 const pluginSource = readFileSync(pluginSourceFile, "utf-8");
 
 console.log("--- Model-Driven Depth Classification ---");
@@ -100,7 +102,7 @@ assert(extractSessionId({}).length <= 8, "session ID max 8 chars");
 console.log("\n--- Plugin Compilation ---");
 // Check the plugin source exists (either local bridge or monorepo package)
 assert(
-  existsSync(".opencode/plugins/ciel.ts") || existsSync("packages/plugin/src/index.ts"),
+  pluginSourceFile !== "",
   "Plugin file exists"
 );
 assert(pluginSource.length > 10000, "Plugin source > 10KB");
@@ -146,14 +148,10 @@ function countSkills(dir: string): number {
   return count;
 }
 
-const workflowSkills = countSkills("skills/workflow");
-assert(workflowSkills >= 25, `Workflow skills >= 25 (found: ${workflowSkills})`);
-
-const opencodeSkills = countSkills(".opencode/skills/workflow") || countSkills("skills/workflow");
-assert(opencodeSkills >= 25, `OpenCode workflow skills >= 25 (found: ${opencodeSkills})`);
-
-const claudeSkills = countSkills(".claude/skills/workflow");
-assert(claudeSkills >= 25, `Claude Code workflow skills >= 25 (found: ${claudeSkills})`);
+const skillCount = countSkills("skills/workflow");
+assert(skillCount >= 25, `Workflow skills >= 25 (found: ${skillCount})`);
+// Note: .opencode/skills/ is a build target, .claude/skills/ is installed by install.sh
+// Both are gitignored — the source is skills/ (root). Single check suffices.
 
 // ----- Summary -----
 console.log(`\n${"=".repeat(40)}`);

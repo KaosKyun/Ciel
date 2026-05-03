@@ -2,7 +2,7 @@
 # CIEL META-CRITIQUER: post-task reflection triggered on SubagentStop
 # Records learnings and updates state
 
-MEMO_DIR="$CLAUD_PROJECT_DIR/.ciel"
+MEMO_DIR="$CLAUDE_PROJECT_DIR/.ciel"
 mkdir -p "$MEMO_DIR"
 
 # Check if RELIRE is required

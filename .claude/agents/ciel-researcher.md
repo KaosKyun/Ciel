@@ -3,7 +3,6 @@ name: ciel-researcher
 description: Isolated-context researcher for Ciel v5. Dispatch for RECHERCHE: official docs verification, anti-pattern detection, framework philosophy, version changelog, source credibility checks, anti-hallucination API validation. Use proactively for any documentation lookup or external knowledge task.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit
-model: haiku
 memory: user
 permissionMode: acceptEdits
 maxTurns: 20

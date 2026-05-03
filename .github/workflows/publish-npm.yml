@@ -1,0 +1,108 @@
+# Publication NPM — @neikyun/ciel via Trusted Publisher (OIDC)
+# Déclencheur: tag v* (release) ou workflow_dispatch (manual)
+# Publie le package sur npmjs.com après build + test
+#
+# Prérequis (à faire une fois) :
+#   1. Aller sur https://www.npmjs.com/settings/neikyun/packages
+#   2. Sélectionner @neikyun/ciel → "Access" → "Trusted Publishers"
+#   3. Ajouter :
+#      - GitHub repo: KaosKyun/Ciel
+#      - Workflow: publish-npm.yml
+#      - Environment: npm-production
+#   4. Plus besoin de token npm — OIDC génère un token temporaire à chaque run
+
+name: Publish NPM
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (--dry-run, no actual publish)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write  # OIDC pour npm Trusted Publisher + provenance attestation
+
+jobs:
+  publish:
+    name: Publish @neikyun/ciel to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: npm-production
+      url: https://www.npmjs.com/package/@neikyun/ciel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: packages/ciel/package-lock.json
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/ciel/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing @neikyun/ciel v$VERSION"
+
+      - name: Install dependencies
+        working-directory: packages/ciel
+        run: npm ci
+
+      - name: Run tests
+        working-directory: packages/ciel
+        run: npm test
+
+      - name: Build
+        working-directory: packages/ciel
+        run: npm run build
+
+      - name: Publish to npm
+        working-directory: packages/ciel
+        run: |
+          if [ "${{ github.event.inputs.dry-run }}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "=== Dry run mode ==="
+            npm publish --dry-run
+          else
+            echo "=== Publishing @neikyun/ciel v${{ steps.version.outputs.version }} ==="
+            # Trusted Publisher (OIDC) : pas de token nécessaire
+            # setup-node + id-token:write = auth automatique
+            npm publish --provenance --access public
+          fi
+
+      - name: Verify publication
+        run: |
+          echo "=== Verifying publication ==="
+          VERSION="${{ steps.version.outputs.version }}"
+          sleep 5
+          INFO=$(npm view @neikyun/ciel@"$VERSION" version 2>/dev/null || true)
+          if [ "$INFO" = "$VERSION" ]; then
+            echo "✓ @neikyun/ciel v$VERSION confirmed on npm"
+          else
+            echo "⚠ Could not verify (may take a moment)"
+            echo "  Check: https://www.npmjs.com/package/@neikyun/ciel/v/$VERSION"
+          fi
+
+      - name: Create npm package artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: npm-package-${{ steps.version.outputs.version }}
+          path: packages/ciel/*.tgz
+          retention-days: 7
+          if-no-files-found: ignore

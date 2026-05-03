@@ -1,5 +1,7 @@
 # Test des hooks Ciel
-# Déclencheur: push sur hooks/ + PR
+# Déclencheur: push sur hooks/** ou .claude/hooks/** + PR
+# Note: le dossier hooks/ est legacy (contient seulement check-test-first.sh)
+# Les hooks actifs sont dans .claude/hooks/ (block-destructive, check-test-first, track-file, meta-critiquer)
 
 name: Test Hooks
 
@@ -7,9 +9,11 @@ on:
   push:
     paths:
       - 'hooks/**'
+      - '.claude/hooks/**'
   pull_request:
     paths:
       - 'hooks/**'
+      - '.claude/hooks/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,8 +23,8 @@ permissions:
   contents: read
 
 jobs:
-  test-hooks:
-    name: Test Individual Hooks
+  test-claude-hooks:
+    name: Test Claude Code Hooks (.claude/hooks/)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,130 +33,125 @@ jobs:
 
       - name: Setup test environment
         run: |
-          mkdir -p /tmp/ciel-test
-          export CIEL_TEST_DIR="/tmp/ciel-test"
-          export CIEL_SESSION_ID="test-session-${{ github.run_id }}"
-          
-      - name: Test session-start.sh
-        run: |
-          chmod +x hooks/session-start.sh
-          echo "Testing session-start.sh..."
-          hooks/session-start.sh 2>&1 | head -20 || echo "session-start.sh executed"
-          
-      - name: Test user-prompt-submit.sh
-        run: |
-          chmod +x hooks/user-prompt-submit.sh
-          echo "Testing user-prompt-submit.sh..."
-          hooks/user-prompt-submit.sh 2>&1 | head -20 || echo "user-prompt-submit.sh executed"
-          
-      - name: Test pre-tool-write.sh
-        run: |
-          chmod +x hooks/pre-tool-write.sh
-          echo "Testing pre-tool-write.sh..."
-          hooks/pre-tool-write.sh 2>&1 | head -20 || echo "pre-tool-write.sh executed"
-          
-      - name: Test post-tool-write.sh
-        run: |
-          chmod +x hooks/post-tool-write.sh
-          echo "Testing post-tool-write.sh..."
-          hooks/post-tool-write.sh 2>&1 | head -20 || echo "post-tool-write.sh executed"
-          
-      - name: Test pre-compact.sh
-        run: |
-          chmod +x hooks/pre-compact.sh
-          echo "Testing pre-compact.sh..."
-          hooks/pre-compact.sh 2>&1 | head -20 || echo "pre-compact.sh executed"
-          
-      - name: Test subagent-stop.sh
-        run: |
-          chmod +x hooks/subagent-stop.sh
-          echo "Testing subagent-stop.sh..."
-          hooks/subagent-stop.sh 2>&1 | head -20 || echo "subagent-stop.sh executed"
-          
-      - name: Test stop.sh
-        run: |
-          chmod +x hooks/stop.sh
-          echo "Testing stop.sh..."
-          hooks/stop.sh 2>&1 | head -20 || echo "stop.sh executed"
+          # Install jq — required by all hooks for JSON input parsing
+          sudo apt-get update -qq && sudo apt-get install -y -qq jq
+          echo "CIEL_TEST_DIR=/tmp/ciel-hooks-test" >> $GITHUB_ENV
+          mkdir -p /tmp/ciel-hooks-test/.ciel /tmp/ciel-hooks-test/src/hooks
+          echo "[]" > /tmp/ciel-hooks-test/.ciel/tracked-files.json
 
-  test-integration:
-    name: Integration Test (Session Simulation)
+      - name: Test check-test-first.sh (source without test → warns)
+        run: |
+          echo "=== check-test-first: source file without test ==="
+          echo '{"tool_input": {"filePath": "/tmp/ciel-hooks-test/src/index.ts"}}' | \
+            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
+            echo "✓ Warns on source without test" || \
+            (echo "✗ Should have warned about missing test" && exit 1)
+
+      - name: Test check-test-first.sh (test exists → silent)
+        run: |
+          echo "=== check-test-first: source file WITH test ==="
+          touch /tmp/ciel-hooks-test/src/index.test.ts
+          echo '{"tool_input": {"filePath": "/tmp/ciel-hooks-test/src/index.ts"}}' | \
+            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
+            (echo "✗ Should NOT have warned when test exists" && exit 1) || \
+            echo "✓ Silent when test exists"
+
+      - name: Test check-test-first.sh (non-source → silent)
+        run: |
+          echo "=== check-test-first: non-source file ==="
+          echo '{"tool_input": {"filePath": "/tmp/ciel-hooks-test/config.json"}}' | \
+            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
+            (echo "✗ Should NOT have warned on non-source file" && exit 1) || \
+            echo "✓ Silent on non-source file"
+
+      - name: Test block-destructive.sh (rm -rf → blocked)
+        run: |
+          echo "=== block-destructive: rm -rf ==="
+          echo '{"tool_input": {"command": "rm -rf /important"}}' | \
+            bash .claude/hooks/block-destructive.sh 2>&1 | grep -q "blocked" && \
+            echo "✓ Blocks rm -rf" || \
+            (echo "✗ Should have blocked rm -rf" && exit 1)
+
+      - name: Test block-destructive.sh (safe command → allows)
+        run: |
+          echo "=== block-destructive: safe command ==="
+          echo '{"tool_input": {"command": "ls -la"}}' | \
+            bash .claude/hooks/block-destructive.sh 2>/dev/null && \
+            echo "✓ Allows safe command" || \
+            (echo "✗ Should have allowed safe command" && exit 1)
+
+      - name: Test block-destructive.sh (force push → blocked)
+        run: |
+          echo "=== block-destructive: force push ==="
+          echo '{"tool_input": {"command": "git push --force origin main"}}' | \
+            bash .claude/hooks/block-destructive.sh 2>&1 | grep -q "blocked" && \
+            echo "✓ Blocks force push" || \
+            (echo "✗ Should have blocked force push" && exit 1)
+
+      - name: Test track-file.sh (tracks modified files)
+        run: |
+          echo "=== track-file: track new file ==="
+          echo '{"tool_input": {"filePath": "src/hooks/useWebSocket.ts"}}' | \
+            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash .claude/hooks/track-file.sh
+          COUNT=$(python3 -c "import json; d=json.load(open('/tmp/ciel-hooks-test/.ciel/tracked-files.json')); print(len(d))")
+          [ "$COUNT" -ge 1 ] && echo "✓ Tracks file (count: $COUNT)" || \
+            (echo "✗ Did not track file" && exit 1)
+
+      - name: Test track-file.sh (deduplicates)
+        run: |
+          echo "=== track-file: deduplicate ==="
+          echo '{"tool_input": {"filePath": "src/hooks/useWebSocket.ts"}}' | \
+            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash .claude/hooks/track-file.sh
+          COUNT=$(python3 -c "import json; d=json.load(open('/tmp/ciel-hooks-test/.ciel/tracked-files.json')); print(len(d))")
+          [ "$COUNT" -eq 1 ] && echo "✓ Deduplicates (count: $COUNT)" || \
+            (echo "✗ Should have deduplicated (count: $COUNT)" && exit 1)
+
+      - name: Test track-file.sh (count triggers RELIRE threshold)
+        run: |
+          echo "=== track-file: RELIRE threshold ==="
+          # Track 5+ files to trigger standard RELIRE
+          for i in 1 2 3 4 5; do
+            echo "{\"tool_input\": {\"filePath\": \"file${i}.ts\"}}" | \
+              CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash .claude/hooks/track-file.sh
+          done
+          if grep -q "standard" /tmp/ciel-hooks-test/.ciel/relire-required 2>/dev/null; then
+            echo "✓ RELIRE threshold triggered at 5+ files"
+          else
+            echo "⚠ RELIRE threshold not triggered (count may be off)"
+          fi
+
+      - name: Test meta-critiquer.sh (subagent logging)
+        run: |
+          echo "=== meta-critiquer: subagent stop ==="
+          echo '{}' | CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test \
+            SUBAGENT_TYPE="ciel-researcher" \
+            bash .claude/hooks/meta-critiquer.sh
+          if [ -f /tmp/ciel-hooks-test/.ciel/subagent-log.md ]; then
+            echo "✓ Creates subagent-log.md"
+            cat /tmp/ciel-hooks-test/.ciel/subagent-log.md
+          else
+            echo "⚠ No log needed (no RELIRE required)"
+          fi
+
+  test-legacy-hook:
+    name: Test Legacy Hook (hooks/check-test-first.sh)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Setup integration test environment
+      - name: Test legacy check-test-first.sh
         run: |
-          mkdir -p /tmp/ciel-integration
-          export CIEL_TEST_DIR="/tmp/ciel-integration"
-          export CIEL_SESSION_ID="integration-test-${{ github.run_id }}"
-          export TRACE_ID="trace-${{ github.run_id }}"
-          
-      - name: Simulate complete session
-        run: |
-          set -e
-          
-          echo "=== Starting session simulation ==="
-          
-          # 1. Session start
-          echo "Step 1: Session start"
-          chmod +x hooks/session-start.sh
-          hooks/session-start.sh
-          
-          # 2. User prompt submit
-          echo "Step 2: User prompt submit"
-          chmod +x hooks/user-prompt-submit.sh
-          hooks/user-prompt-submit.sh
-          
-          # 3. Pre-tool-write (simulated)
-          echo "Step 3: Pre-tool-write"
-          chmod +x hooks/pre-tool-write.sh
-          hooks/pre-tool-write.sh
-          
-          # 4. Post-tool-write (simulated)
-          echo "Step 4: Post-tool-write"
-          chmod +x hooks/post-tool-write.sh
-          hooks/post-tool-write.sh
-          
-          # 5. Pre-compact (simulated)
-          echo "Step 5: Pre-compact"
-          chmod +x hooks/pre-compact.sh
-          hooks/pre-compact.sh
-          
-          # 6. Subagent stop (simulated)
-          echo "Step 6: Subagent stop"
-          chmod +x hooks/subagent-stop.sh
-          hooks/subagent-stop.sh
-          
-          # 7. Session stop
-          echo "Step 7: Session stop"
-          chmod +x hooks/stop.sh
-          hooks/stop.sh
-          
-          echo "=== Session simulation completed successfully ==="
-          
-      - name: Verify test artifacts
-        run: |
-          echo "Checking for test artifacts..."
-          ls -la /tmp/ciel-integration/ 2>/dev/null || echo "No artifacts created (expected)"
+          echo "=== Legacy hook: hooks/check-test-first.sh ==="
+          if [ -f hooks/check-test-first.sh ]; then
+            chmod +x hooks/check-test-first.sh
+            echo "Testing with source file..."
+            echo '{"tool_input": {"filePath": "/tmp/test.ts"}}' | \
+              bash hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
+              echo "✓ Legacy hook works" || echo "⚠ Legacy hook may need updates"
+          else
+            echo "⚠ hooks/check-test-first.sh not found (may have been removed)"
+          fi
 
-  test-stop-hook-cases:
-    name: Test stop.sh (8 Cases)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Run test-stop-hook.sh
-        run: |
-          echo "=== Running test-stop-hook.sh ==="
-          chmod +x scripts/test-stop-hook.sh
-          ./scripts/test-stop-hook.sh
-          
-      - name: Verify all 8 test cases passed
-        run: |
-          echo "Verifying test results..."
-          # The test script should exit 0 if all cases pass

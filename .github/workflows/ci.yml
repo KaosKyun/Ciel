@@ -83,13 +83,12 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        working-directory: .opencode
         run: |
-          if [ -f test-ciel.ts ]; then
+          if [ -f .opencode/test-ciel.ts ]; then
             echo "Running Ciel v5 test suite..."
-            npx tsx test-ciel.ts
+            npx tsx .opencode/test-ciel.ts
           else
-            echo "ERROR: test-ciel.ts not found"
+            echo "ERROR: .opencode/test-ciel.ts not found"
             exit 1
           fi
 
@@ -145,6 +144,164 @@ jobs:
               exit 1
             fi
           done
+
+  validate-agent-permissions:
+    name: Validate Agent Permissions
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check OpenCode agent tool permissions
+        run: |
+          echo "=== Checking OpenCode Agent Tool Permissions ==="
+          failed=0
+
+          # Helper: check that a tool is allowed for an agent
+          check_perm() {
+            local agent="$1" tool="$2"
+            if grep -q "^  ${tool}:" ".opencode/agents/${agent}.md"; then
+              local val
+              val=$(grep "^  ${tool}:" ".opencode/agents/${agent}.md" | sed 's/.*: //')
+              if [ "$val" = "false" ]; then
+                echo "✗ .opencode/agents/${agent}.md: ${tool}=false (should be true)"
+                return 1
+              fi
+              echo "✓ .opencode/agents/${agent}.md: ${tool}=${val}"
+            fi
+            return 0
+          }
+
+          # ciel-researcher needs bash (npm/curl for version checks) + webfetch + websearch
+          check_perm "ciel-researcher" "bash" || failed=1
+          check_perm "ciel-researcher" "webfetch" || failed=1
+          check_perm "ciel-researcher" "websearch" || failed=1
+
+          # ciel-explorer needs bash (git blame/log) + read + grep + glob
+          check_perm "ciel-explorer" "bash" || failed=1
+          check_perm "ciel-explorer" "read" || failed=1
+          check_perm "ciel-explorer" "grep" || failed=1
+
+          # ciel-critic needs bash + read + grep + glob
+          check_perm "ciel-critic" "bash" || failed=1
+          check_perm "ciel-critic" "read" || failed=1
+
+          # ciel-improver needs write + edit + bash + webfetch + websearch
+          check_perm "ciel-improver" "write" || failed=1
+          check_perm "ciel-improver" "edit" || failed=1
+          check_perm "ciel-improver" "bash" || failed=1
+          check_perm "ciel-improver" "webfetch" || failed=1
+          check_perm "ciel-improver" "websearch" || failed=1
+
+          if [ "$failed" -eq 1 ]; then
+            echo "✗ Some agents have incorrect tool permissions"
+            exit 1
+          fi
+          echo "✓ All OpenCode agents have correct tool permissions"
+
+      - name: Check Claude Code agent model fields removed
+        run: |
+          echo "=== Checking Claude Code Agent Definitions ==="
+          failed=0
+          for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+            file=".claude/agents/${agent}.md"
+            if [ ! -f "$file" ]; then
+              echo "✗ $file missing"
+              failed=1
+              continue
+            fi
+            if grep -q "^model:" "$file"; then
+              echo "✗ $file still has 'model:' field (causes ProviderModelNotFoundError)"
+              failed=1
+            else
+              echo "✓ $file: no model field (clean)"
+            fi
+          done
+          if [ "$failed" -eq 1 ]; then exit 1; fi
+          echo "✓ All Claude Code agents have no model field"
+
+  validate-hook-env-vars:
+    name: Validate Hook Env Vars
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check for env var typos in hooks
+        run: |
+          echo "=== Checking for env var typos in hooks ==="
+          failed=0
+
+          # Check .claude/hooks/ for CLAUD_PROJECT_DIR (typo — missing E)
+          for file in .claude/hooks/*.sh hooks/*.sh; do
+            if [ ! -f "$file" ]; then continue; fi
+            if grep -q 'CLAUD_PROJECT_DIR' "$file"; then
+              echo "✗ $file: contains CLAUD_PROJECT_DIR (typo — should be CLAUDE_PROJECT_DIR)"
+              failed=1
+            fi
+          done
+
+          # Check all hook files use $CLAUDE_PROJECT_DIR (not hardcoded paths)
+          for file in .claude/hooks/*.sh; do
+            if [ ! -f "$file" ]; then continue; fi
+            # Allow shebang and comments, check for hardcoded /Users/ or /home/ paths
+            hardcoded=$(grep -c '/Users/\|/home/' "$file" 2>/dev/null || true)
+            if [ "$hardcoded" -gt 0 ]; then
+              echo "⚠ $file: has hardcoded paths (use \$CLAUDE_PROJECT_DIR instead)"
+            fi
+          done
+
+          echo "✓ All env vars checked"
+
+          if [ "$failed" -eq 1 ]; then exit 1; fi
+
+  validate-agent-parity:
+    name: Validate Agent Parity (OpenCode ↔ Claude Code)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check agent parity between OpenCode and Claude Code
+        run: |
+          echo "=== Checking Agent Parity ==="
+          failed=0
+
+          # Claude Code agents (without ciel.md — it's OpenCode-only orchestrator)
+          CLAUDE_AGENTS="ciel-researcher ciel-explorer ciel-critic ciel-improver"
+
+          # OpenCode subagents (without ciel.md — it's the orchestrator)
+          OPENCODE_AGENTS="ciel-researcher ciel-explorer ciel-critic ciel-improver"
+
+          # Check each agent exists in both harnesses
+          for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
+            if [ ! -f ".opencode/agents/${agent}.md" ]; then
+              echo "✗ .opencode/agents/${agent}.md missing"
+              failed=1
+            fi
+            if [ ! -f ".claude/agents/${agent}.md" ]; then
+              echo "✗ .claude/agents/${agent}.md missing"
+              failed=1
+            fi
+          done
+
+          # Check that agent descriptions are present in both
+          for agent in $CLAUDE_AGENTS; do
+            oc_desc=$(grep "^description:" ".opencode/agents/${agent}.md" 2>/dev/null | head -1)
+            cc_desc=$(grep "^description:" ".claude/agents/${agent}.md" 2>/dev/null | head -1)
+            if [ -z "$oc_desc" ]; then
+              echo "⚠ .opencode/agents/${agent}.md: missing description"
+            fi
+            if [ -z "$cc_desc" ]; then
+              echo "⚠ .claude/agents/${agent}.md: missing description"
+            fi
+          done
+
+          echo "✓ Agent parity check complete"
+          if [ "$failed" -eq 1 ]; then exit 1; fi
 
   validate-byte-limits:
     name: Validate Byte Limits

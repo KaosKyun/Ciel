@@ -3,7 +3,6 @@ name: ciel-explorer
 description: Isolated-context explorer for Ciel v5. Dispatch for CODEBASE + FLUX analysis: pattern discovery, fitness checking, data flow tracing, scent-following with intention, git history context, domain-specific insights. Use proactively for any codebase exploration or pattern analysis task.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit
-model: sonnet
 memory: project
 isolation: worktree
 permissionMode: plan
