@@ -1,58 +1,50 @@
 ---
-description: Check GitHub for newer Ciel release and re-install. Runs `scripts/install.sh --check-update` then `--update`.
+description: Update Ciel to the latest version via NPM. Checks NPM registry, updates global package, force-reinstalls in project.
 ---
 
 # /ciel-update — Update Ciel to the latest version
 
-Checks GitHub for a newer release and re-installs if available.
-
 ## Steps
 
-1. **Check version**: `bash scripts/install.sh --check-update`
-   - Fetches `VERSION` from GitHub, compares with local
-   - Prints "up to date" or "update available"
-
-2. **Apply update**: `bash scripts/install.sh --update -y`
-   - Re-installs all Ciel files (plugins, agents, commands, hooks)
-   - Preserves: `ciel-overlay.md`, `.ciel/`, existing configs
-   - Non-destructive merge on `opencode.json`
-
-## Flags
-
-| Flag | Purpose |
-|------|---------|
-| `--check-update` | Check remote version, don't install |
-| `--update` / `-u` | Force reinstall all files |
-| `-y` | Skip confirmation (non-interactive) |
-| `-q` | Quiet mode (summary only) |
-
-## One-liner
+### Global install (recommended)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --check-update
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update -y
+# 1. Check
+ciel check
+
+# 2. Update global package
+npm update -g @neikyun/ciel
+
+# 3. Force reinstall in project (new plugin JS, agents, commands, hooks)
+ciel update
+```
+
+### Project-local install
+
+```bash
+npm update @neikyun/ciel   # postinstall auto-updates everything
 ```
 
 ## What's preserved
 
 - `ciel-overlay.md` — project-specific rules
-- `.ciel/map.json`, `.ciel/memory.json`, `.ciel/parking.md`
-- `opencode.json` — existing config merged non-destructively
-- `.claude/settings.json` — hook paths preserved
+- `.ciel/map.json`, `.ciel/memory.json`, `.ciel/parking.md` — persistent state
+- `opencode.json` — existing config patched non-destructively
 
 ## What's replaced
 
-- `.opencode/plugins/ciel.ts` — fresh plugin
+- `.opencode/plugins/ciel.js` — compiled plugin
 - `.opencode/agents/ciel-*.md` — agent definitions
 - `.opencode/commands/ciel-*.md` — command files
 - `.claude/agents/ciel-*.md` — Claude Code agents
 - `.claude/hooks/*.sh` — shell hooks
 - `CLAUDE.md` — root instruction
+- `.claude/settings.json` — hook config
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| `Could not fetch remote version` | Check internet or proxy: `https_proxy=... bash install.sh --check-update` |
 | Plugin not loaded after update | Restart OpenCode (plugin loaded at session start) |
-| `jq not found` warning | Install jq for automatic opencode.json patching |
+| `ciel: command not found` | Reinstall globally: `npm install -g @neikyun/ciel` |
+| NPM registry unreachable | Check internet or proxy: `HTTPS_PROXY=... ciel check` |

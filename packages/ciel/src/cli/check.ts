@@ -1,18 +1,19 @@
-// Check command — compare local version against GitHub
+// Check command — compare local version against NPM registry
+// (NPM is the canonical distribution channel for Ciel v6+)
 
 import { get as httpsGet } from "https";
 import { ok, err, say } from "./utils";
 import { getVersion } from "./version";
 
-const GITHUB_RAW = "https://raw.githubusercontent.com/KaosKyun/Ciel/main";
+const NPM_REGISTRY = "https://registry.npmjs.org/@neikyun/ciel/latest";
 const CIEL_VERSION = getVersion();
 
 function fetchUrl(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    httpsGet(url, (res) => {
+    httpsGet(url, { headers: { Accept: "application/json" } }, (res) => {
       let data = "";
       res.on("data", (chunk: string) => (data += chunk));
-      res.on("end", () => resolve(data.trim()));
+      res.on("end", () => resolve(data));
     }).on("error", reject);
   });
 }
@@ -37,9 +38,12 @@ function compareVersions(a: string, b: string): number {
 
 export async function runCheck(): Promise<void> {
   try {
-    const remoteVersion = await fetchUrl(`${GITHUB_RAW}/VERSION`);
+    const raw = await fetchUrl(NPM_REGISTRY);
+    const pkg = JSON.parse(raw);
+    const remoteVersion: string = pkg.version;
+
     if (!remoteVersion) {
-      err("Could not fetch remote version from GitHub.");
+      err("Could not fetch latest version from NPM registry.");
       err("Check your internet connection.");
       process.exit(2);
     }
@@ -53,13 +57,19 @@ export async function runCheck(): Promise<void> {
 
     if (cmp < 0) {
       // Remote is newer
-      console.log(`  Update available: v${CIEL_VERSION} → ${remoteVersion}`);
-      console.log("  Run 'npx ciel update' to upgrade.");
+      console.log(`  Update available: v${CIEL_VERSION} → v${remoteVersion}`);
+      console.log("");
+      console.log("  If installed globally:");
+      console.log("    npm update -g @neikyun/ciel");
+      console.log("    ciel update");
+      console.log("");
+      console.log("  If installed in project:");
+      console.log("    npm update @neikyun/ciel");
       process.exit(0);
     }
 
     // Local is newer (dev mode)
-    say(`Ciel v${CIEL_VERSION} (ahead of remote v${remoteVersion} — dev mode)`);
+    say(`Ciel v${CIEL_VERSION} (ahead of npm v${remoteVersion} — dev mode)`);
     process.exit(0);
   } catch (error: any) {
     err(`Network error: ${error.message}`);

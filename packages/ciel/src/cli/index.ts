@@ -26,9 +26,9 @@ USAGE:
 
 COMMANDS:
   init          Install Ciel in the current project (default)
-  update        Force reinstall even if already installed
+  update        Force reinstall (run after npm update -g @neikyun/ciel)
   uninstall     Remove all Ciel files from the project
-  check         Check GitHub for a newer version
+  check         Check NPM for a newer version
 
 OPTIONS:
   -y, --yes     Skip confirmation prompt (non-interactive)
