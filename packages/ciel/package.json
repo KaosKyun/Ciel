@@ -30,6 +30,11 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KaosKyun/Ciel.git",
+    "directory": "packages/ciel"
+  },
   "license": "MIT",
   "keywords": [
     "opencode",
