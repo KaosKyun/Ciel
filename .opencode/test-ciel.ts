@@ -148,14 +148,10 @@ function countSkills(dir: string): number {
   return count;
 }
 
-const workflowSkills = countSkills("skills/workflow");
-assert(workflowSkills >= 25, `Workflow skills >= 25 (found: ${workflowSkills})`);
-
-const opencodeSkills = countSkills(".opencode/skills/workflow") || countSkills("skills/workflow");
-assert(opencodeSkills >= 25, `OpenCode workflow skills >= 25 (found: ${opencodeSkills})`);
-
-const claudeSkills = countSkills(".claude/skills/workflow");
-assert(claudeSkills >= 25, `Claude Code workflow skills >= 25 (found: ${claudeSkills})`);
+const skillCount = countSkills("skills/workflow");
+assert(skillCount >= 25, `Workflow skills >= 25 (found: ${skillCount})`);
+// Note: .opencode/skills/ is a build target, .claude/skills/ is installed by install.sh
+// Both are gitignored — the source is skills/ (root). Single check suffices.
 
 // ----- Summary -----
 console.log(`\n${"=".repeat(40)}`);
