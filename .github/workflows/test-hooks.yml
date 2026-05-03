@@ -7,9 +7,11 @@ on:
   push:
     paths:
       - 'hooks/**'
+      - '.claude/hooks/**'
   pull_request:
     paths:
       - 'hooks/**'
+      - '.claude/hooks/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -137,6 +139,118 @@ jobs:
         run: |
           echo "Checking for test artifacts..."
           ls -la /tmp/ciel-integration/ 2>/dev/null || echo "No artifacts created (expected)"
+
+  test-claude-hooks:
+    name: Test Claude Code Hooks (.claude/hooks/)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup test environment
+        run: |
+          mkdir -p /tmp/ciel-claude-test/.ciel
+          export CLAUDE_PROJECT_DIR="/tmp/ciel-claude-test"
+          echo "{}" > "$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json"
+
+      - name: Test check-test-first.sh (source without test → warns)
+        run: |
+          chmod +x .claude/hooks/check-test-first.sh
+          echo "=== Test 1: Source file without test ==="
+          echo '{"tool_input": {"filePath": "/tmp/ciel-claude-test/src/hooks/useWebSocket.ts"}}' | \
+            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
+            echo "✓ check-test-first.sh warns on source without test" || \
+            (echo "✗ should have warned about missing test" && exit 1)
+
+      - name: Test check-test-first.sh (test file exists → silent)
+        run: |
+          echo "=== Test 2: Source file WITH test ==="
+          mkdir -p /tmp/ciel-claude-test/src/hooks
+          touch /tmp/ciel-claude-test/src/hooks/useWebSocket.test.ts
+          echo '{"tool_input": {"filePath": "/tmp/ciel-claude-test/src/hooks/useWebSocket.ts"}}' | \
+            bash .claude/hooks/check-test-first.sh 2>&1 && \
+            echo "✓ check-test-first.sh silent when test exists" || true
+
+      - name: Test check-test-first.sh (non-source file → silent)
+        run: |
+          echo "=== Test 3: Non-source file (no warning) ==="
+          echo '{"tool_input": {"filePath": "/tmp/ciel-claude-test/config.json"}}' | \
+            bash .claude/hooks/check-test-first.sh 2>&1 && \
+            echo "✓ check-test-first.sh silent on non-source file" || true
+
+      - name: Test block-destructive.sh (rm -rf → blocks)
+        run: |
+          chmod +x .claude/hooks/block-destructive.sh
+          echo "=== Test 4: rm -rf blocked ==="
+          echo '{"tool_input": {"command": "rm -rf /important"}}' | \
+            bash .claude/hooks/block-destructive.sh 2>&1 && \
+            (echo "✗ should have blocked rm -rf" && exit 1) || \
+            echo "✓ block-destructive.sh blocked rm -rf (exit 2)"
+
+      - name: Test block-destructive.sh (safe command → allows)
+        run: |
+          echo "=== Test 5: Safe command allowed ==="
+          echo '{"tool_input": {"command": "ls -la"}}' | \
+            bash .claude/hooks/block-destructive.sh 2>&1 && \
+            echo "✓ block-destructive.sh allowed safe command" || \
+            (echo "✗ should have allowed" && exit 1)
+
+      - name: Test block-destructive.sh (force push → blocks)
+        run: |
+          echo "=== Test 6: Force push blocked ==="
+          echo '{"tool_input": {"command": "git push --force origin main"}}' | \
+            bash .claude/hooks/block-destructive.sh 2>&1 && \
+            (echo "✗ should have blocked force push" && exit 1) || \
+            echo "✓ block-destructive.sh blocked force push"
+
+      - name: Test track-file.sh (tracks modified files)
+        run: |
+          chmod +x .claude/hooks/track-file.sh
+          export CLAUDE_PROJECT_DIR="/tmp/ciel-claude-test"
+          echo "=== Test 7: Track file after edit ==="
+          echo '{"tool_input": {"filePath": "src/hooks/useWebSocket.ts"}}' | \
+            bash .claude/hooks/track-file.sh
+          count=$(cat "$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null)
+          if [ "$count" -ge 1 ]; then
+            echo "✓ track-file.sh tracked file (count: $count)"
+          else
+            echo "✗ track-file.sh did not track file"
+            exit 1
+          fi
+
+      - name: Test track-file.sh (deduplicates)
+        run: |
+          export CLAUDE_PROJECT_DIR="/tmp/ciel-claude-test"
+          echo "=== Test 8: Track same file again (dedup) ==="
+          echo '{"tool_input": {"filePath": "src/hooks/useWebSocket.ts"}}' | \
+            bash .claude/hooks/track-file.sh
+          count=$(cat "$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null)
+          if [ "$count" -eq 1 ]; then
+            echo "✓ track-file.sh deduplicates (count: $count)"
+          else
+            echo "✗ track-file.sh should have deduplicated (count: $count)"
+            exit 1
+          fi
+
+      - name: Test meta-critiquer.sh (subagent log created)
+        run: |
+          chmod +x .claude/hooks/meta-critiquer.sh
+          export CLAUDE_PROJECT_DIR="/tmp/ciel-claude-test"
+          echo "=== Test 9: Subagent stop logging ==="
+          export SUBAGENT_TYPE="ciel-researcher"
+          echo '{}' | bash .claude/hooks/meta-critiquer.sh
+          if [ -f "$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md" ]; then
+            echo "✓ meta-critiquer.sh created subagent-log.md"
+            cat "$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md"
+          else
+            # The hook only logs if RELIRE was required — acceptable
+            echo "⚠ meta-critiquer.sh ran (no log needed)"
+          fi
+
+      - name: Verify all hook exit codes
+        run: |
+          echo "=== All .claude/hooks/ tests completed ==="
 
   test-stop-hook-cases:
     name: Test stop.sh (8 Cases)

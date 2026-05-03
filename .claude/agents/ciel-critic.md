@@ -3,7 +3,6 @@ name: ciel-critic
 description: Isolated-context critic for Ciel v5. Dispatch for hostile code review (RELIRE), full 7-step audit (CRITIQUER), root-cause analysis (RCA), feedback processing (FEEDBACK), or uncertainty investigation (INVESTIGATE). Five modes. Always use for Critical tasks and when 3+ files changed.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit
-model: opus
 memory: local
 permissionMode: acceptEdits
 maxTurns: 30
