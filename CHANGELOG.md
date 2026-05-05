@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## v6.2.1 — 2026-05-05 — Hook gates, plugin hooks restored, meta-critiquer fixes
+
+### Added
+- **RELIRE gate** in `pre-tool-write.sh`: injects edit count + RELIRE warning into model context via `additionalContext` (PreToolUse, supported since Claude Code v2.1.9) — triggers at ≥2 files edited this session
+- **DISPATCH GATE** in `user-prompt-submit.sh`: injects "dispatch ciel-researcher + ciel-explorer BEFORE first Bash/Read/Edit" for Standard/Critical tasks
+- **META GATE** in `user-prompt-submit.sh`: injects reminder if files were edited this session without META step
+- **Session edit tracker reset** in `session-start.sh`: clears `tracked-files.json` at session start so gates are session-scoped
+- **SubagentStart tracking** (`.claude/settings.json`): logs ciel-researcher and ciel-critic start timestamps to `subagent-log.md`
+- **install.sh guard**: blocks `install.sh` from running in `$HOME` (prevents CLAUDE.md being placed at `~`, which Claude Code loads globally for all projects)
+- **install.sh cleanup**: `--update` mode now auto-removes stale `~/CLAUDE.md` if found
+
+### Fixed
+- **Plugin hooks restored to git**: `hooks/` directory (deleted in v5.0.0) restored with all 8 hook scripts so `installers.sh` can download them from GitHub on `ciel-update`
+- **`meta-critiquer.sh` SUBAGENT_TYPE bug**: `$SUBAGENT_TYPE` env var is never injected by Claude Code — now parses stdin JSON (same approach as `subagent-stop.sh`)
+- **`meta-critiquer.sh` $CLAUDE_PROJECT_DIR**: added fallback to `$(pwd)` when variable is unset
+- **`packages/ciel/assets/.claude/hooks/meta-critiquer.sh`**: same fixes + typo `$CLAUD_PROJECT_DIR` → `$CLAUDE_PROJECT_DIR`
+- **OpenCode agent tool permissions** (regression from session edits): restored `bash=true` for ciel-researcher and ciel-explorer, `write/edit=true` for ciel-improver
+- **SKILL.md**: added GATE DIVERGE and GATE META rules (continuation messages are not exempt from pipeline restart)
+
 ## v6.2.0 — 2026-05-05 — Pipeline gates, TaskCreate, plugin JS migration
 
 ### Added
