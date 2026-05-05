@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## v6.2.0 — 2026-05-05 — Pipeline gates, TaskCreate, plugin JS migration
+
+### Added
+- **Dispatch gate** (SKILL.md + CLAUDE.md): hard gate blocks FAIRE on Standard/Critical tasks if `ciel-researcher` + `ciel-explorer` were not dispatched in parallel
+- **RELIRE gate** (SKILL.md): hard gate requires `ciel-critic` MODE=RELIRE before closing any Standard/Critical task
+- **Stop hook** (settings.json): `meta-critiquer.sh` now fires at session end via `Stop` event, not only on `SubagentStop`
+- **Postinstall self-detection** (postinstall.cjs): skips install when `INIT_CWD` is the Ciel source repo itself, preventing duplicate `.claude/commands/` entries
+
+### Changed
+- **TodoWrite → TaskCreate** (CLAUDE.md, SKILL.md, assets/CLAUDE.md): `TodoWrite` does not exist in Claude Code — replaced with `TaskCreate` + `TaskUpdate` throughout all harness files
+- **OpenCode plugin** migrated from TypeScript source (`ciel.ts`, 10 lines) to compiled JS (`ciel.js`, 508 lines); `opencode.json` updated accordingly
+- **Agents v5→v6** (researcher, explorer, critic, improver): descriptions rewritten, researcher `bash/glob/grep` disabled, roles recentered on `research/*` skill orchestration
+- **Commands frontmatter**: added `command:` field to all `.opencode/commands/` files
+
+### Fixed
+- Duplicate `/ciel` and `ciel-*` slash commands when working inside the Ciel repo (global `~/.claude/commands/` conflict with project-level `.claude/commands/`)
+
 ## v6.0.0 — 2026-05-02 — Harness agent enrichment (OpenCode + Claude Code)
 
 ### Added
