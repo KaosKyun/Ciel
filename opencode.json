@@ -4,7 +4,7 @@
     "AGENTS.md"
   ],
   "plugin": [
-    "./.opencode/plugins/ciel.ts"
+    "./.opencode/plugins/ciel.js"
   ],
   "permission": {
     "question": "allow",

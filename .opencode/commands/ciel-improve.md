@@ -1,13 +1,19 @@
 ---
-description: Analyze recent sessions for failure modes + user corrections. Proposes skill patch-sets for user approval. Never rewrites autonomously.
+command: ciel-improve
+description: Self-improvement — analyze sessions and propose skill patches
+agent: ciel-improver
+subtask: true
 ---
 
-Invoke the `ciel-improve` skill via the Skill tool with the user's arguments:
+# /ciel-improve — Self-improvement
 
-```
-$ARGUMENTS
-```
+Analyzes recent session transcripts to detect repeated failure modes, user corrections, and skill output truncation, then produces a patch-set proposing specific rewrites for Ciel skills.
 
-If `$ARGUMENTS` is empty, invoke the skill with no argument — it will classify the current context and prompt for a task if needed.
+Usage: `/ciel-improve`
 
-The full logic (depth classifier, intent routing, pipeline selection, agent dispatch rules) lives in the `ciel-improve` skill itself. This command file is a thin trigger; modify the skill, not this file, to change behavior.
+## Process
+
+1. Scans `.ciel/learnings.md` for recent user corrections
+2. Analyzes session transcripts for failure patterns
+3. Produces a patch-set with specific skill rewrites
+4. Never rewrites autonomously — returns proposals for review
