@@ -1,8 +1,8 @@
 // Claude Code platform installer logic
 // Handles detection, file copy, and config generation for Claude Code projects
 
-import { existsSync, mkdirSync, copyFileSync, chmodSync, readFileSync, writeFileSync, statSync, unlinkSync } from "fs";
-import { join, dirname } from "path";
+import { existsSync, mkdirSync, copyFileSync, chmodSync, readFileSync, writeFileSync, lstatSync, unlinkSync } from "fs";
+import { join, dirname, sep, resolve } from "path";
 import { ok, warn } from "./utils";
 
 export interface ClaudeOptions {
@@ -31,7 +31,7 @@ export function detectClaude(targetDir: string): boolean {
  * Install Ciel files for Claude Code platform.
  */
 export function installClaude(opts: ClaudeOptions): InstallResult {
-  const { targetDir, srcDir, force } = opts;
+  const { targetDir, srcDir, force, quiet } = opts;
   const installed: string[] = [];
   const skipped: string[] = [];
 
@@ -41,11 +41,11 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   const commandsDest = join(targetDir, ".claude/commands");
   const skillsDest = join(targetDir, ".claude/skills/ciel");
 
-  // Create directories (remove file-blocker if path exists as a regular file)
-  mkdirSafe(agentsDest);
-  mkdirSafe(hooksDest);
-  mkdirSafe(commandsDest);
-  mkdirSafe(skillsDest);
+  // Create directories — remove any file-blocker at any segment within targetDir
+  mkdirSafe(agentsDest, targetDir);
+  mkdirSafe(hooksDest, targetDir);
+  mkdirSafe(commandsDest, targetDir);
+  mkdirSafe(skillsDest, targetDir);
 
   // Agent files
   const agentFiles = [
@@ -60,6 +60,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     if (existsSync(src)) {
       const action = copyIfNewer(src, dest, force);
       if (action === "copied") installed.push(`.claude/agents/${agent}`);
+      else if (action.startsWith("error:") && !quiet) warn(`  skipped .claude/agents/${agent} — ${action.slice(6)}`);
     }
   }
 
@@ -78,7 +79,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
       if (action === "copied") {
         installed.push(`.claude/hooks/${hook}`);
         try { chmodSync(dest, 0o755); } catch { /* ignore */ }
-      }
+      } else if (action.startsWith("error:") && !quiet) warn(`  skipped .claude/hooks/${hook} — ${action.slice(6)}`);
     }
   }
 
@@ -98,6 +99,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     if (existsSync(src)) {
       const action = copyIfNewer(src, dest, force);
       if (action === "copied") installed.push(`.claude/commands/${cmd}`);
+      else if (action.startsWith("error:") && !quiet) warn(`  skipped .claude/commands/${cmd} — ${action.slice(6)}`);
     }
   }
 
@@ -120,7 +122,8 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     try {
       copyFileSync(claudeMdSrc, claudeMdDest);
       installed.push("CLAUDE.md");
-    } catch {
+    } catch (e: any) {
+      if (!quiet) warn(`  skipped CLAUDE.md — ${e.code ?? e.message}`);
       skipped.push("CLAUDE.md");
     }
   }
@@ -132,7 +135,8 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     try {
       copyFileSync(agentsMdSrc, agentsMdDest);
       installed.push("AGENTS.md");
-    } catch {
+    } catch (e: any) {
+      if (!quiet) warn(`  skipped AGENTS.md — ${e.code ?? e.message}`);
       skipped.push("AGENTS.md");
     }
   }
@@ -144,7 +148,8 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     try {
       copyFileSync(settingsSrc, settingsDest);
       installed.push(".claude/settings.json");
-    } catch {
+    } catch (e: any) {
+      if (!quiet) warn(`  skipped .claude/settings.json — ${e.code ?? e.message}`);
       skipped.push(".claude/settings.json");
     }
   } else if (existsSync(settingsDest)) {
@@ -154,25 +159,42 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   return { installed, skipped };
 }
 
-/** Remove a file-blocker then create the directory. */
-function mkdirSafe(dir: string): void {
-  if (existsSync(dir) && !statSync(dir).isDirectory()) {
-    unlinkSync(dir);
+/**
+ * Walk every segment of dir that falls within fence; unlink any regular file
+ * or symlink that blocks a directory create. Uses lstatSync so symlinks are
+ * never mistaken for directories. ENOENT between check and unlink is silently
+ * ignored (concurrent removal is fine).
+ */
+function mkdirSafe(dir: string, fence: string): void {
+  const abs = resolve(dir);
+  const absBase = resolve(fence);
+  if (!abs.startsWith(absBase + sep) && abs !== absBase) {
+    throw new Error(`mkdirSafe: ${abs} is outside fence ${absBase}`);
   }
-  mkdirSync(dir, { recursive: true });
+  const segments = abs.split(sep);
+  for (let i = 1; i <= segments.length; i++) {
+    const partial = segments.slice(0, i).join(sep);
+    if (!partial) continue;
+    try {
+      if (!lstatSync(partial).isDirectory()) unlinkSync(partial);
+    } catch (e: any) {
+      if (e.code !== "ENOENT") throw e;
+    }
+  }
+  mkdirSync(abs, { recursive: true });
 }
 
 /**
- * Copy file only if destination doesn't exist or force is true.
+ * Copy src to dest if dest doesn't exist or force is true.
+ * Returns "copied", "skipped", "missing", or "error:<reason>".
  */
 function copyIfNewer(src: string, dest: string, force: boolean): string {
   if (!existsSync(src)) return "missing";
   if (existsSync(dest) && !force) return "skipped";
   try {
-    mkdirSafe(dirname(dest));
     copyFileSync(src, dest);
     return "copied";
-  } catch {
-    return "skipped";
+  } catch (e: any) {
+    return `error:${e.code ?? e.message}`;
   }
 }

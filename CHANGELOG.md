@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## v6.2.3 — 2026-05-05 — Fix ENOTDIR when parent path segment is a file
+
+### Fixed
+- **`ciel update` ENOTDIR crash**: `mkdirSafe()` now walks every path segment (not just the final target) and unlinks any regular file that would block a parent directory create — covers cases like `.claude/skills` being a 0-byte file when trying to create `.claude/skills/ciel` (`packages/ciel/src/cli/claude.ts`)
+
 ## v6.2.2 — 2026-05-05 — Fix EEXIST crash when .claude/agents is a file
 
 ### Fixed
