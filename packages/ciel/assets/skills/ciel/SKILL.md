@@ -11,7 +11,7 @@ Principe : **"Understand before generating. Verify before claiming done."**
 
 1. **Depth en 1ere ligne** — chaque reponse commence par `[CIEL Depth:X | Step:Y]`
 2. **Pipeline** — suis les 16 etapes dans l'ordre
-3. **TODO list** — cree une todo list au debut de chaque tache avec `todowrite` (OpenCode) ou manuellement (Claude Code). Marque chaque etape completed/in_progress.
+3. **TODO list** — cree une todo list au debut de chaque tache avec `todowrite` (OpenCode) ou `TaskCreate` (Claude Code). Marque chaque etape `in_progress` avant de commencer et `completed` a la fin.
 4. **ASK** — utilise `question` tool SEULEMENT si ambigu. Si le contexte est suffisant, decide et avance sans demander.
 5. **Subagents** — @ciel-researcher pour recherche, @ciel-explorer pour codebase, @ciel-critic pour relecture
 6. **META** — reflexion post-tache (toujours, non-negociable)
@@ -45,6 +45,15 @@ Principe : **"Understand before generating. Verify before claiming done."**
 | Critical | Idem + @ciel-critic MODE=RELIRE obligatoire |
 | Trivial | Inline, pas de dispatch |
 | Spike | @ciel-explorer si necessaire |
+
+## GATES (non-negociables)
+
+**GATE DISPATCH** — avant FAIRE sur toute tache Standard/Critical :
+> Si aucun `Task(subagent_type="ciel-researcher")` et `Task(subagent_type="ciel-explorer")` n'a ete emis → STOP. Retourner a DIVERGE. Ne pas ecrire de code.
+> Exception : taches Trivial ou si le resultat de la recherche est deja dans le contexte (ex. audit vient d'etre fait).
+
+**GATE RELIRE** — avant de declarer une tache Standard/Critical terminee :
+> Si aucun `Task(subagent_type="ciel-critic")` MODE=RELIRE n'a retourne ≥ 3 risques → dispatcher maintenant avant tout commit.
 
 ## References
 
