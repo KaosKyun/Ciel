@@ -150,6 +150,20 @@ async function main() {
   // INIT_CWD = répertoire où l'utilisateur a lancé npm install
   // (npm lance les lifecycle scripts dans node_modules/<pkg>/, pas dans le projet)
   const targetDir = process.env.INIT_CWD || process.cwd();
+
+  // Skip si on installe dans le repo source Ciel lui-même (évite les doublons
+  // quand le développeur travaille dans le repo et que .claude/commands/ est déjà committé)
+  const selfPkgPath = join(targetDir, "packages/ciel/package.json");
+  if (existsSync(selfPkgPath)) {
+    try {
+      const selfPkg = JSON.parse(readFileSync(selfPkgPath, "utf-8"));
+      if (selfPkg.name === "@neikyun/ciel") {
+        console.error(`  ${cyan("→")} Source repo détecté — installation ignorée (fichiers déjà dans .claude/).\n`);
+        return;
+      }
+    } catch {}
+  }
+
   const platforms = detectPlatforms(targetDir);
   const assetsDir = resolveAssets();
 
