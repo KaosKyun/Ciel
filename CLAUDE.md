@@ -21,10 +21,11 @@ Classify depth in the FIRST line of EVERY response. No exceptions.
 ## MANDATORY: How to start every task
 
 1. **Classify depth** using the Depth Gauge below
-2. **Create TODO list** with `todowrite` — one entry per pipeline step
+2. **Create TODO list** with `TaskCreate` — one entry per pipeline step
 3. **Mark current step `in_progress`** as you work
-4. **Complete all steps** for the classified depth before declaring done
-5. **End with META** — always, 10 items, non-negotiable
+4. **Standard/Critical only: dispatch `ciel-researcher` + `ciel-explorer` in parallel BEFORE any Edit/Write** — this is a hard gate, not a suggestion
+5. **Complete all steps** for the classified depth before declaring done
+6. **End with META** — always, 10 items, non-negotiable
 
 ---
 
@@ -32,7 +33,7 @@ Classify depth in the FIRST line of EVERY response. No exceptions.
 
 1. **Depth first** — every response starts with `[CIEL] Depth: <Trivial|Standard|Critical|Spike>`
 2. **Pipeline** — follow the 16-step table below. Complete ALL steps for your depth. No shortcuts.
-3. **TODO list** — use TodoWrite at the start of each task. Mark each step completed/in_progress.
+3. **TODO list** — use `TaskCreate` at the start of each task (one task per pipeline step). Mark each step `in_progress` before starting it, `completed` when done.
 4. **ASK** — use AskUserQuestion tool ONLY if ambiguous. If context is sufficient, DECIDE and move on.
 5. **Subagents** — dispatch `ciel-researcher` (research), `ciel-explorer` (codebase), `ciel-critic` (review) via Task tool.
 6. **TEST-FIRST (RED)** — write tests BEFORE source code. Never the reverse.
@@ -123,8 +124,9 @@ These are the most frequently skipped pipeline steps. Do NOT fall into these tra
 | **No DOCS** | Starting a task without reading project state | Always read `.ciel/map.json` + `ciel-overlay.md` first |
 | **No QUOI** | Coding without defining the goal + constraints | State "Goal (1 sentence) + NOT-X + DoD" before touching code |
 | **No DIVERGE** | Using the first approach that comes to mind | Generate 2-3 alternatives before picking one |
-| **No subagents** | Doing research/exploration inline instead of dispatching | Dispatch `ciel-researcher` + `ciel-explorer` in parallel |
+| **No subagents** | Doing research/exploration inline instead of dispatching | Dispatch `ciel-researcher` + `ciel-explorer` in parallel — **before any Edit/Write on Standard/Critical** |
 | **No RELIRE** | Merging without a hostile code review | Always dispatch `ciel-critic` MODE=RELIRE before merge |
+| **RELIRE skipped on multi-file edit** | ≥2 Edit calls made without ciel-critic | Any session touching ≥2 files at Standard depth requires ciel-critic dispatch |
 | **No PROUVER** | Claiming done without evidence | Show BEFORE/AFTER evidence (logs, curl, screenshot) |
 | **No MEMOIRE** | Losing state between sessions | Save `.ciel/map.json` + `.ciel/memory.json` at task end |
 | **No META** | Skipping reflection | Always run META (10 items) — it closes the feedback loop |

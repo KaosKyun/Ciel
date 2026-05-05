@@ -12,7 +12,7 @@ Ciel v6 follows a 16-step pipeline. The plugin/hooks enforce gates — you are t
 
 1. **Depth first** — every response starts with `[CIEL] Depth: <Trivial|Standard|Critical|Spike>`
 2. **Pipeline** — follow the 16-step table below. Hooks enforce test-first, track files, and trigger meta-critiquer.
-3. **TODO list** — use TodoWrite at the start of each task. Mark each step completed/in_progress.
+3. **TODO list** — use `TaskCreate` at the start of each task (one task per pipeline step). Mark each step `in_progress` before starting it, `completed` when done.
 4. **ASK** — use AskUserQuestion tool ONLY if ambiguous. If context is sufficient, DECIDE and move on.
 5. **Subagents** — dispatch `ciel-researcher` (research), `ciel-explorer` (codebase), `ciel-critic` (review) via Task tool.
 6. **TEST-FIRST (RED)** — write tests BEFORE source code. Never the reverse.
@@ -74,7 +74,7 @@ Unsure → Standard. Touching user data or auth → Critical.
 | `ciel-critic` (CRITIQUER) | SECURITE (Critical only) | — |
 | `ciel-improver` | ONLY on /ciel-improve, /ciel-eval | — |
 
-**Rule**: Dispatch `ciel-researcher` + `ciel-explorer` **IN PARALLEL** before writing code.
+**Rule**: Dispatch `ciel-researcher` + `ciel-explorer` **IN PARALLEL** before any Edit/Write on Standard/Critical — this is a hard gate, not a suggestion.
 
 ## Skills reference
 
