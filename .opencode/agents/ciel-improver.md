@@ -3,8 +3,8 @@ description: Long-running meta-agent for Ciel self-improvement. Dispatch ONLY on
 mode: subagent
 temperature: 0.2
 tools:
-  write: false
-  edit: false
+  write: true
+  edit: true
   bash: true
   read: true
   glob: true

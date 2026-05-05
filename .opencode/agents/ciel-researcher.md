@@ -5,10 +5,10 @@ temperature: 0.2
 tools:
   write: false
   edit: false
-  bash: false
+  bash: true
   read: true
-  glob: false
-  grep: false
+  glob: true
+  grep: true
   webfetch: true
   websearch: true
 ---
