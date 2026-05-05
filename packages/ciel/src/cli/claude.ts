@@ -141,19 +141,31 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     }
   }
 
-  // .claude/settings.json — NEVER overwrite existing (preserves user MCP/hooks)
+  // .claude/settings.json
+  // Fresh install: copy as-is. Update (force): merge hooks from template
+  // so stale Ciel hook references are replaced while user MCP configs are kept.
   const settingsSrc = join(srcDir, ".claude/settings.json");
   const settingsDest = join(targetDir, ".claude/settings.json");
-  if (existsSync(settingsSrc) && !existsSync(settingsDest)) {
-    try {
-      copyFileSync(settingsSrc, settingsDest);
-      installed.push(".claude/settings.json");
-    } catch (e: any) {
-      if (!quiet) warn(`  skipped .claude/settings.json — ${e.code ?? e.message}`);
-      skipped.push(".claude/settings.json");
+  if (existsSync(settingsSrc)) {
+    if (!existsSync(settingsDest)) {
+      try {
+        copyFileSync(settingsSrc, settingsDest);
+        installed.push(".claude/settings.json");
+      } catch (e: any) {
+        if (!quiet) warn(`  skipped .claude/settings.json — ${e.code ?? e.message}`);
+        skipped.push(".claude/settings.json");
+      }
+    } else if (force) {
+      const merged = mergeSettings(settingsDest, settingsSrc);
+      if (merged !== null) {
+        writeFileSync(settingsDest, JSON.stringify(merged, null, 2) + "\n");
+        installed.push(".claude/settings.json (hooks merged)");
+      } else {
+        skipped.push(".claude/settings.json (preserved — parse error)");
+      }
+    } else {
+      skipped.push(".claude/settings.json (preserved)");
     }
-  } else if (existsSync(settingsDest)) {
-    skipped.push(".claude/settings.json (preserved)");
   }
 
   return { installed, skipped };
@@ -182,6 +194,68 @@ function mkdirSafe(dir: string, fence: string): void {
     }
   }
   mkdirSync(abs, { recursive: true });
+}
+
+/**
+ * Merge the hooks section of a Ciel settings.json template into an existing
+ * settings file. Replaces Ciel-managed hook entries (those whose inner
+ * hooks[].command references .claude/hooks/) with the template entries;
+ * user-added wrappers are preserved. All other top-level keys (mcpServers,
+ * permissions, etc.) are kept from the existing file.
+ * Returns null if either file cannot be read or parsed.
+ */
+function mergeSettings(existingPath: string, templatePath: string): object | null {
+  let existing: Record<string, unknown>;
+  let template: Record<string, unknown>;
+
+  try {
+    const raw = JSON.parse(readFileSync(existingPath, "utf8"));
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    existing = raw as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  try {
+    const raw = JSON.parse(readFileSync(templatePath, "utf8"));
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    template = raw as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  const merged: Record<string, unknown> = { ...existing };
+
+  if (template.hooks && typeof template.hooks === "object") {
+    const existingHooks = (existing.hooks ?? {}) as Record<string, unknown[]>;
+    const templateHooks = template.hooks as Record<string, unknown[]>;
+    const mergedHooks: Record<string, unknown[]> = {};
+
+    const allEvents = new Set([
+      ...Object.keys(existingHooks),
+      ...Object.keys(templateHooks),
+    ]);
+
+    for (const event of allEvents) {
+      const templateEntries = templateHooks[event] ?? [];
+      const existingEntries = existingHooks[event] ?? [];
+      // A wrapper is Ciel-managed if any of its inner hooks reference .claude/hooks/
+      const userEntries = existingEntries.filter((e) => {
+        const wrapper = e as Record<string, unknown>;
+        const inner = Array.isArray(wrapper.hooks)
+          ? (wrapper.hooks as Record<string, string>[])
+          : [];
+        return !inner.some((h) => String(h.command ?? "").includes(".claude/hooks/"));
+      });
+      const entries = [...templateEntries, ...userEntries];
+      // Omit event key if empty (avoids clobbering user events dropped from template)
+      if (entries.length > 0) mergedHooks[event] = entries;
+    }
+
+    merged.hooks = mergedHooks;
+  }
+
+  return merged;
 }
 
 /**

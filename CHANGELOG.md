@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## v6.2.4 — 2026-05-05 — Merge settings.json hooks on ciel update
+
+### Fixed
+- **Stale hook references after `ciel update`**: `.claude/settings.json` is now merged on update (force mode) instead of fully preserved — the `hooks` section is rebuilt from the current Ciel template while user-added entries (those whose command does not reference `.claude/hooks/`) and all other top-level keys (`mcpServers`, `permissions`, etc.) are kept. Fixes `post-edit-check.sh: No such file or directory` and similar errors from renamed/removed Ciel hooks (`packages/ciel/src/cli/claude.ts`)
+
 ## v6.2.3 — 2026-05-05 — Fix ENOTDIR when parent path segment is a file
 
 ### Fixed
