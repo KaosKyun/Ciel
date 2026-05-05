@@ -60,6 +60,24 @@
             "command": "echo \"[CIEL] Explorer started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/exploration-log.md\""
           }
         ]
+      },
+      {
+        "matcher": "ciel-researcher",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[CIEL] Researcher started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+          }
+        ]
+      },
+      {
+        "matcher": "ciel-critic",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[CIEL] Critic started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+          }
+        ]
       }
     ],
     "Stop": [

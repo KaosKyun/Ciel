@@ -5,7 +5,7 @@ temperature: 0.2
 tools:
   write: false
   edit: false
-  bash: true
+  bash: false
   read: true
   glob: true
   grep: true

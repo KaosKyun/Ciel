@@ -189,6 +189,15 @@ pre_flight() {
   need_cmd "curl"
   need_cmd "git"
 
+  # Never install from home directory — CLAUDE.md at ~ gets loaded globally by
+  # Claude Code for every project, creating duplicate instructions.
+  if [ "$(pwd)" = "$HOME" ]; then
+    err "Do not run Ciel install from your home directory (\$HOME)."
+    err "A CLAUDE.md placed at ~ is loaded by Claude Code in ALL projects, causing duplicates."
+    err "cd into your project directory first, then re-run install.sh."
+    exit 1
+  fi
+
   # Must run from a project root (contains at least a README or similar)
   if [ ! -f "./opencode.json" ] && [ ! -d "./.opencode" ] && [ ! -f "./.claude/settings.json" ] && [ ! -d "./.claude" ]; then
     warn "No recognized project files found in $(pwd)"
@@ -781,6 +790,13 @@ main() {
   # Install for ALL detected platforms
   if $DO_UPDATE; then
     say "Update mode — reinstalling all files..."
+    # Clean up ~/CLAUDE.md if it was mistakenly installed at home directory.
+    # Claude Code walks up to ~ and loads every CLAUDE.md it finds, so a file
+    # there duplicates the project-level instructions in every session.
+    if [ -f "$HOME/CLAUDE.md" ] && [ "$HOME" != "$(pwd)" ]; then
+      warn "Found $HOME/CLAUDE.md — this causes duplicate Ciel instructions in all projects."
+      rm -f "$HOME/CLAUDE.md" && ok "Removed $HOME/CLAUDE.md (stale global duplicate)"
+    fi
   fi
   local p
   for p in $PLATFORMS; do
