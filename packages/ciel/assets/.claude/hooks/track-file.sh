@@ -4,14 +4,14 @@
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""')
-TRACK_FILE="$CLAUD_PROJECT_DIR/.ciel/tracked-files.json"
+TRACK_FILE="$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json"
 
-if [ -z "$FILE_PATH" ] || [ -z "$CLAUD_PROJECT_DIR" ]; then
+if [ -z "$FILE_PATH" ] || [ -z "$CLAUDE_PROJECT_DIR" ]; then
   exit 0
 fi
 
 # Create .ciel dir if needed
-mkdir -p "$CLAUD_PROJECT_DIR/.ciel"
+mkdir -p "$CLAUDE_PROJECT_DIR/.ciel"
 
 # Load existing tracking
 TRACKED="[]"
@@ -34,9 +34,9 @@ fi
 CRITICAL_PATHS='auth|security|Token|Password|Secret|Session|Crypto|Account|Credential|Payment'
 if echo "$FILE_PATH" | grep -qiE "$CRITICAL_PATHS"; then
   # Create sticky RELIRE flag
-  echo "critical" > "$CLAUD_PROJECT_DIR/.ciel/relire-required"
+  echo "critical" > "$CLAUDE_PROJECT_DIR/.ciel/relire-required"
 elif [ "$COUNT" -ge 5 ]; then
-  echo "standard" > "$CLAUD_PROJECT_DIR/.ciel/relire-required"
+  echo "standard" > "$CLAUDE_PROJECT_DIR/.ciel/relire-required"
 fi
 
 echo "$TRACKED" > "$TRACK_FILE"

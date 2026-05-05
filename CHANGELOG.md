@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## v6.2.2 — 2026-05-05 — Fix EEXIST crash when .claude/agents is a file
+
+### Fixed
+- **`ciel update` EEXIST crash**: `mkdirSync({recursive: true})` still throws `EEXIST` when the target path exists as a regular file (0-byte blocker). Added `mkdirSafe()` helper that removes any file-blocker before calling `mkdirSync` — covers `agentsDest`, `hooksDest`, `commandsDest`, `skillsDest`, and inner `copyIfNewer` calls (`packages/ciel/src/cli/claude.ts`)
+
 ## v6.2.1 — 2026-05-05 — Hook gates, plugin hooks restored, meta-critiquer fixes
 
 ### Added

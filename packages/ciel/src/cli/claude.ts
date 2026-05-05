@@ -1,7 +1,7 @@
 // Claude Code platform installer logic
 // Handles detection, file copy, and config generation for Claude Code projects
 
-import { existsSync, mkdirSync, copyFileSync, chmodSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, copyFileSync, chmodSync, readFileSync, writeFileSync, statSync, unlinkSync } from "fs";
 import { join, dirname } from "path";
 import { ok, warn } from "./utils";
 
@@ -41,11 +41,11 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   const commandsDest = join(targetDir, ".claude/commands");
   const skillsDest = join(targetDir, ".claude/skills/ciel");
 
-  // Create directories
-  mkdirSync(agentsDest, { recursive: true });
-  mkdirSync(hooksDest, { recursive: true });
-  mkdirSync(commandsDest, { recursive: true });
-  mkdirSync(skillsDest, { recursive: true });
+  // Create directories (remove file-blocker if path exists as a regular file)
+  mkdirSafe(agentsDest);
+  mkdirSafe(hooksDest);
+  mkdirSafe(commandsDest);
+  mkdirSafe(skillsDest);
 
   // Agent files
   const agentFiles = [
@@ -154,6 +154,14 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   return { installed, skipped };
 }
 
+/** Remove a file-blocker then create the directory. */
+function mkdirSafe(dir: string): void {
+  if (existsSync(dir) && !statSync(dir).isDirectory()) {
+    unlinkSync(dir);
+  }
+  mkdirSync(dir, { recursive: true });
+}
+
 /**
  * Copy file only if destination doesn't exist or force is true.
  */
@@ -161,7 +169,7 @@ function copyIfNewer(src: string, dest: string, force: boolean): string {
   if (!existsSync(src)) return "missing";
   if (existsSync(dest) && !force) return "skipped";
   try {
-    mkdirSync(dirname(dest), { recursive: true });
+    mkdirSafe(dirname(dest));
     copyFileSync(src, dest);
     return "copied";
   } catch {
