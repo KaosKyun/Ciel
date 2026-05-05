@@ -21,7 +21,7 @@ Classify depth in the FIRST line of EVERY response. No exceptions.
 ## MANDATORY: How to start every task
 
 1. **Classify depth** using the Depth Gauge below
-2. **Create TODO list** with `todowrite` — one entry per pipeline step
+2. **Create TODO list** with `TaskCreate` — one entry per pipeline step
 3. **Mark current step `in_progress`** as you work
 4. **Complete all steps** for the classified depth before declaring done
 5. **End with META** — always, 10 items, non-negotiable
@@ -32,7 +32,7 @@ Classify depth in the FIRST line of EVERY response. No exceptions.
 
 1. **Depth first** — every response starts with `[CIEL] Depth: <Trivial|Standard|Critical|Spike>`
 2. **Pipeline** — follow the 16-step table below. Complete ALL steps for your depth. No shortcuts.
-3. **TODO list** — use TodoWrite at the start of each task. Mark each step completed/in_progress.
+3. **TODO list** — use `TaskCreate` at the start of each task (one task per pipeline step). Mark each step `in_progress` before starting it, `completed` when done.
 4. **ASK** — use AskUserQuestion tool ONLY if ambiguous. If context is sufficient, DECIDE and move on.
 5. **Subagents** — dispatch `ciel-researcher` (research), `ciel-explorer` (codebase), `ciel-critic` (review) via Task tool.
 6. **TEST-FIRST (RED)** — write tests BEFORE source code. Never the reverse.
