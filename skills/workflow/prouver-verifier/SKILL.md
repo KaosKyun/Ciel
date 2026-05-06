@@ -129,6 +129,53 @@ No CI gate mandatory, no staging mandatory.
 - [ ] Issue comment gate passed (evidence posted)?
 - [ ] VERDICT issued (DONE / NOT-YET)?
 
+## Staging evidence capture — three modes
+
+**Never sleep-and-poll.** Use Monitor for streaming events, Bash background for one-shot waits.
+
+### Mode 1: Snapshot (last N lines)
+
+When: you've already deployed and just need to read what happened.
+
+```bash
+journalctl -u <service> -n 50 --no-pager
+```
+
+Use **Bash** (not Monitor, not background).
+
+### Mode 2: Stream (watch for specific event)
+
+When: you've just triggered a scenario and want to see the log line confirming it.
+
+```
+Monitor(
+  description: "staging logs after trigger",
+  persistent: false,
+  timeout_ms: 60000,
+  command: "journalctl -u <service> -f --since now | grep --line-buffered 'KEYWORD'"
+)
+```
+
+Critical: `grep --line-buffered` — without it, pipe buffering delays events minutes.
+
+### Mode 3: One-shot wait (deploy done?)
+
+When: long-running command that blocks until complete (deploy script, test run).
+
+```
+Bash(command="deploy-staging.sh", run_in_background=true)
+```
+
+→ Returns PID immediately. You get notified when it completes.
+
+### Anti-patterns
+
+- **`sleep N && tail`** — harness blocks it. Use Monitor or background instead.
+- **Monitor for deploys** — Monitor doesn't wait synchronously. Use `run_in_background` for deploys.
+- **No `grep --line-buffered`** — pipe buffering delays events by minutes
+- **Indefinite Monitor** — always set `timeout_ms` (60s typical)
+- **Too many Monitors** — auto-killed by harness. One event at a time.
+
 ## Common mistakes
 
 - **"No error in logs"**: not proof — trigger the scenario and look for positive signal

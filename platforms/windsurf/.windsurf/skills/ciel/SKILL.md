@@ -52,8 +52,8 @@ Invoke `depth-classifier` if classification is ambiguous (mechanical signals: `a
 6. `evaluer-sizer` — sizing + pre-mortem + recent-churn + alternative + counterfactual
 7. `faire-gatekeeper` during coding → `commit-writer` adds `Refs #<N>` footers
 8. **critic agent** MODE=RELIRE → `relire-critic` (if 3+ files OR auth/security; else inline)
-9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate + staging-verifier. **MUST complete before `gh pr merge --auto` — auto-merge is the consequence of this gate passing, not a parallel shortcut. Enabling auto-merge without first running prouver-verifier skips the evidence capture and blurs accountability when CI flakes mid-queue.**
-10. `pr-opener` — opens PR with `Closes #<N>`, body composed by `pr-body-generator`
+9. `prouver-verifier` — AVANT/APRÈS evidence + CI gate + PR body gate + issue comment gate + closure gate . **MUST complete before `gh pr merge --auto` — auto-merge is the consequence of this gate passing, not a parallel shortcut. Enabling auto-merge without first running prouver-verifier skips the evidence capture and blurs accountability when CI flakes mid-queue.**
+10. `pr-opener` — opens PR with `Closes #<N>`, body composition inline
 11. `ci-watcher` — streams CI for this PR, distinguishes flaky vs real failures (≥15% fail rate on main = flaky → `gh run rerun --failed`, else hand off to `debug-reasoning-rca`)
 12. `pr-review-responder` — if reviewers post comments (reviewDecision=CHANGES_REQUESTED), respond per thread (accept → fix + SHA ref, reject → rebuttal, clarify → defer), mark resolved, re-request review
 13. `pr-merger` — reads branch protection, flips draft→ready, picks squash/rebase/merge from repo settings, `gh pr merge --auto`. Blocked until `prouver-verifier` VERDICT=DONE + `ci-watcher` green + all threads resolved
@@ -289,7 +289,7 @@ Execute debug-reasoning-rca Phases 1-5. Return RCA VERDICT in the documented for
   - `branch-setup` — `git checkout -b fix/<N>-<slug>` from fresh origin
   - `commit-writer` — conventional commits + `Refs #<N>` footer
   - `pr-opener` — `gh pr create` with `Closes #<N>`
-  - `pr-body-generator` — composes the PR body from commits + evidence
+  - `pr-opener` — PR body composition (Summary + Test plan + Closes #N, inline)
   - `ci-watcher` — `gh run watch` streaming + flaky vs real classification + auto-retry
   - `pr-review-responder` — GraphQL review-thread listing + classify/reply/resolve + re-request review
   - `pr-merger` — `gh pr merge --auto` with branch-protection awareness + draft→ready flip

@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## v6.3.0 — 2026-05-06 — Skills library reorganization + new commands
+
+### Added
+- **New domain skills**: `mcp-configurator` (MCP server registration & troubleshooting), `ts-js-patterns` (TypeScript type safety, async control flow, module boundaries, error handling, performance anti-patterns)
+- **New meta skill**: `patch-spec` (shared patch-set format for `ciel-improve` + `skill-freshness-auditor`)
+- **New commands**: `ciel-status` (environment health check with `--check` diagnostics), `ciel-migrate` (v5→v6 version migration with dry-run and backup)
+- **5 structured RCA methods** in `debug-reasoning-rca` for root-cause analysis
+
+### Changed
+- **Merged `staging-verifier` into `prouder-verifier`**: staging evidence capture (Snapshot, Stream, One-shot wait modes) now lives in the workflow skill; `staging-verifier` directory removed
+- **Merged `pr-body-generator` into `pr-opener`**: inline body composition from branch name + commit summary; `pr-body-generator` directory removed
+- **Moved 6 standalone skills into taxonomy**: `branch-cleaner` → `utility/`, `ci-watcher` → `workflow/`, `cicd-pipeline-designer` → `domain/`, `pr-merger` → `utility/`, `pr-review-responder` → `workflow/`, `release-publisher` → `utility/`
+- **Updated skill catalog** in `reference.md`: Workflow 13→15, Domain 8→11, Utility 5→9, Meta 4→5
+- **Updated 6 agent files** across all platforms to reference `prouver-verifier` instead of `staging-verifier`
+- **`faire-gatekeeper`**: French prose → English (6 occurrences)
+- **`ask-window`**: Added two-mode banner distinguishing ASK vs ASK2
+
+### Removed
+- **`ciel-recommend` command**: dead external references; deleted from all 11 platform copies and build pipeline assets
+- **`build.ts`/`init.ts` references**: stale `ciel-recommend.md` lines removed from `packages/ciel/src/cli/claude.ts`, `init.ts`, `opencode.ts`
+
+### Fixed
+- **Dispatch gate enforcement**: `user-prompt-submit.sh` hook now injects "dispatch ciel-researcher + ciel-explorer" context for Standard/Critical tasks; French intent routing for non-English prompts
+- **Various agent/permission fixes**: restored bash/write/edit permissions broken by v6 refactor; removed hardcoded model from subagent templates
+
 ## v6.2.4 — 2026-05-05 — Merge settings.json hooks on ciel update
 
 ### Fixed

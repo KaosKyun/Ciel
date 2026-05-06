@@ -1,6 +1,6 @@
 ---
 name: pr-opener
-description: Opens a GitHub pull request for the current branch using `gh pr create`. Composes the body via pr-body-generator, auto-links the tracked issue (Closes #N), attaches Ciel verification evidence (tests passing, CI green, RELIRE verdict). Runs after FAIRE completion, before the user asks. The final step of the automated workflow before issue-closer. Inline — deterministic `gh` command.
+description: Opens a GitHub pull request for the current branch using `gh pr create`. Composes the body with Summary + Test plan + Closes #N, auto-links the tracked issue (Closes #N), attaches Ciel verification evidence (tests passing, CI green, RELIRE verdict). Runs after FAIRE completion, before the user asks. The final step of the automated workflow before issue-closer. Inline — deterministic `gh` command.
 allowed-tools: Bash, Read
 context: inline
 ---
@@ -59,7 +59,11 @@ gh pr list --head "$CURRENT" --state=open --json number --jq '.[0].number' | gre
 
 ### 1. Compose the PR body
 
-Invoke `pr-body-generator` (inline) with:
+Extract linked issue from branch name (`<type>/<N>-...` → issue #N) or `.git/ciel-work-context`.
+
+Summarize changes from commits + diff stat: top 3 changes by impact (by lines changed or commit subject classification). Avoid exhaustive file list.
+
+Assemble with:
 
 ```
 ISSUE_NUMBER: <N>
@@ -68,7 +72,7 @@ COMMITS: git log origin/$BASE_BRANCH..HEAD --oneline
 CHANGED_FILES: git diff --stat origin/$BASE_BRANCH...HEAD
 RELIRE_VERDICT: [from critic agent if invoked]
 CI_STATUS: gh run list --branch=<branch> --limit=1 --json conclusion
-EVIDENCE: [staging-verifier output if applicable]
+EVIDENCE: [prouver-verifier output if applicable]
 ```
 
 Expected body structure (generated):

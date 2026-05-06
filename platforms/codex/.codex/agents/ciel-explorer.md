@@ -850,7 +850,7 @@ STYLE: [REST | GraphQL | gRPC | WebSocket | mixed]
 ### Skill (compact): `observability`
 
 
-**Purpose:** Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Invoked during FAIRE step when adding server-side code, background jobs, or integrations. Complements staging-verifier utility skill.
+**Purpose:** Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Invoked during FAIRE step when adding server-side code, background jobs, or integrations. Complements prouver-verifier (staging evidence capture).
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/observability/`):
 

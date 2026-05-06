@@ -1,6 +1,6 @@
 ---
 name: observability
-description: Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Invoked during FAIRE step when adding server-side code, background jobs, or integrations. Complements staging-verifier utility skill.
+description: Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Invoked during FAIRE step when adding server-side code, background jobs, or integrations. Complements prouver-verifier (staging evidence capture).
 allowed-tools: Read, Grep, Bash
 ---
 

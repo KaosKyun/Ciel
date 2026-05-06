@@ -111,7 +111,6 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
     "ciel-improve.md",
     "ciel-eval.md",
     "ciel-create-skill.md",
-    "ciel-recommend.md",
     "ciel-audit.md",
     "ciel.md",
   ];

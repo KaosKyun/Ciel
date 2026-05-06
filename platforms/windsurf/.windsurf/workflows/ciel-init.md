@@ -207,7 +207,6 @@ Create the directory tree under the project root (even if `--user` is passed, th
     ciel-improve.md
     ciel-eval.md
     ciel-create-skill.md
-    ciel-recommend.md
     ciel-update.md
 ```
 

@@ -8,7 +8,7 @@ Ciel is installed as Codex-native primitives:
 
 - **Hook** (`.codex/hooks.json`) — `UserPromptSubmit` injects depth-classification hint into every prompt.
 - **Subagents** (`.codex/agents/ciel-*.md`) — spawn with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
-- **Commands** (`.codex/commands/ciel*.md`) — invoke with `/ciel`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
+- **Commands** (`.codex/commands/ciel*.md`) — invoke with `/ciel`, `/ciel-improve`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-update`.
 
 ---
 

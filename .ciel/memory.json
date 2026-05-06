@@ -1,6 +1,6 @@
 {
   "cielVersion": "6.2.1",
-  "lastUpdated": "2026-05-06T07:30:00.000Z",
+  "lastUpdated": "2026-05-06T11:20:00.000Z",
   "changes": [
     {
       "date": "2026-05-06",
@@ -21,6 +21,10 @@
       "date": "2026-05-06",
       "file": "skills/ciel/SKILL.md + .claude/ + packages/ assets",
       "change": "Added GATE DIVERGE + GATE META, Depth Gauge with RELIRE thresholds, 'Routage des intentions' with French intent keywords, semantic matching fallback for non-English prompts."
+    },
+    {
+      "date": "2026-05-06",
+      "change": "Skills library reorganization: removed ciel-recommend (dead external refs), merged staging-verifier->prouver-verifier, merged pr-body-generator->pr-opener (inline), moved 6 standalone skills into category hierarchy (branch-cleaner->utility, ci-watcher->workflow, cicd-pipeline-designer->domain, pr-merger->utility, pr-review-responder->workflow, release-publisher->utility). Updated all build pipeline files, platform asset copies, AGENTS.md refs, ciel-init.md listings. Fixed windsurf SKILL.md stale refs. CIEL-CRITIC review: 3 risks identified, all resolved."
     }
   ]
 }

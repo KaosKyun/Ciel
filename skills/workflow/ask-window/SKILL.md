@@ -13,20 +13,29 @@ How to use the ASK window in the Ciel v5 pipeline. Before coding, the agent must
 
 **Do not code on assumptions.** When requirements are ambiguous, parameters undefined, or choices implicit -> ask. Use the question tool (OpenCode) or plan mode (Claude Code).
 
-## When to use the ASK window
+## Two modes — when to use which
 
-### Etape 3: ASK (after QUOI, before AVEC QUOI)
+```
+MODE ASK  (step 3)   → "What should I build?"     → after QUOI, before research
+MODE ASK2 (step 10)  → "Should I build this way?"  → after EVALUER, before coding
+```
 
-Clarify before any research or coding:
+ASK is about **requirements** — clarify what to build. ASK2 is about **the plan** — validate how to build it.
+
+### ASK (step 3) — clarify requirements
+
+After QUOI, before any research or coding. Questions are about the **what**, not the **how**:
+
 - Requirements: "Is the email field required?"
 - Ambiguities: "Session cookie or JWT?"
 - Assumptions: "I assume the database is PostgreSQL, correct?"
 - Missing info: "What is the expected throughput?"
 - Scope boundaries: "Does this include the admin panel?"
 
-### Etape 10: ASK2 (after EVALUER, before FAIRE)
+### ASK2 (step 10) — validate the plan
 
-Validate the plan before implementing:
+After EVALUER, before FAIRE. Questions are about the **approach**, not the **requirements**:
+
 - Approach validation: "I'm going with approach A because X. OK?"
 - Trade-off validation: "Approach A is simpler but B is more flexible. OK with A?"
 - Risk confirmation: "The main risk is X. Acceptable?"

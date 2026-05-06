@@ -90,7 +90,6 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     "ciel-refresh.md",
     "ciel-eval.md",
     "ciel-create-skill.md",
-    "ciel-recommend.md",
     "ciel-audit.md",
   ];
   for (const cmd of commandFiles) {

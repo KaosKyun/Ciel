@@ -83,7 +83,6 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     "platforms/opencode/.opencode/commands/ciel-improve.md",
     "platforms/opencode/.opencode/commands/ciel-eval.md",
     "platforms/opencode/.opencode/commands/ciel-create-skill.md",
-    "platforms/opencode/.opencode/commands/ciel-recommend.md",
     "platforms/opencode/.opencode/commands/ciel-audit.md",
     "platforms/opencode/.opencode/commands/ciel.md",
     // OpenCode platform
@@ -109,7 +108,6 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     "commands/ciel-refresh.md",
     "commands/ciel-eval.md",
     "commands/ciel-create-skill.md",
-    "commands/ciel-recommend.md",
     "commands/ciel-audit.md",
     // Ciel skill
     "skills/ciel/SKILL.md",
