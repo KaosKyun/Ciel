@@ -196,10 +196,46 @@
           "responsibility": "auto-detected"
         }
       ]
+    },
+    {
+      "name": "hooks",
+      "path": "/Users/neikyun/Documents/Projects/Ciel/hooks",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projects/Ciel/hooks/pre-tool-write.sh",
+          "responsibility": "PreToolUse gate: dispatch counter, RELIRE pipeline check, FAIRE reminders. Output via stderr.",
+          "modified": "2026-05-06",
+          "change": "Added DISPATCH GATE counter (tmpfile), RELIRE pipeline check, stderr output channel, FAIRE gate reminders"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projects/Ciel/hooks/pre-agent-gate.sh",
+          "responsibility": "PreToolUse gate for Agent: blocks non-ciel subagent_type dispatches. Escape: [CIEL_GATE_BYPASS].",
+          "modified": "2026-05-06",
+          "change": "Now wired in .claude/settings.json PreToolUse(Agent)"
+        },
+        {
+          "path": "/Users/neikyun/Documents/Projects/Ciel/hooks/post-tool-write.sh",
+          "responsibility": "PostToolUse RELIRE reminder. JSON output via hookSpecificOutput.additionalContext.",
+          "modified": "2026-04-26",
+          "change": "Created"
+        }
+      ]
+    },
+    {
+      "name": "skills-ciel",
+      "path": "/Users/neikyun/Documents/Projects/Ciel/skills/ciel",
+      "key_files": [
+        {
+          "path": "/Users/neikyun/Documents/Projects/Ciel/skills/ciel/SKILL.md",
+          "responsibility": "Ciel orchestrator skill definition. Pipeline, gates, depth dispatch, intent routing.",
+          "modified": "2026-05-06",
+          "change": "Added GATE DIVERGE + GATE META, Depth Gauge RELIRE thresholds, Routage des intentions with French keywords, semantic matching fallback. Synced to .claude/skills/ciel/ and packages/ciel/assets/skills/ciel/"
+        }
+      ]
     }
   ],
   "orphans": [
     ".opencode/agents/ciel-plan.md — cree mais non reference. Agent read-only pour planification. A supprimer ou integrer."
   ],
-  "lastUpdated": "2026-05-06T07:10:00.000Z"
+  "lastUpdated": "2026-05-06T07:30:00.000Z"
 }

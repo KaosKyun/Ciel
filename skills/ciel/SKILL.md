@@ -55,8 +55,38 @@ Principe : **"Understand before generating. Verify before claiming done."**
 **GATE RELIRE** — avant de declarer une tache Standard/Critical terminee :
 > Si aucun `Task(subagent_type="ciel-critic")` MODE=RELIRE n'a retourne ≥ 3 risques → dispatcher maintenant avant tout commit.
 
+**GATE DIVERGE** — le pipeline repart a QUOI sur chaque nouveau message utilisateur :
+> Les messages de continuation (follow-up, "corrige aussi X", "et si") ne sont pas exemptes de DIVERGE, AVEC QUOI ni RECHERCHE. Ne jamais heriter la position pipeline du message precedent.
+
+**GATE META** — avant de repondre a un nouveau prompt apres PROUVER :
+> Si la tache precedente a termine a PROUVER sans META → faire META maintenant (10 items) avant de traiter la nouvelle demande.
+
+## Depth Gauge
+
+| Depth | Exemple | Pipeline | Seuil RELIRE |
+|-------|---------|----------|-------------|
+| **Trivial** | rename, typo, 1-liner | QUOI → FAIRE → META | — |
+| **Standard** | hook, route, component, service | Full 16 steps | ≥3 fichiers modifies → critic RELIRE obligatoire |
+| **Critical** | auth, DB schema, security, payment | Full + STRIDE + critic mandatory | Tout fichier modifie → critic RELIRE obligatoire |
+| **Spike** | POC, draft, experimental | QUOI → ASK → AVEC QUOI → DIVERGE → FAIRE (relaxe) → META | — |
+
+## Routage des intentions
+
+| Signal d'intention | Action | Raison |
+|---|---|---|
+| "fix", "bug fix", "corriger", "reparer" | Issue tracker (si applicable), fix direct | Correction de bug |
+| "feature", "implement", "faire", "mettre en place", "configurer", "deployer", "ajouter", "creer" | issue-creator → branch-setup → FAIRE sur branche → pr-opener | Nouvelle fonctionnalite |
+| "refactor", "restructurer", "nettoyer" | Codebase check + FAIRE avec tests d'abord | Refactoring |
+| "recherche", "investiguer", "explorer" | Spike mode (gates relaches) | Exploration |
+
+Pour les prompts non-anglais (francais, etc.), appliquer le matching semantique :
+- "Objectif : faire X" = intention d'implementation ("feature")
+- "Ajouter Y" = intention "feature"
+- "Configurer Z" = intention "feature"
+- En cas de doute → defaut issue-creator (creer une issue GitHub)
+
 ## References
 
 - **Depth signals** → load `depth-classifier`
-- **Utility skills** → load pr-opener, commit-writer, etc. si besoin
+- **Utility skills** → load pr-opener, commit-writer, branch-setup, issue-creator, issue-closer
 - For full philosophy and guards, see `reference.md`

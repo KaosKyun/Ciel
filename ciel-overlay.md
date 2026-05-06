@@ -171,3 +171,9 @@ Voir fichier `VERSION` à la racine.
 [2026-04-26] MISTAKE: le script `install.sh` copiait les fichiers OpenCode depuis `$SRC_DIR/.opencode/` mais les templates de distribution sont dans `$SRC_DIR/platforms/opencode/.opencode/` → RULE: l'install script doit copier depuis `platforms/opencode/.opencode/` (templates built), pas depuis `.opencode/` (propre config du projet Ciel)
 
 [2026-04-26] MISTAKE: le script `install.sh` générait un `opencode.json` minimal sans définitions d'agents → RULE: le `opencode.json` généré par install.sh doit inclure les 5 agents (ciel + 4 subagents) pour que le pipeline marche out-of-the-box
+
+[2026-05-06] MISTAKE: ciel-audit a revele que le dispatch gate (Task subagent=ciel-researcher/explorer) n'est pas enforce par hook → RULE: pre-tool-write.sh verifie /tmp/ciel_dispatched (cree par SubagentStart) et emet un avertissement stderr si absent
+
+[2026-05-06] MISTAKE: intentions "feature"/"implement" non reconnues pour prompts francais → RULE: SKILL.md a section "Routage des intentions" avec equivalents francais (faire, mettre en place, configurer, deployer, ajouter, creer) + fallback semantique
+
+[2026-05-06] MISTAKE: PreToolUse hooks en JSON stdout (hookSpecificOutput) non visibles → RULE: reminders de hook utilisent stderr (>2) canal fiable confirme
