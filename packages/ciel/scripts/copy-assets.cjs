@@ -23,7 +23,8 @@ const TEMPLATE_PATTERNS = [
   { src: "platforms/opencode/.opencode/commands/ciel-improve.md", dest: "platforms/opencode/.opencode/commands/ciel-improve.md" },
   { src: "platforms/opencode/.opencode/commands/ciel-eval.md", dest: "platforms/opencode/.opencode/commands/ciel-eval.md" },
   { src: "platforms/opencode/.opencode/commands/ciel-create-skill.md", dest: "platforms/opencode/.opencode/commands/ciel-create-skill.md" },
-  { src: "platforms/opencode/.opencode/commands/ciel-recommend.md", dest: "platforms/opencode/.opencode/commands/ciel-recommend.md" },
+  { src: "platforms/opencode/.opencode/commands/ciel-status.md", dest: "platforms/opencode/.opencode/commands/ciel-status.md" },
+  { src: "platforms/opencode/.opencode/commands/ciel-migrate.md", dest: "platforms/opencode/.opencode/commands/ciel-migrate.md" },
   { src: "platforms/opencode/.opencode/commands/ciel-audit.md", dest: "platforms/opencode/.opencode/commands/ciel-audit.md" },
   { src: "platforms/opencode/.opencode/commands/ciel.md", dest: "platforms/opencode/.opencode/commands/ciel.md" },
   { src: "platforms/opencode/AGENTS.md", dest: "platforms/opencode/AGENTS.md" },
@@ -48,7 +49,8 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-refresh.md", dest: "commands/ciel-refresh.md" },
   { src: "commands/ciel-eval.md", dest: "commands/ciel-eval.md" },
   { src: "commands/ciel-create-skill.md", dest: "commands/ciel-create-skill.md" },
-  { src: "commands/ciel-recommend.md", dest: "commands/ciel-recommend.md" },
+  { src: "commands/ciel-status.md", dest: "commands/ciel-status.md" },
+  { src: "commands/ciel-migrate.md", dest: "commands/ciel-migrate.md" },
   { src: "commands/ciel-audit.md", dest: "commands/ciel-audit.md" },
 
   // Ciel skill files (for Claude Code)
