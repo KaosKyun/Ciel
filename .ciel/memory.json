@@ -1,4 +1,11 @@
 {
   "cielVersion": "6.2.0",
-  "lastUpdated": "2026-05-05T04:43:26.495Z"
+  "lastUpdated": "2026-05-06T07:10:00.000Z",
+  "changes": [
+    {
+      "date": "2026-05-06",
+      "file": "skills/workflow/debug-reasoning-rca/SKILL.md",
+      "change": "Added 5 structured RCA methods (5 Whys, Ishikawa, Drill Down/Tree, Relations) with decision guide and composition rules. Enriched existing 3-hypothesis debugging skill with complementary root cause analysis techniques."
+    }
+  ]
 }

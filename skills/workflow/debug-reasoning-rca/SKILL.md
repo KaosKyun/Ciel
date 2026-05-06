@@ -137,6 +137,38 @@ State inferred values as `[ASSUMED from <source>]`. Only flag as `[UNKNOWN]` if 
 - **First-hypothesis-wins**: commit first theory without validating alternatives
 - **No repro, no RCA**: chasing intermittent bugs without deterministic repro burns hours
 
+## Structured RCA methods (complementary)
+
+The 3-hypothesis method above is the default — fast, hypothesis-driven, good for most bugs. For complex, recurrent, or systemic problems, these structured RCA methods add depth.
+
+### Decision guide
+
+| Problem type | Method | Why |
+|-------------|--------|-----|
+| Linear, single-symptom | **3 hypotheses** (default) | Fastest — parallel hypotheses, minimal overhead |
+| Recurrent incident, process failure | **5 Whys** | Iterative questioning reaches systemic root cause |
+| Multi-factor, need exhaustive exploration | **Ishikawa (Fishbone)** | 6M families (Method/Machine/Manpower/Material/Milieu/Measurement) guide complete coverage |
+| Multi-layer, complex system | **Drill Down / Tree Diagram** | Decompose recursively (build → deploy → runtime → data) into atomic sub-causes; visualize as tree |
+| Interacting causes, feedback loops | **Relations Diagram** | Map causal links, count outbound/inbound arrows to find drivers vs effects |
+
+**When to use the full sequence**: if the problem involves ≥ 3 interacting factors across distinct system layers, use the full chain: Ishikawa (explore) → Relations Diagram (map interactions) → 5 Whys on each promising node → Tree Diagram (document). For simpler problems, pick one method from the guide.
+
+### 5 Whys
+
+Ask "why?" iteratively (5× typical) on the symptom. Each answer becomes the next question. Stop when the cause is systemic/process-level, not technical. **Anti-pattern**: stopping at "error 500" — the real cause may be "no integration test catches this path."
+
+### Ishikawa (Fishbone)
+
+Draw a horizontal spine ending at the problem (fish head). Add diagonal bones for 6 families: Method, Machine, Manpower, Material, Milieu, Measurement (adapt to software: Technology, Data/API). Branch sub-causes off each family. **Anti-pattern**: filling every family superficially — depth > breadth.
+
+### Drill Down / Tree Diagram
+
+Decompose the problem into 2-4 MECE sub-causes at each level, recursing until atomic (directly fixable). Visualize the result as a hierarchical tree with AND/OR logic per branch. These are the same analytical process — decomposition (Drill Down) and visualization (Tree Diagram). **Anti-pattern**: stopping at shallow levels — "module X crashes" isn't actionable, "method Y throws Z when condition W" is.
+
+### Relations Diagram
+
+List all discovered factors. For each pair, ask if causation exists and in which direction. Draw arrows. Count outbound (drivers) vs inbound (effects). Nodes with the most outbound arrows are root cause candidates. **Anti-pattern**: connecting everything — if most factors connect to most others, the diagram is not discriminating; focus on clear causal links only.
+
 ## Key insight
 
 The hardest part of debugging is not finding the fix — it's resisting the urge to fix before understanding. The 3-hypothesis discipline forces you to consider alternatives before committing to one.
