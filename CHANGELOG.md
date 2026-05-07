@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.4.3](https://github.com/KaosKyun/Ciel/compare/v6.4.2...v6.4.3) (2026-05-07)
+
+
+### Bug Fixes
+
+* enforce pipeline-visibility rule — thinking only, never visible output ([f088bc1](https://github.com/KaosKyun/Ciel/commit/f088bc197b251e1613ba5f17838f4cf3203c1c2d))
+
 ## [6.4.2](https://github.com/KaosKyun/Ciel/compare/v6.4.1...v6.4.2) (2026-05-07)
 
 
