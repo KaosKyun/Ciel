@@ -12,7 +12,8 @@
     "assets",
     "bin",
     "scripts/postinstall.cjs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-assets.cjs",
