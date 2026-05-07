@@ -1,5 +1,13 @@
 # Ciel — Changelog
 
+## [6.4.2](https://github.com/KaosKyun/Ciel/compare/v6.4.1...v6.4.2) (2026-05-07)
+
+
+### Bug Fixes
+
+* manual VERSION sync after Release Please, add sync-version job ([b92568e](https://github.com/KaosKyun/Ciel/commit/b92568ed7e5b8fa34e9281f3897f1d9f2901ec65))
+* **release-please:** add actions:write permission for workflow dispatch ([24b53b3](https://github.com/KaosKyun/Ciel/commit/24b53b3cc234396f745ee9f708c4c98b172f5df0))
+
 ## [6.4.1](https://github.com/KaosKyun/Ciel/compare/v6.4.0...v6.4.1) (2026-05-07)
 
 
