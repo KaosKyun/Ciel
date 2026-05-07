@@ -63,6 +63,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: write
     steps:
       - name: Dispatch publish workflow
         run: |
