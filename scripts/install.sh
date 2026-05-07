@@ -620,6 +620,7 @@ print_summary() {
       say "2. Auto memory is enabled by default"
       say "3. Test: edit a file without tests — hook should warn"
       say "4. Subagents: @ciel-researcher, @ciel-explorer, @ciel-critic"
+						say "5. npm update: npm update -g @neikyun/ciel (if CLI is globally installed)"
       ;;
   esac
 }

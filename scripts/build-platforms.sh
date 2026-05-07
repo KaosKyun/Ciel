@@ -272,6 +272,12 @@ build_opencode() {
   emit_opencode_agent "$ROOT/agents/critic.md"     "$out/.opencode/agents/ciel-critic.md"     critic
   emit_opencode_agent "$ROOT/agents/improver.md"   "$out/.opencode/agents/ciel-improver.md"   improver
 
+  # Orchestrator agent — copy from .opencode/agents/ciel.md (manually maintained)
+  if [ -f "$ROOT/.opencode/agents/ciel.md" ]; then
+    cp "$ROOT/.opencode/agents/ciel.md" "$out/.opencode/agents/ciel.md"
+    echo "  ✓ orchestrator agent: $out/.opencode/agents/ciel.md"
+  fi
+
   # 6 slash commands (source commands/*.md — currently 6 after v2.4.2 deleted
   # ciel.md + ciel-improve.md on the Claude side)
   for cmd_md in "$ROOT/commands"/*.md; do

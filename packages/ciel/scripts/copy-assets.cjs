@@ -28,7 +28,7 @@ const TEMPLATE_PATTERNS = [
   { src: "platforms/opencode/.opencode/commands/ciel-audit.md", dest: "platforms/opencode/.opencode/commands/ciel-audit.md" },
   { src: "platforms/opencode/.opencode/commands/ciel.md", dest: "platforms/opencode/.opencode/commands/ciel.md" },
   { src: "platforms/opencode/AGENTS.md", dest: "platforms/opencode/AGENTS.md" },
-  { src: "platforms/opencode/.opencode/plugins/ciel.js", dest: "platforms/opencode/.opencode/plugins/ciel.js" },
+  { src: "platforms/opencode/.opencode/plugins/ciel.ts", dest: "platforms/opencode/.opencode/plugins/ciel.ts" },
 
   // Claude Code files
   { src: ".claude/agents/ciel-researcher.md", dest: ".claude/agents/ciel-researcher.md" },
