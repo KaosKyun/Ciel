@@ -68,6 +68,15 @@ limit_for() {
   eval "echo \${$var:-0}"
 }
 
+# Substitute {{VERSION}} placeholder in generated files with the actual version.
+# Portable across macOS sed and GNU sed.
+version_subst() {
+  local dir="$1"
+  find "$dir" -name "*.md" -maxdepth 1 2>/dev/null | while IFS= read -r f; do
+    sed -i.bak "s/{{VERSION}}/$CIEL_VERSION/g" "$f" && rm -f "$f.bak"
+  done
+}
+
 # Ciel v5 hook regex — the old hooks/*.sh were removed in v5.
 # Now uses .opencode/plugins/ciel.ts (OpenCode) or .claude/hooks/*.sh (Claude Code).
 CIEL_CODE_EXT_RE='\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql)$'
@@ -181,6 +190,9 @@ build_windsurf() {
   # ciel-improve: source from skills/meta (no root commands/ entry)
   emit_windsurf_workflow "$SKILLS/meta/ciel-improve/SKILL.md" "$out/.windsurf/workflows/ciel-improve.md"
 
+  # Substitute {{VERSION}} placeholders in workflow files
+  version_subst "$out/.windsurf/workflows"
+
   # Rules — compact (≤4KB per file, ≤12KB aggregate)
   # Strip MDC frontmatter from cursor rules for Windsurf compatibility
   build_cursor
@@ -219,6 +231,9 @@ build_codex() {
     cp "$cmd_md" "$out/.codex/commands/$(basename "$cmd_md")"
   done
   cp "$SKILLS/meta/ciel-improve/SKILL.md" "$out/.codex/commands/ciel-improve.md"
+
+  # Substitute {{VERSION}} placeholders in command files
+  version_subst "$out/.codex/commands"
 
   # 4 subagents (skills bundled inline — no skills primitive on Codex)
   emit_codex_agent "$ROOT/agents/researcher.md" "$out/.codex/agents/ciel-researcher.md" researcher
@@ -280,6 +295,9 @@ build_opencode() {
     "$out/.opencode/commands/ciel-improve.md" \
     "ciel-improve" \
     "Slash trigger for the ciel-improve skill on OpenCode."
+
+  # Substitute {{VERSION}} placeholders in command files
+  version_subst "$out/.opencode/commands"
 
   # Size checks
   check_size "$out/AGENTS.md"                 "$(limit_for opencode_agents_md)" "opencode-agents-md"

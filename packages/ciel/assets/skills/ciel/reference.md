@@ -21,7 +21,7 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 ### Orchestrator (1)
 - `ciel` — this skill, routes to the others
 
-### Workflow (13) — replaces the old monolithic pipeline
+### Workflow (15) — replaces the old monolithic pipeline
 
 | Skill | Replaces | Mandatory for |
 |-------|----------|---------------|
@@ -50,7 +50,31 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 | `synthesize-findings` | Merge outputs into FINDINGS / ANTI-PATTERNS / PHILOSOPHY / API SURFACE / UNCERTAINTIES |
 | `fact-check-claims` | Grep source or fetch docs before asserting |
 
-### Domain (8) — auto-activated by paths glob
+### Domain (11) — auto-activated by paths glob
+
+| Skill | Paths trigger |
+|-------|---------------|
+| `frontend-mastery` | React/Vue/Svelte files |
+| `backend-mastery` | Server framework files |
+| `database-mastery` | `*.sql`, `migrations/**`, `prisma/**` |
+| `security-hardening` | `auth/**`, `security/**`, Token/Password/Secret names |
+| `api-architecture` | `routes/**`, `controllers/**`, `*.proto` |
+| `observability` | logging/metrics/tracing code |
+| `performance-engineering` | Performance-tagged tasks |
+| `refactoring-patterns` | Refactor tasks or duplication ≥ 2 |
+| `ts-js-patterns` | `.ts`, `.tsx`, `.js`, `.jsx` files |
+| `cicd-pipeline-designer` | `.github/workflows/**` |
+| `mcp-configurator` | `.mcp.json`, MCP configuration |
+
+### Meta (5) — self-improvement
+
+| Skill | Purpose |
+|-------|---------|
+| `ciel-improve` | Analyze sessions → propose skill rewrites (patch-set for approval) |
+| `skill-creator` | Create new skill from conversation pattern (validated scaffold) |
+| `skill-variant-evaluator` | AutoResearch: generate + eval + compare skill variants |
+| `learnings-capture` | Mine conversation for corrections → append to learnings.md or overlay |
+| `patch-spec` | Shared patch-set format for ciel-improve + skill-freshness-auditor |
 
 | Skill | Paths trigger |
 |-------|---------------|
@@ -63,15 +87,19 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 | `performance-engineering` | Performance-tagged tasks |
 | `refactoring-patterns` | Refactor tasks or duplication ≥ 2 |
 
-### Utility (5)
+### Utility (9)
 
 | Skill | Purpose |
 |-------|---------|
 | `commit-writer` | Conventional-format commit messages |
-| `pr-body-generator` | PR body with Summary + Test plan + Closes #XXX |
+| `pr-opener` | Open PR with Closes #N, body composition inline |
 | `issue-closer` | Close linked issues with evidence comment |
 | `changelog-updater` | Append versioned entry with fix/revert ratio |
-| `staging-verifier` | Correct Monitor/Bash run_in_background usage for staging |
+| `branch-setup` | Create type/N-slug branch from issue |
+| `branch-cleaner` | Delete merged branches safely |
+| `pr-merger` | Merge PRs with branch protection awareness |
+| `release-publisher` | Signed tag + GitHub Release + Sigstore attestations |
+| `issue-creator` | Create GitHub issue with structured body |
 
 ### Meta (4) — self-improvement
 

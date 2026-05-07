@@ -3,7 +3,7 @@
 // Runs during `npm run build` to bundle templates in the npm package.
 // Cross-platform: uses only Node.js built-in modules.
 
-const { existsSync, mkdirSync, copyFileSync, readdirSync, statSync } = require("fs");
+const { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync, statSync } = require("fs");
 const { join, relative, dirname } = require("path");
 
 const REPO_ROOT = join(__dirname, "..", "..", "..");
@@ -64,6 +64,9 @@ const TEMPLATE_PATTERNS = [
 let count = 0;
 let errors = 0;
 
+// Read the package version for {{VERSION}} substitution in templates
+const pkgVersion = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')).version;
+
 for (const pattern of TEMPLATE_PATTERNS) {
   const srcPath = join(REPO_ROOT, pattern.src);
   const destPath = join(ASSETS_DIR, pattern.dest);
@@ -77,9 +80,11 @@ for (const pattern of TEMPLATE_PATTERNS) {
   // Create destination directory
   mkdirSync(dirname(destPath), { recursive: true });
 
-  // Copy file
+  // Copy file with {{VERSION}} substitution
   try {
-    copyFileSync(srcPath, destPath);
+    let content = readFileSync(srcPath, 'utf8');
+    content = content.replace(/\{\{VERSION\}\}/g, pkgVersion);
+    writeFileSync(destPath, content, 'utf8');
     count++;
   } catch (err) {
     console.error(`  ERROR: could not copy ${pattern.src}: ${err.message}`);

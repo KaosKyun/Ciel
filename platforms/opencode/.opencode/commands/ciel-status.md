@@ -15,7 +15,7 @@ Usage: `/ciel-status [--check]`
 ```
 ## CIEL STATUS
 
-Version: v6.2.1
+Version: v{{VERSION}}
 Platform: Claude Code
 Config: .claude/settings.json — OK (4 hooks registered)
 Skills directory: skills/ — 43 skills loaded

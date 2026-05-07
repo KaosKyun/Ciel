@@ -1,10 +1,10 @@
 ---
-description: Audits the current Claude Code session for Ciel paradigm violations (missed Task dispatches, inline gathering, hook inactivity, skill overlaps, intent routing misses). Produces a copy-paste markdown report the user pastes into a fresh session to apply fixes. Hook-independent — works even when Ciel hooks are broken.
+description: Audits the current Claude Code session for Ciel paradigm violations (missed Task dispatches, inline gathering, hook inactivity, skill overlaps, intent routing misses). Produces a structured report with a Ciel Health Score (0-100). If score < 75, creates a GitHub Issue on the Ciel repository with the findings and session timeline. Hook-independent — works even when Ciel hooks are broken.
 ---
 
 # /ciel-audit — Session post-mortem
 
-*Generates a structured report of Ciel behavior violations observed in the current session. The output is self-contained: the user copies it into a fresh Claude Code session with the prompt "Apply these Ciel fixes" and the new session applies the patches without seeing the original transcript.*
+*Generates a structured report of Ciel behavior violations observed in the current session. Calculates a Ciel Health Score (0-100). If the score is below 75, creates a GitHub Issue on the Ciel repository (github.com/KaosKyun/Ciel) with the full timeline and findings — otherwise produces the report only without creating an issue.*
 
 Usage: `/ciel-audit`
 
@@ -14,22 +14,23 @@ Runs inline in the main session. Does not dispatch agents. Does not depend on ho
 
 ## Instructions to the model
 
-You are auditing the **current conversation session** — the one you are participating in right now. The user will copy your output into a NEW Claude Code session where they will say "Apply these Ciel fixes." The report must therefore be self-contained: reference Ciel files with absolute paths, include line numbers, and give enough detail that a fresh session can execute the fixes without any transcript context.
-
-Jump directly to the report. No preamble. No meta-commentary. No "I will now audit…".
+You are auditing the **current conversation session** — the one you are participating in right now. Jump directly to the analysis. No preamble. No meta-commentary. No "I will now audit…".
 
 ### What to audit
 
-Scan the session's tool-use history (your own prior turns). For each `/ciel <task>` invocation in this session, check the six dimensions below.
+Scan the session's tool-use history (your own prior turns). For each `/ciel <task>` invocation in this session, check the **eight dimensions** below. For each dimension, assign a severity and penalty score to calculate the final Ciel Health Score.
 
-#### 1. Dispatch discipline (critical)
+#### Dimension 1: Dispatch discipline (critical) — penalty up to -25
 
 - Did the assistant emit a `Task(subagent_type="ciel-*")` within the **first 3 tool calls** after the `/ciel` prompt?
 - If NO: count the inline `Bash` / `Read` / `Grep` / `Glob` / `WebSearch` / `WebFetch` calls emitted in the main session before any dispatch. This is the v2.1.5 anti-pattern documented in `skills/ciel/SKILL.md:146-156`.
 - Exception: Trivial tasks (rename, typo, 1-line fix, docs-only) are allowed to run inline.
-- If the prompt implied Standard or Critical depth (new feature, multi-file change, auth/security, config system) and no `Task()` was emitted → **dispatch violation, severity critical**.
+- Severity→score:
+  - Critical dispatch violation (Standard/Critical task with no Task()): **-25**
+  - High (delayed dispatch, >1 inline tool before dispatch): **-15**
+  - OK (Task() within first 3 tool calls): **0**
 
-#### 2. Hook activity (critical — user suspects hooks are broken)
+#### Dimension 2: Hook activity (critical) — penalty up to -25
 
 Search the session transcript for strings that Ciel hooks would have injected:
 
@@ -38,99 +39,151 @@ Search the session transcript for strings that Ciel hooks would have injected:
 - Session banner from `hooks/session-start.sh` (SessionStart context).
 - `"META-CRITIQUER"` or similar end-of-session signal from `hooks/stop.sh`.
 
-If **none** of these strings appear anywhere in the session despite multiple `/ciel` invocations or Write/Edit tool calls → conclude **hooks are inactive**, severity critical.
+- None found despite writes/edits: **-25** → hooks broken
+- Partial (some hooks firing but not all): **-10**
+- All present: **0**
 
-Most likely root cause: relative paths in `Ciel/settings.json:8,19,31,42,54,65,76`. The `command` field is written as `bash .claude/plugins/ciel/hooks/<file>.sh`, which Claude Code resolves against the current working directory, not the plugin directory. When `claude` is launched from any project folder (the common case), the path does not exist and the hook fails silently.
+Most likely root cause: relative paths in `Ciel/settings.json:8,19,31,42,54,65,76`. The `command` field is written as `bash .claude/plugins/ciel/hooks/<file>.sh`, which Claude Code resolves against the current working directory, not the plugin directory.
 
-#### 3. Skill invocation coverage vs depth
+#### Dimension 3: Skill invocation coverage vs depth — penalty up to -15
 
 Cross-reference `skills/ciel/SKILL.md:20-64` (Depth Gauge) with what actually happened:
 
-- **Standard** task (new endpoint, hook, component, service) → `researcher` and `explorer` agents must be dispatched in parallel before FAIRE. If neither was dispatched → flag.
-- **Critical** task (auth, DB schema, security, payment) → must additionally invoke `stride-analyzer` and `security-regression-check`. If missing → flag.
-- If depth was ambiguous and `depth-classifier` was not invoked → flag as medium severity.
+- **Standard** task → `researcher` and `explorer` agents must be dispatched in parallel before FAIRE. Missing both: **-15**. Missing one: **-8**.
+- **Critical** task → must additionally invoke `stride-analyzer` and `security-regression-check`. Missing: **-15**.
+- Depth ambiguous and `depth-classifier` not invoked: **-5**.
 
-#### 4. Skill overlap / redundancy
+#### Dimension 4: Skill overlap / redundancy — penalty up to -10
 
-- Did the assistant invoke BOTH `relire-critic` AND `critiquer-auditor` on the same diff? They should be mutually exclusive (relire = post-FAIRE quick pass; critiquer = standalone audit of existing code).
-- Did `meta-critiquer` fire at end-of-task? If the task is ended and no meta-critiquer trace exists → flag as low severity.
-- Any skill invoked 3+ times for the same scope → flag as a churn signal.
+- Both `relire-critic` AND `critiquer-auditor` on the same diff: **-10**
+- `meta-critiquer` did not fire at end-of-task: **-5**
+- Same skill invoked 3+ times for same scope: **-5**
 
-#### 5. Agent report quality
+#### Dimension 5: Agent report quality — penalty up to -5
 
-- Any `Task(subagent_type="ciel-*")` whose returned message is under 200 tokens? Per `SKILL.md:290`, this signals truncation — the agent probably failed or got no useful context. Flag with the subagent_type and the prompt used.
+- Any `Task(subagent_type="ciel-*")` with returned message under 200 tokens: **-5** per occurrence (max -10)
 
-#### 6. Intent routing hits / misses
+#### Dimension 6: Intent routing hits / misses — penalty up to -10
 
-Scan the user's `/ciel` prompt text against the intent signals in `SKILL.md:79-94`. For each matched intent, verify the corresponding skill was invoked.
+Scan the user's `/ciel` prompt text against the intent signals in `SKILL.md:79-94`. For each matched intent, verify the corresponding skill was invoked. Each miss: **-5** (max -10).
 
-Examples of intent→skill mapping to verify:
-- "debug", "why did X fail", "production bug", "incident", "RCA" → `debug-reasoning-rca`
-- "use library X", "call API Z" → `doc-validator-official` BEFORE writing code
-- "review this UI", "visual regression" → `playwright-visual-critic`
-- "accessibility", "a11y", "WCAG" → `accessibility-wcag-auditor`
-- Changes to `.github/workflows/` → `cicd-security-hardener`
+#### Dimension 7: npm version staleness — penalty up to -10
 
-**MCP config / MCP servers** is currently **not listed** in the routing table. If the user's prompt was about MCP config/servers and no skill routed correctly, the fix is to **add a new row** to `SKILL.md:79-94`:
+Check if a newer version of Ciel is available on npm:
 
+```bash
+NPM_VERSION=$(npm view @neikyun/ciel version 2>/dev/null || echo "unknown")
+LOCAL_VERSION=$(cat /path/to/VERSION 2>/dev/null || cat package.json 2>/dev/null | grep '"version"' | head -1 | cut -d'"' -f4 || echo "unknown")
 ```
-| "mcp server", "mcp config", ".mcp.json", "claude mcp" | `debug-reasoning-rca` + config inspection | `@ciel-explorer` then `@ciel-critic` MODE=RCA |
+
+- npm version > local version: **-10**
+- Version check failed (npm not installed, no network): **0** (not a violation, just incomplete data)
+- Versions match or local is newer: **0**
+
+If npm version > local version, include an **Update notification** in the report:
+> A newer version of Ciel is available on npm: **{npm_version}** (installed: **{local_version}**). Run `ciel-update` or `npm update -g @neikyun/ciel` to upgrade.
+
+#### Dimension 8: Platform health — penalty up to -5
+
+Check which Ciel platforms are present and whether they have valid configurations:
+
+```bash
+ls /path/to/platforms/ 2>/dev/null
 ```
+
+Expected platforms: codex, cursor, kilocode, lmstudio, ollama, opencode, windsurf
+
+- All platforms present: **0**
+- Missing 1-2 platforms: **-3**
+- Missing 3+ platforms: **-5**
 
 ---
 
-### Report format — output exactly this structure
+### Scoring
 
-Begin the output with the literal line `# Ciel Session Audit Report`. End with the literal line `**End of audit report.**` on its own line. The user copies everything between those two markers.
+**Ciel Health Score** = 100 - sum(penalties)
+
+| Score range | Status | Issue created? |
+|-------------|--------|----------------|
+| 90-100 | Excellent | No |
+| 75-89 | Good (minor issues) | No |
+| 50-74 | Needs improvement | **Yes** — creates issue with timeline |
+| 0-49 | Critical | **Yes** — creates issue with timeline |
+
+The score is calculated automatically from the detected violations.
+
+---
+
+### Report format
+
+Begin the output with the literal line `# Ciel Session Audit Report`. End with the literal line `**End of audit report.**` on its own line.
 
 ```markdown
 # Ciel Session Audit Report
 
 **Date**: <today's date>
+**Ciel Health Score**: <N>/100 — <Excellent|Good|Needs improvement|Critical>
+**npm**: local v<X.Y.Z> | npm v<X.Y.Z> | <up-to-date|update available>
+**Platforms**: codex ✓ cursor ✓ kilo ✓ lmstudio ✓ ollama ✓ opencode ✓ windsurf ✓ (or ✗ if missing)
 **Session summary**: <N> /ciel invocation(s), <N> total tool calls, <N> Task() dispatches, <N> inline Bash/Read/Grep/WebSearch calls in main session.
 
-**Verdict**: <PASS | VIOLATIONS FOUND | HOOKS INACTIVE | VIOLATIONS FOUND + HOOKS INACTIVE>
+**Verdict**: <PASS | VIOLATIONS FOUND>
 
 ---
 
 ## Violations detected
 
-### 1. <Short violation name> — severity: <critical | high | medium | low>
+### <N>. <Short violation name> — penalty: -<N>
 
+**Severity**: <critical | high | medium | low>
 **Evidence from session**
 - User prompt (turn N): `<exact prompt text, truncated to 200 chars>`
 - Assistant's first 3 tool calls after this prompt:
   1. `<tool_name>(<brief args>)`
   2. `<tool_name>(<brief args>)`
   3. `<tool_name>(<brief args>)`
-- Expected (per `skills/ciel/SKILL.md:<line>`): `Task(subagent_type="ciel-<role>", ...)` as first tool call
-- Observed: `Bash("claude mcp list")` inline — dispatch never happened
+- Expected: `Task(subagent_type="ciel-<role>", ...)` as first tool call
+- Observed: `<actual behavior>`
 
 **Root cause hypothesis**
-<one or two sentences pointing to the structural reason — buried rule, missing gate, broken hook, etc.>
-
-**Incriminated Ciel files**
-- `Ciel/skills/ciel/SKILL.md:<start-end>` — <reason>
-- `Ciel/commands/ciel.md:<line>` — <reason>
-- `Ciel/settings.json:<line>` — <reason>
+<one or two sentences>
 
 **Proposed fix**
-- <bullet 1: concrete edit with file:line>
-- <bullet 2: concrete edit with file:line>
-- <bullet 3 if needed>
+- <concrete edit with file:line>
 
-### 2. <next violation>
-…
+...
+
+---
+
+## Update notification
+
+<If npm version > local version, show update notification here. Otherwise omit this section.>
+
+---
+
+## Scoring breakdown
+
+| Dimension | Penalty |
+|-----------|---------|
+| D1 — Dispatch discipline | -<N> |
+| D2 — Hook activity | -<N> |
+| D3 — Skill coverage vs depth | -<N> |
+| D4 — Skill overlap | -<N> |
+| D5 — Agent report quality | -<N> |
+| D6 — Intent routing | -<N> |
+| D7 — npm version | -<N> |
+| D8 — Platform health | -<N> |
+| **Total** | **-<N>** |
+| **Health Score** | **<N>/100** |
 
 ---
 
 ## Summary of fixes to apply
 
-Apply these in order. Each points to a file:line and a concrete change. Work at path `/Users/<user>/Documents/Projet/Ciel/Ciel/` (or wherever the Ciel repo is cloned).
+Apply these in order. Each points to a file:line and a concrete change.
 
-1. **<Fix name>** — `Ciel/<path>:<line>` — <one-line description>
-2. **<Fix name>** — `Ciel/<path>:<line>` — <one-line description>
-3. …
+1. **<Fix name>** — `<path>:<line>` — <one-line description>
+2. ...
 
 After each fix: re-run the scenario that triggered the violation in a fresh Claude session to verify.
 
@@ -139,30 +192,113 @@ After each fix: re-run the scenario that triggered the violation in a fresh Clau
 **End of audit report.**
 ```
 
-### If no violations are found
+### If no violations are found (score = 100)
 
-Output a single short section:
+Output a single short section — **no issue is created** for PASS verdicts:
 
 ```markdown
 # Ciel Session Audit Report
 
+**Date**: <today's date>
+**Ciel Health Score**: 100/100 — Excellent
+**npm**: local v<X.Y.Z> | npm v<X.Y.Z> | up-to-date
+**Platforms**: all 7 platforms present ✓
+**Session summary**: <N> /ciel invocation(s), <N> tool calls, <N> Task() dispatches.
 **Verdict**: PASS
 
-Session summary: <N> /ciel invocation(s), <N> tool calls, <N> Task() dispatches. All intents routed correctly. Hook signatures present. No skill overlap. No dispatch discipline issues.
+**No violations found.** No issue created.
 
 **End of audit report.**
 ```
 
+---
+
+### GitHub Issue creation (only if score < 75)
+
+If the Ciel Health Score is **below 75**, create a GitHub Issue with the report AND the session timeline.
+
+**Important**: Do NOT create an issue if score >= 75. Only create for scores < 75.
+
+1. **Check for duplicate issues first**:
+   ```bash
+   EXISTING=$(gh issue list --repo KaosKyun/Ciel --label audit --state open \
+     --json title --jq '.[].title' 2>/dev/null | \
+     grep -c "^\[CIEL-AUDIT\] $(date +%Y-%m-%d) -" || true)
+   if [ "$EXISTING" -gt 0 ]; then
+     echo "Warning: today's audit issue already exists. Skipping creation."
+     echo "View existing at: https://github.com/KaosKyun/Ciel/issues?q=is%3Aopen+label%3Aaudit"
+     exit 0
+   fi
+   ```
+
+2. **Save the report to a temp file**: Write the complete report text to a temp file:
+   ```bash
+   REPORT_FILE="/tmp/ciel-audit-report-$(date +%Y%m%d).md"
+   cat > "$REPORT_FILE" << 'REPORT_EOF'
+   # Ciel Session Audit Report
+   ...
+   **End of audit report.**
+   REPORT_EOF
+   ```
+
+3. **Determine the repository**: run `gh repo view --json owner,name` to confirm, or default to `KaosKyun/Ciel`.
+
+4. **Create the issue** with `gh issue create`, using Python to avoid shell quoting issues:
+   ```bash
+   python3 -c "
+   import subprocess, sys
+   ymd, date_str, score, verdict = sys.argv[1:5]
+   report_path = f'/tmp/ciel-audit-report-{ymd}.md'
+   with open(report_path) as f:
+       body = f.read()
+   subprocess.run(['gh', 'issue', 'create',
+       '--repo', 'KaosKyun/Ciel',
+       '--title', f'[CIEL-AUDIT] {date_str} - {verdict} (Score: {score}/100)',
+       '--label', 'audit,ciel',
+       '--body', body])
+   " "$(date +%Y%m%d)" "$(date +%Y-%m-%d)" "<score>" "<verdict>"
+   ```
+
+5. **Include the session timeline** in the issue body. Before the report, add a timeline section listing all `/ciel` invocations in chronological order:
+   ```markdown
+   ## Session Timeline
+   
+   | Time | Event |
+   |------|-------|
+   | T+N  | /ciel <prompt excerpt> |
+   | T+N  | Write/Edit on <file> |
+   | T+N  | Task() dispatch to <agent> |
+   ...
+   
+   ---
+   
+   <full audit report>
+   ```
+
+6. **Handle errors gracefully**:
+   - If `gh` is not available: print a message telling the user to install (`brew install gh`) and print the report to stdout instead.
+   - If the repository can't be reached: skip issue creation, print a warning, but still output the report.
+
+7. **After creating the issue**: include the issue URL at the end of your response so the user can open it directly.
+
+**Title format**: `[CIEL-AUDIT] YYYY-MM-DD - VIOLATIONS FOUND (Score: <N>/100)`
+
+**Labels**: `audit`, `ciel`
+
+---
+
 ### Tone and length
 
 - **Mechanically actionable, not narrative**. File paths, line numbers, before/after snippets.
-- Target length: 400–800 lines of markdown for a session with 2–3 violations. Shorter if PASS. Longer OK if many violations found.
+- Target length: 400–800 lines of markdown for a session with 2–3 violations. Shorter if PASS.
 - No rhetorical preamble. No meta-commentary about the audit process itself. No emoji. No closing remarks after the `**End of audit report.**` marker.
 
 ### What NOT to do
 
-- Do NOT apply fixes in the current session. Only produce the report.
+- Do NOT fix violations in the current session. Only produce the report and optionally create the issue.
 - Do NOT invoke other Ciel skills. This command is fully self-contained.
-- Do NOT dispatch `Task()` agents. Audit happens inline in the main session using only your conversation memory and `Read` on Ciel files if needed to cite exact line numbers.
+- Do NOT dispatch `Task()` agents. Audit happens inline.
 - Do NOT ask clarifying questions. Produce the report with the information you have.
-- Do NOT restart, rerun, or attempt to fix the session in-flight. The report is the deliverable.
+- Do NOT create an issue if score >= 75. Only create for score < 75.
+- Do NOT create duplicate issues — run the `gh issue list` check before creating.
+- Do NOT restart, rerun, or attempt to fix the session in-flight. The audit report is the deliverable.

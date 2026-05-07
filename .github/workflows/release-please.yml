@@ -1,0 +1,25 @@
+# Release Please — Automated release PRs + GitHub Releases
+# Déclencheur: push sur main
+# Crée/maintient une Release PR qui bump la version + CHANGELOG
+# Quand mergée → GitHub Release + tag v* → déclenche publish-npm.yml
+
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json

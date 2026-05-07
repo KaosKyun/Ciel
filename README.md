@@ -146,7 +146,7 @@ Les skills sont organisees en 6 categories. Les workflow skills sont liees expli
 
 - **Harness enrichment**: agents OpenCode (48→107 lignes) et Claude Code (CLAUDE.md 7→90+ lignes) avec pipeline complet, Top 10 Guards, subagent dispatch rules
 - **NPM distribution**: `npm install -D @neikyun/ciel` + `npx ciel init`
-- **Version aligned**: 6.0.0 across GitHub, NPM, VERSION file
+- **Version aligned**: v{{VERSION}} across GitHub, NPM, VERSION file
 - **Dependency pinned**: `@opencode-ai/plugin` exact version, no caret
 - **Tests renforces**: 31 tests (15→31, +16 behavioral)
 - **ciel-plan.md**: nettoye (merge dans l'agent primaire)

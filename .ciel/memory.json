@@ -1,6 +1,6 @@
 {
-  "cielVersion": "6.2.1",
-  "lastUpdated": "2026-05-06T11:20:00.000Z",
+  "cielVersion": "6.2.4",
+  "lastUpdated": "2026-05-07T15:10:00.000Z",
   "changes": [
     {
       "date": "2026-05-06",
@@ -25,6 +25,14 @@
     {
       "date": "2026-05-06",
       "change": "Skills library reorganization: removed ciel-recommend (dead external refs), merged staging-verifier->prouver-verifier, merged pr-body-generator->pr-opener (inline), moved 6 standalone skills into category hierarchy (branch-cleaner->utility, ci-watcher->workflow, cicd-pipeline-designer->domain, pr-merger->utility, pr-review-responder->workflow, release-publisher->utility). Updated all build pipeline files, platform asset copies, AGENTS.md refs, ciel-init.md listings. Fixed windsurf SKILL.md stale refs. CIEL-CRITIC review: 3 risks identified, all resolved."
+    },
+    {
+      "date": "2026-05-07",
+      "change": "Updated ciel-audit command across all 10 copies: added Ciel Health Score (0-100), threshold-based GitHub Issue creation (only if score < 75), 8 audit dimensions with penalty scoring, npm version staleness check with update notification, platform health check (7 platforms), session timeline in issue body, Python subprocess pattern for safe body passing, duplicate issue prevention. Created audit/ciel labels on KaosKyun/Ciel repo. PROUVER verified."
+    },
+    {
+      "date": "2026-05-07",
+      "change": "Set up Release Please automation (.github/release-please-config.json + .github/workflows/release-please.yml + manifest). Updated publish-npm.yml to trigger on release events. Replaced all hardcoded version numbers with {{VERSION}} placeholders in ciel-status.md copies, README.md, plugin/index.ts. Updated build scripts (copy-assets.cjs, build-platforms.sh) to substitute the actual version at build time."
     }
   ]
 }

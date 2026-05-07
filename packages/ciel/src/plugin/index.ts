@@ -1,4 +1,4 @@
-// Ciel -- OpenCode plugin (v6.0.0)
+// Ciel -- OpenCode plugin (v6)
 // Full 16-step pipeline: DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE
 //   -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2
 //   -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META
