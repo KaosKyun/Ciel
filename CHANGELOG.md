@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.4.4](https://github.com/KaosKyun/Ciel/compare/v6.4.3...v6.4.4) (2026-05-07)
+
+
+### Bug Fixes
+
+* sync install.sh CIEL_VERSION and add to Release Please extra-files ([b77536b](https://github.com/KaosKyun/Ciel/commit/b77536b62ea078bcadf2cc427a9c0f4292ae760e))
+
 ## [6.4.3](https://github.com/KaosKyun/Ciel/compare/v6.4.2...v6.4.3) (2026-05-07)
 
 
