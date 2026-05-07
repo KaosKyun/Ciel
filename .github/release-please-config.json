@@ -6,7 +6,7 @@
     ".": {
       "release-type": "node",
       "extra-files": [
-        "VERSION",
+        {"type": "plain-text", "path": "VERSION"},
         {
           "type": "json",
           "path": "packages/ciel/package.json",
