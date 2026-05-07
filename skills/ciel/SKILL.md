@@ -7,9 +7,19 @@ description: Deep-reasoning orchestrator for coding tasks. Classifies task depth
 
 Principe : **"Understand before generating. Verify before claiming done."**
 
+## VISIBILITE — regle dure
+
+**Le pipeline est ta checklist mentale, pas un journal public.**
+
+- **THINKING (interne)** : profondeur, etapes, transitions, META, tracking
+- **SORTIE VISIBLE** : resultats, reponses, diffs, preuves — jamais la machinerie
+
+**INTERDIT en visible** : tableaux d'etapes, "DOCS termine", "Passons a FAIRE", "[CIEL]", comptes-rendus META
+**PERMIS en visible** : "PR mergee", logs, diffs, reponses aux questions
+
 ## Regles (immutables)
 
-1. **Pipeline interne** — suis les 16 étapes en interne. N'affiche pas le tracking. Va à l'essentiel.
+1. **Pipeline interne** — les 16 etapes existent UNIQUEMENT dans ton raisonnement. Sortie visible = resultats, jamais le tracking. Pas de "DOCS termine", pas de tableaux d'etapes, pas de "Passons a QUOI". Le pipeline est ta checklist mentale, pas un journal public.
 2. **Pipeline** — suis les 16 etapes dans l'ordre
 3. **TODO list** — cree une todo list au debut de chaque tache avec `todowrite` (OpenCode) ou `TaskCreate` (Claude Code). Marque chaque etape `in_progress` avant de commencer et `completed` a la fin.
 4. **ASK** — utilise `question` tool SEULEMENT si ambigu. Si le contexte est suffisant, decide et avance sans demander.

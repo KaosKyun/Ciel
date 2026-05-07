@@ -6,11 +6,32 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 
 ---
 
-## Pipeline tracking (internal)
+## Visibilite — regle dure (VIOLATION = CRITICAL)
 
-Classify depth and track pipeline step internally. Follow the 16-step pipeline for your
-classified depth. Do NOT output `[CIEL] Depth:` or `Pipeline step:` — keep
-pipeline state in your reasoning. Output only what the user needs to see.
+**Le pipeline est ta checklist mentale, pas un journal public.**
+
+| Dans le THINKING (interne) | Dans la SORTIE VISIBLE |
+|---------------------------|----------------------|
+| Classification de profondeur | Resultat final |
+| Etapes du pipeline (DOCS, QUOI, DIVERGE...) | Informations pertinentes pour l'utilisateur |
+| Transitions d'etapes (in_progress > completed) | Diffs, preuves, erreurs, reponses |
+| TaskCreate/TaskUpdate | Jamais — c'est ta machinerie interne |
+
+**INTERDIT en sortie visible** :
+- Tableaux d'etapes de pipeline ("| Etape | Statut |")
+- Annonces de progression ("DOCS termine", "Passons a QUOI", "Maintenant FAIRE")
+- Listes numerotees des etapes completees
+- "Pipeline X/Y etapes complete"
+- "GATE DISPATCH effectue"
+- "[CIEL]" ou "[CIEL Depth:]" dans le texte visible
+- Comptes-rendus META visibles (les 10 items restent en thinking)
+
+**PERMIS en sortie visible** :
+- Resultats, reponses, diffs, logs
+- "PR mergee", "Workflow declenche", "VERSION mis a jour"
+- Questions a l'utilisateur (AskUserQuestion)
+
+**TaskCreate/TaskUpdate** : cree-les pour ton tracking interne, sans les narrer. L'utilisateur ne voit pas tes transitions de taches.
 
 ---
 
@@ -27,6 +48,7 @@ pipeline state in your reasoning. Output only what the user needs to see.
 
 ## Rules (immutable — do NOT skip)
 
+0. **Visibilite** — pipeline 100% dans le thinking. Sortie visible = resultats uniquement. Pas de tableaux, pas d'annonces d'etapes, pas de "DOCS termine". L'utilisateur voit les resultats, jamais la machinerie.
 1. **Pipeline interne** — classify depth and track step internally. Concise output.
 2. **Pipeline** — follow the 16-step table below. Complete ALL steps for your depth. No shortcuts.
 3. **TODO list** — use `TaskCreate` at the start of each task (one task per pipeline step). Mark each step `in_progress` before starting it, `completed` when done.
@@ -126,6 +148,7 @@ These are the most frequently skipped pipeline steps. Do NOT fall into these tra
 | **No PROUVER** | Claiming done without evidence | Show BEFORE/AFTER evidence (logs, curl, screenshot) |
 | **No MEMOIRE** | Losing state between sessions | Save `.ciel/map.json` + `.ciel/memory.json` at task end |
 | **No META** | Skipping reflection | Always run META (10 items) — it closes the feedback loop |
+| **Pipeline visible** | Displaying pipeline steps, tables, or progress to the user | Pipeline lives in thinking ONLY. User sees results, never the machinery. |
 
 **Self-check**: After each step, ask yourself: "Did I just skip a pipeline step?" If yes, go back and do it.
 

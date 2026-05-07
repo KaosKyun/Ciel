@@ -1,38 +1,10 @@
 {
-  "cielVersion": "6.2.4",
-  "lastUpdated": "2026-05-07T15:10:00.000Z",
-  "changes": [
-    {
-      "date": "2026-05-06",
-      "file": "skills/workflow/debug-reasoning-rca/SKILL.md",
-      "change": "Added 5 structured RCA methods (5 Whys, Ishikawa, Drill Down/Tree, Relations) with decision guide and composition rules. Enriched existing 3-hypothesis debugging skill with complementary root cause analysis techniques."
-    },
-    {
-      "date": "2026-05-06",
-      "file": "hooks/pre-tool-write.sh",
-      "change": "Added DISPATCH GATE counter (checks /tmp/ciel_dispatched flag), RELIRE pipeline check (>=2 files warning, >=3 files RELIRE mandatory), stderr output channel. Wired in .claude/settings.json PreToolUse(Edit|Write)."
-    },
-    {
-      "date": "2026-05-06",
-      "file": ".claude/settings.json",
-      "change": "Wired pre-tool-write.sh (PreToolUse Edit|Write), pre-agent-gate.sh (PreToolUse Agent). Added `touch /tmp/ciel_dispatched` to SubagentStart hooks for ciel-researcher + ciel-explorer."
-    },
-    {
-      "date": "2026-05-06",
-      "file": "skills/ciel/SKILL.md + .claude/ + packages/ assets",
-      "change": "Added GATE DIVERGE + GATE META, Depth Gauge with RELIRE thresholds, 'Routage des intentions' with French intent keywords, semantic matching fallback for non-English prompts."
-    },
-    {
-      "date": "2026-05-06",
-      "change": "Skills library reorganization: removed ciel-recommend (dead external refs), merged staging-verifier->prouver-verifier, merged pr-body-generator->pr-opener (inline), moved 6 standalone skills into category hierarchy (branch-cleaner->utility, ci-watcher->workflow, cicd-pipeline-designer->domain, pr-merger->utility, pr-review-responder->workflow, release-publisher->utility). Updated all build pipeline files, platform asset copies, AGENTS.md refs, ciel-init.md listings. Fixed windsurf SKILL.md stale refs. CIEL-CRITIC review: 3 risks identified, all resolved."
-    },
-    {
-      "date": "2026-05-07",
-      "change": "Updated ciel-audit command across all 10 copies: added Ciel Health Score (0-100), threshold-based GitHub Issue creation (only if score < 75), 8 audit dimensions with penalty scoring, npm version staleness check with update notification, platform health check (7 platforms), session timeline in issue body, Python subprocess pattern for safe body passing, duplicate issue prevention. Created audit/ciel labels on KaosKyun/Ciel repo. PROUVER verified."
-    },
-    {
-      "date": "2026-05-07",
-      "change": "Set up Release Please automation (.github/release-please-config.json + .github/workflows/release-please.yml + manifest). Updated publish-npm.yml to trigger on release events. Replaced all hardcoded version numbers with {{VERSION}} placeholders in ciel-status.md copies, README.md, plugin/index.ts. Updated build scripts (copy-assets.cjs, build-platforms.sh) to substitute the actual version at build time."
-    }
-  ]
+  "cielVersion": "6.4.2",
+  "lastUpdated": "2026-05-07T17:17:36.000Z",
+  "lastReleasePR": {
+    "number": 27,
+    "version": "6.4.2",
+    "mergedAt": "2026-05-07T17:17:17Z",
+    "mergeCommit": "0bf0559"
+  }
 }

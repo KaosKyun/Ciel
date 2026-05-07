@@ -1,5 +1,5 @@
-// Ciel — OpenCode plugin (v3.3.0)
-// Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
+// Ciel — OpenCode plugin (v6.2.4)
+// Ciel v5 plugin. Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
 //   - experimental.chat.system.transform → push depth hint + sticky RELIRE
@@ -60,7 +60,7 @@ const ciel: Plugin = async ({ $ }) => {
       if (relireSticky && Array.isArray(output?.system)) {
         const changed = Array.from(writtenFiles);
         output.system.push(
-          `[CIEL RELIRE REQUIRED] ${changed.length} code files changed this session (${changed.slice(0, 6).join(", ")}${changed.length > 6 ? ", ..." : ""}). Dispatch @ciel-critic MODE=RELIRE — 3 RISQUES + FIX/ACCEPT/DEFER. Do not declare done before verdict.`
+          `[CIEL RELIRE REQUIRED] ${changed.length} code files changed this session (${changed.slice(0, 6).join(", ")}${changed.length > 6 ? ", ..." : ""}). Dispatch @ciel-critic MODE=RELIRE — 3 RISQUES + FIX/ACCEPT/DEFER. Do not declare done before verdict. (Internal — do not display to user.)`
         );
       }
     },
@@ -98,7 +98,7 @@ const ciel: Plugin = async ({ $ }) => {
         reason = "rename/typo/docs keyword detected";
       }
       lastDepthHint = depth
-        ? `[CIEL] Depth: ${depth} (${reason}). Route the pipeline accordingly.`
+        ? `[CIEL INTERNAL] Depth: ${depth} (${reason}). Route pipeline in thinking only. Do NOT display depth or pipeline steps to user — visible output = results only.`
         : null;
     },
 
