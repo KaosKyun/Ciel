@@ -1,5 +1,17 @@
 # Ciel — Changelog
 
+## [6.4.0](https://github.com/KaosKyun/Ciel/compare/v6.3.0...v6.4.0) (2026-05-07)
+
+
+### Features
+
+* **ciel-audit:** add Health Score, GitHub Issue creation, Release Please ([97cbcbe](https://github.com/KaosKyun/Ciel/commit/97cbcbe7a4703b80d09a53ade1f41ac86adc601f))
+
+
+### Bug Fixes
+
+* **ciel-update:** add session-start version check, npm update step, and CI build fix ([9a68aef](https://github.com/KaosKyun/Ciel/commit/9a68aef6812c6b8d79775f9a02c4971574d60707))
+
 ## [Unreleased]
 
 ## v6.3.0 — 2026-05-06 — Skills library reorganization + new commands
