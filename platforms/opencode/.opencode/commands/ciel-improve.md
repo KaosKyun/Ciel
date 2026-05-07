@@ -1,19 +1,13 @@
 ---
-command: ciel-improve
-description: Self-improvement — analyze sessions and propose skill patches
-agent: ciel-improver
-subtask: true
+description: Slash trigger for the ciel-improve skill on OpenCode.
 ---
 
-# /ciel-improve — Self-improvement
+Invoke the `ciel-improve` skill via the Skill tool with the user's arguments:
 
-Analyzes recent session transcripts to detect repeated failure modes, user corrections, and skill output truncation, then produces a patch-set proposing specific rewrites for Ciel skills.
+```
+$ARGUMENTS
+```
 
-Usage: `/ciel-improve`
+If `$ARGUMENTS` is empty, invoke the skill with no argument — it will classify the current context and prompt for a task if needed.
 
-## Process
-
-1. Scans `.ciel/learnings.md` for recent user corrections
-2. Analyzes session transcripts for failure patterns
-3. Produces a patch-set with specific skill rewrites
-4. Never rewrites autonomously — returns proposals for review
+The full logic (depth classifier, intent routing, pipeline selection, agent dispatch rules) lives in the `ciel-improve` skill itself. This command file is a thin trigger; modify the skill, not this file, to change behavior.

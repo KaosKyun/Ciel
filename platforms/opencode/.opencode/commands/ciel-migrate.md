@@ -1,4 +1,9 @@
 ---
+description: ---
+subtask: false
+---
+
+---
 description: Migrates Ciel configuration between versions — updates CLAUDE.md format, skill references, hook wiring, and platform-specific configs. Supports v5→v6 migration (pipeline change, skill taxonomy reorganization). Non-destructive: backs up before any write.
 ---
 

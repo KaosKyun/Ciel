@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v3.3.0)
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v6.2.4)
 
 Source: https://github.com/KaosKyun/Ciel
 
@@ -8,7 +8,7 @@ Ciel is installed as OpenCode-native primitives:
 
 - **Plugin** (`.opencode/plugins/ciel.ts`) — pre/post-write hooks + depth classification on user prompts.
 - **Subagents** (`.opencode/agents/ciel-*.md`) — dispatch with `@ciel-researcher`, `@ciel-explorer`, `@ciel-critic`, `@ciel-improver`.
-- **Commands** (`.opencode/commands/ciel*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-refresh`, `/ciel-audit`, `/ciel-init`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-update`.
+- **Commands** (`.opencode/commands/ciel*.md`) — run with `/ciel`, `/ciel-improve`, `/ciel-refresh`, `/ciel-audit`, `/ciel-init`, `/ciel-eval`, `/ciel-create-skill`, `/ciel-recommend`, `/ciel-update`.
 
 ---
 
@@ -16,7 +16,7 @@ Ciel is installed as OpenCode-native primitives:
 
 | Level | Example | Pipeline |
 |-------|---------|----------|
-| **Trivial** | rename, typo, 1-line fix | `quoi-framer` → `pattern-fitness-check` → `faire-gatekeeper` → inline review → push |
+| **Trivial** | rename, typo, 1-line fix | `QUOI` → `FAIRE` → `META` |
 | **Standard** | hook, route, component, service | Full pipeline, dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
 | **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + `@ciel-critic` mandatory |
 

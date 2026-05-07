@@ -35,15 +35,13 @@ const MEMORY_FILE = join(CIEL_DIR, "memory.json");
 // ----- V5 WORKFLOW INJECTION -----
 
 const CIEL_WORKFLOW_INSTRUCTION = `
-Every response MUST start with depth classification. Then follow the matching pipeline.
+Classify depth internally (Trivial / Standard / Critical / Spike). Follow the matching pipeline.
+Do NOT output depth classification in the visible response — track it in your reasoning.
+Keep responses concise: only what the user needs to see.
 
-CLASSIFY: Trivial / Standard / Critical / Spike
-
-| Depth | Pipeline |
-|-------|----------|
-| Standard/Critical | DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2 -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META |
-| Trivial | QUOI -> FAIRE -> META |
-| Spike | QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (relaxed) -> META |
+Standard/Critical: DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2 -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META
+Trivial: QUOI -> FAIRE -> META
+Spike: QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (relaxed) -> META
 
 USE the question tool for ASK/ASK2. NEVER skip steps. NEVER code on assumptions.
 `;

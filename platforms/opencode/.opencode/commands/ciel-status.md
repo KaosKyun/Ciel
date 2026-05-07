@@ -1,4 +1,9 @@
 ---
+description: ---
+subtask: false
+---
+
+---
 description: Displays the current Ciel environment status — active version, loaded skills, registered hooks, last session state, and configuration health. A diagnostic entry point for "is Ciel working?" questions.
 ---
 
@@ -15,7 +20,7 @@ Usage: `/ciel-status [--check]`
 ```
 ## CIEL STATUS
 
-Version: v{{VERSION}}
+Version: v6.2.4
 Platform: Claude Code
 Config: .claude/settings.json — OK (4 hooks registered)
 Skills directory: skills/ — 43 skills loaded

@@ -7,8 +7,8 @@
         {
           "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/plugins/ciel.ts",
           "responsibility": "Plugin principal v5. Injecte workflow pipeline dans system prompt (system.transform) ET avant chaque message user (messages.transform pipeline enforcement). FAIRE gates, META-CRITIQUER, relire reminders, depth hints.",
-          "modified": "2026-04-26",
-          "change": "messages.transform injecte maintenant un message SYSTEME avant chaque user message pour enforce la pipeline"
+          "modified": "2026-05-07",
+          "change": "Simplified CIEL_WORKFLOW_INSTRUCTION: removed 'Every response MUST start with depth classification', replaced with 'Classify depth internally. Do NOT output depth classification in visible responses.'"
         }
       ]
     },
@@ -19,8 +19,8 @@
         {
           "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/agents/ciel.md",
           "responsibility": "Agent principal. Instruction courte (30 lignes vs 230 avant). Pipeline enforce par plugin, pas par le texte.",
-          "modified": "2026-04-26",
-          "change": "Supprime les 200+ lignes de description pipeline. Garde juste 5 regles + references aux skills."
+          "modified": "2026-05-07",
+          "change": "Removed 'Depth en 1ere ligne' rule. Pipeline tracking now internal — model tracks depth and steps in reasoning, not in visible output."
         },
         {
           "path": "/Users/neikyun/Documents/Projet/Ciel/.opencode/agents/ciel-plan.md",

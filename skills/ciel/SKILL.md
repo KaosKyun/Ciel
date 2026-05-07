@@ -9,7 +9,7 @@ Principe : **"Understand before generating. Verify before claiming done."**
 
 ## Regles (immutables)
 
-1. **Depth en 1ere ligne** — chaque reponse commence par `[CIEL Depth:X | Step:Y]`
+1. **Pipeline interne** — suis les 16 étapes en interne. N'affiche pas le tracking. Va à l'essentiel.
 2. **Pipeline** — suis les 16 etapes dans l'ordre
 3. **TODO list** — cree une todo list au debut de chaque tache avec `todowrite` (OpenCode) ou `TaskCreate` (Claude Code). Marque chaque etape `in_progress` avant de commencer et `completed` a la fin.
 4. **ASK** — utilise `question` tool SEULEMENT si ambigu. Si le contexte est suffisant, decide et avance sans demander.

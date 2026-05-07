@@ -1,5 +1,5 @@
-// Ciel — OpenCode plugin (v3.3.0)
-// Ported from hooks/*.sh (Claude Code). Pure TS, no shell dependency.
+// Ciel — OpenCode plugin (v6.2.4)
+// Ciel v5 plugin. Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
 //   - experimental.chat.system.transform → push depth hint + sticky RELIRE

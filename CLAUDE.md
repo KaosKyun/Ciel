@@ -6,15 +6,11 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 
 ---
 
-## MANDATORY: Every response MUST follow this format
+## Pipeline tracking (internal)
 
-```
-[CIEL] Depth: <Trivial|Standard|Critical|Spike>
-Pipeline step: <DOCS|QUOI|ASK|AVEC QUOI|DIVERGE|RECHERCHE|CODEBASE|EVALUER|ASK2|FAIRE|RELIRE|PROUVER|MEMOIRE|META>
-[your response content]
-```
-
-Classify depth in the FIRST line of EVERY response. No exceptions.
+Classify depth and track pipeline step internally. Follow the 16-step pipeline for your
+classified depth. Do NOT output `[CIEL] Depth:` or `Pipeline step:` — keep
+pipeline state in your reasoning. Output only what the user needs to see.
 
 ---
 
@@ -31,7 +27,7 @@ Classify depth in the FIRST line of EVERY response. No exceptions.
 
 ## Rules (immutable — do NOT skip)
 
-1. **Depth first** — every response starts with `[CIEL] Depth: <Trivial|Standard|Critical|Spike>`
+1. **Pipeline interne** — classify depth and track step internally. Concise output.
 2. **Pipeline** — follow the 16-step table below. Complete ALL steps for your depth. No shortcuts.
 3. **TODO list** — use `TaskCreate` at the start of each task (one task per pipeline step). Mark each step `in_progress` before starting it, `completed` when done.
 4. **ASK** — use AskUserQuestion tool ONLY if ambiguous. If context is sufficient, DECIDE and move on.
