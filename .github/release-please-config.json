@@ -11,6 +11,11 @@
           "type": "json",
           "path": "packages/ciel/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "scripts/install.sh",
+          "pattern": "CIEL_VERSION=\"[^\"]+\""
         }
       ]
     }
