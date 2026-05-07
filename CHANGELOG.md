@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.4.1](https://github.com/KaosKyun/Ciel/compare/v6.4.0...v6.4.1) (2026-05-07)
+
+
+### Bug Fixes
+
+* **release-please:** dispatch npm publish workflow when release is created ([7539f05](https://github.com/KaosKyun/Ciel/commit/7539f055f9cfde7a94a23a941346ef8c5002f8d9))
+
 ## [6.4.0](https://github.com/KaosKyun/Ciel/compare/v6.3.0...v6.4.0) (2026-05-07)
 
 
