@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.5.1](https://github.com/KaosKyun/Ciel/compare/v6.5.0...v6.5.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **memory:** preserve leading dot in path cue extraction ([#33](https://github.com/KaosKyun/Ciel/issues/33)) ([2000a86](https://github.com/KaosKyun/Ciel/commit/2000a86b21d8652ff637ef24f6fd27ca336b2fba))
+
 ## [6.5.0](https://github.com/KaosKyun/Ciel/compare/v6.4.4...v6.5.0) (2026-05-08)
 
 
