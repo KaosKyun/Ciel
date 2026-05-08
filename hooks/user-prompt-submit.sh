@@ -66,7 +66,47 @@ if echo "$PROMPT" | grep -qiE "(tu as oublié|t'as oublié|n'oublie pas (que|de)
   INTERVENTION_GATE=" | CAPTURE GATE: intervention pattern detected — propose AskUserQuestion to capture as memory under .ciel/memory/episodes/ (skill: memoire). Never silent-write."
 fi
 
-MSG="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE Invoke depth-classifier if ambiguous before routing pipeline."
+# ─── Cued-recall: query memory engine for matching memories ──────────────────
+# Calls hooks/memory-engine.py if installed and a memory corpus exists. The
+# engine handles cue extraction (paths, symbols, intents, language), scoring,
+# token cap, decay, and trigger updates. See docs/adrs/0001-cued-recall-memory.md.
+MEMORY_OUTPUT=""
+ENGINE_PATH=""
+# Resolution order: same dir as this script (most reliable, found via BASH_SOURCE)
+# → project-relative paths in priority order → $HOME fallbacks. Covers local-mode
+# install (top-level hooks/), curl-mode install (.claude/hooks/ or ~/.claude/plugins/ciel/),
+# and OpenCode plugin layout (~/.config/opencode/...).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
+for candidate in \
+    "$SCRIPT_DIR/memory-engine.py" \
+    "$PROJECT_DIR/.claude/hooks/memory-engine.py" \
+    "$PROJECT_DIR/hooks/memory-engine.py" \
+    "$HOME/.claude/plugins/ciel/memory-engine.py" \
+    "$HOME/.ciel/hooks/memory-engine.py"; do
+  if [[ -n "$candidate" ]] && [[ -f "$candidate" ]]; then
+    ENGINE_PATH="$candidate"
+    break
+  fi
+done
 
-echo "{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"$MSG\"}}"
+if [[ -n "$ENGINE_PATH" ]] && [[ -n "$PROJECT_DIR" ]] && [[ -f "$PROJECT_DIR/.ciel/memory/index.json" ]]; then
+  DEPTH_LOWER=$(echo "$DEPTH" | tr '[:upper:]' '[:lower:]')
+  MEMORY_OUTPUT=$(python3 "$ENGINE_PATH" query --prompt "$PROMPT" --cwd "$PROJECT_DIR" --depth "$DEPTH_LOWER" 2>/dev/null || echo "")
+fi
+
+MSG_BASE="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE Invoke depth-classifier if ambiguous before routing pipeline."
+
+# Emit JSON via python to handle newlines and quoting safely
+MSG_BASE="$MSG_BASE" MEMORY_OUTPUT="$MEMORY_OUTPUT" python3 -c "
+import os, json
+base = os.environ.get('MSG_BASE', '')
+mem = os.environ.get('MEMORY_OUTPUT', '').strip()
+combined = base + ('\n\n' + mem if mem else '')
+print(json.dumps({
+    'hookSpecificOutput': {
+        'hookEventName': 'UserPromptSubmit',
+        'additionalContext': combined,
+    }
+}))
+"
 exit 0

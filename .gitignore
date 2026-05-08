@@ -45,6 +45,16 @@ opencode.json.bak-*
 # source of truth. Belongs on the developer machine, not in git history.
 .claude/session-progress.md
 
+# Cued-recall memory corpus is per-project local state — captures contain
+# project-specific tribal knowledge that does not belong in source. The
+# scaffolding (hooks, skills, ADR, slash command) lives in source; the
+# corpus itself stays on the developer/team machine.
+.ciel/memory/
+
+# Python bytecode cache from memory-engine.py
+hooks/__pycache__/
+__pycache__/
+
 # Nested git repo (separate project)
 /Ciel/
 
