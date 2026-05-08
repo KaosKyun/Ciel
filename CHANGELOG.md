@@ -1,5 +1,14 @@
 # Ciel — Changelog
 
+## [6.5.0](https://github.com/KaosKyun/Ciel/compare/v6.4.4...v6.5.0) (2026-05-08)
+
+
+### Features
+
+* cued-recall project memory system ([#31](https://github.com/KaosKyun/Ciel/issues/31)) ([3212b7e](https://github.com/KaosKyun/Ciel/commit/3212b7e40f0be98a4e7da94091e24557082454fc))
+* enhance ciel check with installation integrity verification ([e5fe483](https://github.com/KaosKyun/Ciel/commit/e5fe483e614bc1a1a14cdd707dac5134d05ee52d))
+* **opencode:** add /ciel-migrate slash command ([#32](https://github.com/KaosKyun/Ciel/issues/32)) ([1a6ef25](https://github.com/KaosKyun/Ciel/commit/1a6ef25a98b05f28765d05e884956a627e3e6cd6))
+
 ## [6.4.4](https://github.com/KaosKyun/Ciel/compare/v6.4.3...v6.4.4) (2026-05-07)
 
 
