@@ -451,9 +451,16 @@ PY
         for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh; do
           download_if_needed ".claude/hooks/${hook}"
         done
+        # Cued-recall memory engine + bootstrap (top-level hooks/, shared across platforms).
+        # These are downloaded into the .claude/hooks dir alongside the platform-specific ones
+        # so user-prompt-submit.sh and memory-bootstrap.sh can find memory-engine.py via the
+        # $CLAUDE_PROJECT_DIR/.claude/hooks/ resolution path.
+        for hook in user-prompt-submit.sh memory-bootstrap.sh memory-engine.py session-start.sh; do
+          curl -fsSL "$GITHUB_BASE/hooks/${hook}" -o "$TMP_DIR/.claude/hooks/${hook}" 2>/dev/null || warn "Missing: hooks/${hook}"
+        done
         # NOTE: ciel.md is NOT copied — /ciel is handled by the skill (skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
-        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit ciel-memory-bootstrap; do
           download_if_needed "commands/${cmd}.md"
         done
         download_if_needed ".claude/settings.json"

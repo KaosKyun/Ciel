@@ -76,7 +76,7 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 | **ADR** | Decision | If architectural decision → `docs/adrs/` |
 | **RELIRE** | Std/Crit | Dispatch `ciel-critic` MODE=RELIRE: 3 RISKS + FIX/ACCEPT/DEFER |
 | **PROUVER** | Std/Crit | BEFORE/AFTER evidence + CI gate |
-| **MEMOIRE** | All | Save .ciel/map.json + learnings + memory.json |
+| **MEMOIRE** | All | Cued-recall: capture interventions/decisions to .ciel/memory/episodes/ + update index.json (see skill `memoire`, ADR-0001) |
 | **META** | All | Post-task reflection (10 items) |
 
 ## Depth Gauge
@@ -119,7 +119,7 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 ## Skills reference
 
-- **Workflow**: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `diverge`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `memoire`, `meta-critiquer`
+- **Workflow**: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `diverge`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `memoire`, `memoire-consolidator`, `meta-critiquer`
 - **Security**: `stride-analyzer`, `security-hardening`, `security-regression-check` (Critical only)
 - **Domain**: `frontend-mastery`, `backend-mastery`, `database-mastery`, `api-architecture`, `performance-engineering`
 - **Utility**: `pr-opener`, `commit-writer`, `branch-setup`, `issue-creator`, `issue-closer`
@@ -132,6 +132,24 @@ Unsure → Standard. Touching user data or auth → Critical.
 | `block-destructive.sh` | Before `rm *` | Blocks destructive commands |
 | `track-file.sh` | After Edit/Write | Tracks changed files for RELIRE |
 | `meta-critiquer.sh` | SubagentStop | Triggers post-task reflection |
+| `user-prompt-submit.sh` | UserPromptSubmit | Depth hint + intervention pattern detection (proposes capture to cued-recall memory) |
+| `session-start.sh` | SessionStart | Loads overlay + lists active cued-recall memories from `.ciel/memory/index.json` |
+| `memory-bootstrap.sh` | Manual (via `/ciel-memory-bootstrap`) | Scans project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, etc.) |
+
+## Cued-recall memory (`.ciel/memory/`)
+
+The MEMOIRE step writes to a structured corpus that auto-replays when context cues match. See `docs/adrs/0001-cued-recall-memory.md` for the full design.
+
+| Concept | Where |
+|---------|-------|
+| Capture flow (intervention → episode) | `hooks/user-prompt-submit.sh` + skill `memoire` |
+| Recall flow (cue → memory injection) | `hooks/session-start.sh` |
+| Bootstrap from existing tribal docs | `/ciel-memory-bootstrap` slash command |
+| Periodic maintenance (promote/merge/decay) | skill `memoire-consolidator` |
+
+**Token budget by depth**: Trivial 1K / Standard 3K / Critical 5K injected memory tokens. Index is small; content is read on-demand by the model when a cue fires.
+
+**Capture is never auto-silent** — the model surfaces a confirmation question to the user before writing a memory.
 
 ## Common failures to avoid
 
