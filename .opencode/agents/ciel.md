@@ -1,7 +1,7 @@
 ---
 description: Ciel — Primary orchestrator v6. Full 16-step pipeline enforced via plugin. Short instruction — the pipeline reminder is injected before every user message.
 mode: primary
-color: cyan
+color: "#22D3EE"
 temperature: 0.2
 permission:
   edit: allow
