@@ -114,7 +114,12 @@ def extract_path_cues(prompt: str):
     raw = re.findall(r'[\w./*\-]+/[\w./*\-]+|\b[\w-]+\.[a-z]{1,5}\b', prompt)
     cleaned = []
     for p in raw:
-        p = p.strip('.,)(\'"`')
+        # Strip only TRAILING punctuation (paths can legitimately start with
+        # `.` — `.claude/settings.json`, `.gitignore`, `.env`). Leading-dot
+        # stripping was a v1 bug that made dotfile paths invisible.
+        p = p.rstrip('.,)(\'"`')
+        # Strip a few common leading punctuation chars but NEVER the dot.
+        p = p.lstrip(',)(\'"`')
         if not p or len(p) <= 2:
             continue
         # Drop URLs / domains (github.com/foo, example.com/bar).
