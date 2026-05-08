@@ -222,7 +222,8 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   // Summary
   header(`Ciel v${version} — Install Complete`);
-  ok("Run 'npx ciel-init check' to verify updates");
+  ok("Run 'npx ciel-init check' to verify installation");
+  ok("Run 'npx ciel-init repair' to fix missing files");
   if (hasOpenCode) {
     say("OpenCode: restart OpenCode to load Ciel");
     say("  Test: type a message — should see depth classification");

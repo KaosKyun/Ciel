@@ -1,5 +1,6 @@
 ---
 description: Displays the current Ciel environment status — active version, loaded skills, registered hooks, last session state, and configuration health. A diagnostic entry point for "is Ciel working?" questions.
+subtask: false
 ---
 
 # /ciel-status — Ciel Environment Health Check
@@ -10,17 +11,17 @@ Usage: `/ciel-status`
 
 ## Instructions
 
-1. **Run integrity check first**: Execute `npx ciel-init check` — this verifies version against NPM AND checks all Ciel files are present, settings.json is valid with hooks, opencode.json references the plugin, hooks are executable, etc.
+1. **Run integrity check first**: Execute `npx ciel-init check` — this verifies version against NPM AND checks all Ciel files are present, opencode.json references the plugin, agents/commands exist, etc.
 
 2. **If CLI not available** (npx fails), fall back to manual checks:
-   - Check `VERSION` file or `.ciel/memory.json` for installed version
-   - Verify `.claude/settings.json` is valid JSON with `hooks` key
-   - Verify `.claude/agents/` has all 4 agent definitions
-   - Verify `.claude/hooks/` has all 4 hook scripts (and they're executable)
-   - Verify `.claude/skills/ciel/SKILL.md` exists (/ciel command)
-   - Verify `.claude/commands/ciel-*.md` exist (sub-commands)
+   - Check `.ciel/memory.json` for installed version
+   - Verify `opencode.json` is valid JSON with Ciel plugin reference
+   - Verify `.opencode/plugins/ciel.js` (or `.ts`) exists
+   - Verify `.opencode/agents/` has all 5 agent definitions
+   - Verify `.opencode/commands/ciel*.md` exist (commands)
    - Verify `.ciel/map.json` and `.ciel/memory.json` exist and are parseable
-   - Verify `CLAUDE.md` exists and references Ciel pipeline
+   - Verify `AGENTS.md` exists and references Ciel pipeline
+   - Verify `opencode.json` has `instructions: ["AGENTS.md"]`
 
 3. **Present results** — show a clear summary: what's OK, what's missing, version status.
 

@@ -6,7 +6,7 @@
 //   init        Install Ciel in the current project (default)
 //   update      Force reinstall / update
 //   uninstall   Remove Ciel from the current project
-//   check       Check for updates on GitHub
+//   check       Check version + verify installation integrity
 
 import { runInit } from "./init";
 import { runUninstall } from "./uninstall";
@@ -27,8 +27,9 @@ USAGE:
 COMMANDS:
   init          Install Ciel in the current project (default)
   update        Force reinstall (run after npm update -g @neikyun/ciel)
+  repair        Repair missing/broken Ciel files (alias for update)
   uninstall     Remove all Ciel files from the project
-  check         Check NPM for a newer version
+  check         Check version + verify all Ciel files are installed
 
 OPTIONS:
   -y, --yes     Skip confirmation prompt (non-interactive)
@@ -41,7 +42,10 @@ EXAMPLES:
   npx ciel-init -y                Install in CI without prompt
   npx ciel-init update            Force reinstall
   npx ciel-init uninstall         Remove Ciel
-  npx ciel-init check             Check for updates
+  npx ciel-init check             Check version + installation integrity
+  npx ciel-init check --integrity  Verify installation files only
+  npx ciel-init check --version-only  Check NPM version only
+  npx ciel-init repair            Reinstall missing/broken files
 `);
 }
 
@@ -69,6 +73,7 @@ async function main(): Promise<void> {
       await runInit(options);
       break;
     case "update":
+    case "repair":
       await runInit({ ...options, force: true });
       break;
     case "uninstall":

@@ -17,6 +17,10 @@ Checks GitHub for a newer release and re-installs if available.
    - Preserves: `ciel-overlay.md`, `.ciel/`, existing configs
    - Non-destructive merge on `opencode.json`
 
+3. **npm update**: `npm update -g @neikyun/ciel`
+   - Updates the Ciel CLI tool from npm
+   - Skip if npm is not available or the package isn't installed globally
+
 ## Flags
 
 | Flag | Purpose |

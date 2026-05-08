@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\""
+            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && \"$CLAUDE_PROJECT_DIR\"/hooks/session-version-check.sh"
           }
         ]
       }

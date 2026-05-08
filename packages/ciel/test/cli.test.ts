@@ -65,6 +65,235 @@ describe("CLI — Platform detection", () => {
   });
 });
 
+describe("CLI — Integrity check", () => {
+  it("reports no platform when project has no config", () => {
+    const dir = createTempProject();
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+    assert.ok(result.errors.length > 0, "should have errors for no platform");
+    assert.ok(
+      result.errors.some((e: string) => e.includes("No Ciel platform")),
+      "should mention no platform detected"
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("detects missing required Claude Code files", () => {
+    const dir = createTempProject();
+    // Create .claude/ to trigger Claude detection, but no files inside
+    mkdirSync(join(dir, ".claude/agents"), { recursive: true });
+    // Create .ciel/ state so we don't get those as missing
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    // CLAUDE.md, settings.json, agents, hooks, skills should all be missing
+    assert.ok(
+      result.missing.some((f: string) => f === "CLAUDE.md"),
+      "should report CLAUDE.md missing"
+    );
+    assert.ok(
+      result.missing.some((f: string) => f === ".claude/settings.json"),
+      "should report settings.json missing"
+    );
+    assert.ok(
+      result.missing.some((f: string) => f.includes(".claude/agents/")),
+      "should report agents missing"
+    );
+    assert.ok(
+      result.missing.some((f: string) => f.includes(".claude/hooks/")),
+      "should report hooks missing"
+    );
+    assert.ok(
+      result.missing.some((f: string) => f.includes(".claude/skills/ciel/")),
+      "should report skills missing"
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("detects valid Claude Code installation", () => {
+    const dir = createTempProject();
+
+    // Create all required Claude Code files
+    mkdirSync(join(dir, ".claude/agents"), { recursive: true });
+    mkdirSync(join(dir, ".claude/hooks"), { recursive: true });
+    mkdirSync(join(dir, ".claude/commands"), { recursive: true });
+    mkdirSync(join(dir, ".claude/skills/ciel"), { recursive: true });
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+
+    writeFileSync(join(dir, "CLAUDE.md"), "# Ciel");
+    writeFileSync(join(dir, ".claude/settings.json"), JSON.stringify({
+      hooks: {
+        PreToolUse: [{ hooks: [{ command: ".claude/hooks/check-test-first.sh" }] }]
+      }
+    }));
+    for (const agent of ["ciel-researcher.md", "ciel-explorer.md", "ciel-critic.md", "ciel-improver.md"]) {
+      writeFileSync(join(dir, ".claude/agents", agent), "# agent");
+    }
+    for (const hook of ["check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh"]) {
+      const p = join(dir, ".claude/hooks", hook);
+      writeFileSync(p, "#!/bin/bash\necho ok");
+      require("fs").chmodSync(p, 0o755);
+    }
+    writeFileSync(join(dir, ".claude/skills/ciel/SKILL.md"), "# skill");
+    writeFileSync(join(dir, ".claude/skills/ciel/reference.md"), "# ref");
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.equal(result.errors.length, 0, `unexpected errors: ${result.errors.join(", ")}`);
+    assert.equal(result.missing.length, 0, `unexpected missing: ${result.missing.join(", ")}`);
+    assert.ok(result.ok.length >= 12, `expected >=12 OK files, got ${result.ok.length}`);
+    cleanupTempProject(dir);
+  });
+
+  it("flags settings.json with no hooks", () => {
+    const dir = createTempProject();
+    mkdirSync(join(dir, ".claude/agents"), { recursive: true });
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+    writeFileSync(join(dir, ".claude/settings.json"), JSON.stringify({ permissions: { allow: ["bash"] } }));
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.ok(
+      result.errors.some((e: string) => e.includes("no hooks") || e.includes("Ciel hooks not wired")),
+      `should flag missing hooks, got errors: ${result.errors.join(", ")}`
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("flags invalid settings.json", () => {
+    const dir = createTempProject();
+    mkdirSync(join(dir, ".claude/agents"), { recursive: true });
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+    writeFileSync(join(dir, ".claude/settings.json"), "not json {{{");
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.ok(
+      result.errors.some((e: string) => e.includes("invalid JSON")),
+      `should flag invalid JSON, got errors: ${result.errors.join(", ")}`
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("detects missing OpenCode files", () => {
+    const dir = createTempProject();
+    writeFileSync(join(dir, "opencode.json"), "{}");
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.ok(
+      result.missing.some((f: string) => f === "AGENTS.md"),
+      "should report AGENTS.md missing"
+    );
+    assert.ok(
+      result.missing.some((f: string) => f.includes(".opencode/plugins/")),
+      "should report plugin missing"
+    );
+    assert.ok(
+      result.missing.some((f: string) => f.includes(".opencode/agents/")),
+      "should report agents missing"
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("flags opencode.json without Ciel plugin reference", () => {
+    const dir = createTempProject();
+    writeFileSync(join(dir, "opencode.json"), JSON.stringify({ plugin: ["other-plugin.js"] }));
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.ok(
+      result.errors.some((e: string) => e.includes("Ciel plugin not referenced")),
+      `should flag missing plugin reference, got errors: ${result.errors.join(", ")}`
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("warns when hooks are not executable", () => {
+    const dir = createTempProject();
+    mkdirSync(join(dir, ".claude/agents"), { recursive: true });
+    mkdirSync(join(dir, ".claude/hooks"), { recursive: true });
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+    writeFileSync(join(dir, ".claude/settings.json"), JSON.stringify({
+      hooks: { PreToolUse: [{ hooks: [{ command: ".claude/hooks/check-test-first.sh" }] }] }
+    }));
+    // Write hook files without exec bit
+    for (const hook of ["check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh"]) {
+      writeFileSync(join(dir, ".claude/hooks", hook), "#!/bin/bash\necho ok");
+      // chmod 644 (no exec)
+      require("fs").chmodSync(join(dir, ".claude/hooks", hook), 0o644);
+    }
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.ok(
+      result.warnings.some((w: string) => w.includes("not executable")),
+      `should warn about non-executable hooks, got warnings: ${result.warnings.join(", ")}`
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("detects valid OpenCode installation", () => {
+    const dir = createTempProject();
+    mkdirSync(join(dir, ".opencode/plugins"), { recursive: true });
+    mkdirSync(join(dir, ".opencode/agents"), { recursive: true });
+    mkdirSync(join(dir, ".opencode/commands"), { recursive: true });
+    mkdirSync(join(dir, ".ciel"), { recursive: true });
+
+    writeFileSync(join(dir, "AGENTS.md"), "# Ciel");
+    writeFileSync(join(dir, "opencode.json"), JSON.stringify({
+      plugin: ["./.opencode/plugins/ciel.js"],
+      instructions: ["AGENTS.md"]
+    }));
+    writeFileSync(join(dir, ".opencode/plugins/ciel.js"), "// plugin");
+    for (const agent of ["ciel.md", "ciel-researcher.md", "ciel-explorer.md", "ciel-critic.md", "ciel-improver.md"]) {
+      writeFileSync(join(dir, ".opencode/agents", agent), "# agent");
+    }
+    writeFileSync(join(dir, ".ciel/map.json"), "{}");
+    writeFileSync(join(dir, ".ciel/memory.json"), "{}");
+    writeFileSync(join(dir, ".ciel/parking.md"), "");
+
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+
+    assert.equal(result.errors.length, 0, `unexpected errors: ${result.errors.join(", ")}`);
+    assert.equal(result.missing.length, 0, `unexpected missing: ${result.missing.join(", ")}`);
+    assert.ok(result.ok.length >= 8, `expected >=8 OK files, got ${result.ok.length}`);
+    cleanupTempProject(dir);
+  });
+});
+
 describe("CLI — OpenCode install", () => {
   it("installOpenCode creates plugin file from source", () => {
     // This test needs source files — skip if not in dev mode
