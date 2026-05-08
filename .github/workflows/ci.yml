@@ -454,3 +454,22 @@ jobs:
 
       - name: Cleanup
         run: rm -rf "$TEST_DIR"
+
+  install-coverage:
+    name: Validate Install Coverage (commands + hooks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: false
+          set-safe-directory: true
+
+      - name: Run install coverage test
+        run: |
+          echo "Verifying every commands/*.md and hooks/* is referenced in install scripts."
+          echo "Catches the bug class where a new command/hook is added but install.sh"
+          echo "copy-loops are forgotten — file present in source, absent from installed projects."
+          echo ""
+          bash scripts/test-install-coverage.sh
