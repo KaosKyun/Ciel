@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.7.0](https://github.com/KaosKyun/Ciel/compare/v6.6.1...v6.7.0) (2026-05-08)
+
+
+### Features
+
+* **opencode:** ship recommended permission template (allow * + guard destructives) ([#41](https://github.com/KaosKyun/Ciel/issues/41)) ([913ba41](https://github.com/KaosKyun/Ciel/commit/913ba4159656afe69737a614482914f2c4dc8f49))
+
 ## [6.6.1](https://github.com/KaosKyun/Ciel/compare/v6.6.0...v6.6.1) (2026-05-08)
 
 
