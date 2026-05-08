@@ -51,7 +51,22 @@ except: print(0)
   fi
 fi
 
-MSG="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE Invoke depth-classifier if ambiguous before routing pipeline."
+# ─── Cued-recall: intervention pattern detection ─────────────────────────────
+# When the user message contains a clear correction/intervention pattern,
+# suggest capturing it as a memory. Patterns are intentionally narrow to keep
+# false-positive rate low — generic words like "wait" / "stop" / "actually"
+# are NOT triggers on their own; they must combine with a negation/correction
+# adjacent. Never auto-silent — the model surfaces a question to the user.
+# See ADR-0001 and skill `memoire`.
+INTERVENTION_GATE=""
+# POSIX-ERE only (no PCRE lookahead). Patterns are intentionally high-precision
+# to avoid false positives on generic words (wait/stop/actually). Each pattern
+# is a clear signal of correction or "you missed something".
+if echo "$PROMPT" | grep -qiE "(tu as oublié|t'as oublié|n'oublie pas (que|de)|non en fait|non,? en fait|attention que|rappelle-toi (que|de)|ici on (fait|utilise) plutôt|non on (fait|utilise) plutôt|en fait c'est pas|c'est pas comme ça|mauvaise approche|tu te trompes|you forgot (to|that)|don't forget (to|that)|that's not (right|correct|how)|that's wrong|no[,]? actually|actually,? no|wait[,—-] (no|don't|you forgot)|stop[,—-] (no|you forgot|don't))"; then
+  INTERVENTION_GATE=" | CAPTURE GATE: intervention pattern detected — propose AskUserQuestion to capture as memory under .ciel/memory/episodes/ (skill: memoire). Never silent-write."
+fi
+
+MSG="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE Invoke depth-classifier if ambiguous before routing pipeline."
 
 echo "{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"$MSG\"}}"
 exit 0
