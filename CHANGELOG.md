@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.6.1](https://github.com/KaosKyun/Ciel/compare/v6.6.0...v6.6.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **opencode:** use hex color [#22](https://github.com/KaosKyun/Ciel/issues/22)D3EE instead of named "cyan" ([#39](https://github.com/KaosKyun/Ciel/issues/39)) ([9e6b4ab](https://github.com/KaosKyun/Ciel/commit/9e6b4ab9756178493785c539c589d0d2f34e24a8))
+
 ## [6.6.0](https://github.com/KaosKyun/Ciel/compare/v6.5.2...v6.6.0) (2026-05-08)
 
 
