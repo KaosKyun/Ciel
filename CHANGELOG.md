@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.6.0](https://github.com/KaosKyun/Ciel/compare/v6.5.2...v6.6.0) (2026-05-08)
+
+
+### Features
+
+* **opencode:** set Ciel primary agent color to cyan ([#37](https://github.com/KaosKyun/Ciel/issues/37)) ([53f0e82](https://github.com/KaosKyun/Ciel/commit/53f0e821af4dde6b8d6b934ba5fe8a954923957a))
+
 ## [6.5.2](https://github.com/KaosKyun/Ciel/compare/v6.5.1...v6.5.2) (2026-05-08)
 
 
