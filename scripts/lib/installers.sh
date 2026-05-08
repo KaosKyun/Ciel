@@ -245,7 +245,7 @@ install_opencode() {
   # Update opencode.json
   local config_file="$project_root/opencode.json"
   [ -f "$config_file" ] && cp "$config_file" "${config_file}.bak-$(date +%Y%m%dT%H%M%S)"
-  
+
   if [ -f "$config_file" ]; then
     # Check if old wrong key "plugins" exists (needs migration)
     if grep -q '"plugins"' "$config_file" 2>/dev/null; then
@@ -260,9 +260,29 @@ install_opencode() {
       jq '.plugin = ((.plugin // []) + ["./.opencode/plugins/ciel.ts"] | unique)' "$config_file" > "$tmp_config" && mv "$tmp_config" "$config_file"
       ok "Updated opencode.json"
     fi
+    # Suggest the recommended permission template for users without one.
+    if ! grep -q '"permission"' "$config_file" 2>/dev/null; then
+      echo "TIP: opencode.json has no \"permission\" block. The Ciel-recommended"
+      echo "     template (allow * + deny/ask on destructive ops) is at:"
+      echo "       $ciel_dir/platforms/opencode/opencode.json.template"
+      echo "     Copy its \"permission\" block into your opencode.json to reduce"
+      echo "     permission prompts while keeping foot-guns guarded."
+    fi
   else
-    echo '{"plugin": ["./.opencode/plugins/ciel.ts"]}' > "$config_file"
-    ok "Created opencode.json"
+    # Fresh install: copy the recommended template so users get sensible
+    # defaults (allow * + deny/ask on destructive ops). See ADR/SKILL.md.
+    local template
+    if [[ "$ciel_dir" == /tmp/* ]]; then
+      curl -fsSL "$GITHUB_BASE/platforms/opencode/opencode.json.template" -o "$config_file" 2>/dev/null
+    else
+      template="$ciel_dir/platforms/opencode/opencode.json.template"
+      if [ -f "$template" ]; then
+        cp "$template" "$config_file"
+      else
+        echo '{"plugin": ["./.opencode/plugins/ciel.ts"]}' > "$config_file"
+      fi
+    fi
+    [ -f "$config_file" ] && ok "Created opencode.json (with recommended permission block)" || warn "opencode.json fallback minimal"
   fi
 }
 
