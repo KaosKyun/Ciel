@@ -472,6 +472,7 @@ PY
         [ -f "$TMP_DIR/skills/ciel/reference.md" ] && cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" || true
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
+        [ -f "$TMP_DIR/.claude/hooks/memory-engine.py" ] && cp "$TMP_DIR/.claude/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
         for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
@@ -486,6 +487,16 @@ PY
           installed+=("agents") || skipped+=("agents")
         cp -n "$SRC_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null && \
           installed+=("hooks") || skipped+=("hooks")
+        # Copy shared hooks from project root hooks/ (memory-bootstrap, session-start, user-prompt-submit, memory-engine)
+        # These are in hooks/ (not .claude/hooks/) in the source project but get deployed to .claude/hooks/
+        for shared_hook in memory-bootstrap.sh session-start.sh user-prompt-submit.sh; do
+          if [ -f "$SRC_DIR/hooks/$shared_hook" ]; then
+            cp -n "$SRC_DIR/hooks/$shared_hook" "$target_dir/.claude/hooks/" 2>/dev/null || true
+          fi
+        done
+        if [ -f "$SRC_DIR/hooks/memory-engine.py" ]; then
+          cp -n "$SRC_DIR/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
+        fi
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
         for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-recommend ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
@@ -685,6 +696,12 @@ do_uninstall() {
   for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh; do
     if [ -f ".claude/hooks/$hook" ]; then
       rm -f ".claude/hooks/$hook" 2>/dev/null && { ok ".claude/hooks/$hook removed"; ((count++)); } || true
+    fi
+  done
+  # Shared cued-recall hooks (deployed from hooks/ to .claude/hooks/ by install)
+  for shared_hook in memory-bootstrap.sh session-start.sh user-prompt-submit.sh memory-engine.py; do
+    if [ -f ".claude/hooks/$shared_hook" ]; then
+      rm -f ".claude/hooks/$shared_hook" 2>/dev/null && { ok ".claude/hooks/$shared_hook removed"; ((count++)); } || true
     fi
   done
 

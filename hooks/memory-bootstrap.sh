@@ -6,6 +6,7 @@
 #   memory-bootstrap.sh scan          → report what would be ingested (dry-run, default)
 #   memory-bootstrap.sh ingest        → actually create memories from sources
 #   memory-bootstrap.sh status        → report current memory corpus stats
+#   memory-bootstrap.sh github-scan   → scan GitHub issues/PRs for tribal knowledge
 #
 # Never blocks (exit 0 on success, exit 1 only on hard errors). Stdout is the
 # user-facing report. See ADR-0001 and skill `memoire`.
@@ -108,6 +109,130 @@ EOF
   return 0
 }
 
+github_scan() {
+  local repo
+  repo=$(gh repo view --json name,owner --jq '"\(.owner.login)/\(.name)"' 2>/dev/null) || {
+    echo "GitHub CLI (gh) not authenticated or no remote found."
+    echo "Run 'gh auth login' first or configure a remote."
+    return 0
+  }
+
+  echo "Scanning GitHub repository $repo for tribal knowledge..."
+  echo ""
+
+  # ─── Issues ────────────────────────────────────────────────────────────────
+  echo "=== Issues ==="
+  echo ""
+
+  # Fetch last 50 closed+open issues with comments
+  gh issue list --repo "$repo" --limit 50 --state all --json number,title,body,labels,state,comments,url 2>/dev/null | \
+    python3 -c "
+import json, sys
+
+try:
+    issues = json.load(sys.stdin)
+except Exception as e:
+    print(f'  Error parsing issues: {e}')
+    sys.exit(0)
+
+found = 0
+for issue in issues:
+    body = issue.get('body') or ''
+    title = issue.get('title', '')
+    url = issue.get('url', '')
+    labels = ', '.join(l.get('name','') for l in issue.get('labels',[]))
+    comments = issue.get('comments') or []
+    state = issue.get('state', '')
+    all_text = body + ' ' + ' '.join(c.get('body','') for c in comments)
+
+    signals = []
+    for keyword in ['MISTAKE', 'RULE:', 'lesson learned', 'never do', 'we decided', 'chose', 'opted for', 'considered.*but', 'TODO', 'REASON:']:
+        if keyword.lower() in all_text.lower():
+            signals.append(keyword)
+
+    if signals or len(all_text) > 200:
+        found += 1
+        print(f'  [{state}] #{issue.get(\"number\")} - {title}')
+        print(f'    URL: {url}')
+        if labels:
+            print(f'    Labels: {labels}')
+        if signals:
+            print(f'    Signals: {', '.join(set(signals))}')
+        body_preview = body[:300].replace(chr(10), ' ') if body else '(empty)'
+        print(f'    Body: {body_preview}...' if len(body) > 300 else f'    Body: {body_preview}')
+        if comments:
+            for i, c in enumerate(comments[:3]):
+                cbody = (c.get('body') or '')[:200].replace(chr(10), ' ')
+                print(f'    Comment {i+1}: {cbody}...' if len((c.get('body') or '')) > 200 else f'    Comment {i+1}: {cbody}')
+            if len(comments) > 3:
+                print(f'    ... +{len(comments)-3} more comments')
+        print()
+
+if found == 0:
+    print('  No issues with detectable tribal knowledge found.')
+else:
+    print(f'  Found {found} issue(s) with potential tribal knowledge.')
+" 2>/dev/null || echo "  Error fetching issues. Is 'gh' installed?"
+
+  echo ""
+  echo "=== Pull Requests ==="
+  echo ""
+
+  # Fetch last 50 merged+open PRs
+  gh pr list --repo "$repo" --limit 50 --state all --json number,title,body,state,mergedAt,comments,url,additions,deletions 2>/dev/null | \
+    python3 -c "
+import json, sys
+
+try:
+    prs = json.load(sys.stdin)
+except Exception as e:
+    print(f'  Error parsing PRs: {e}')
+    sys.exit(0)
+
+found = 0
+for pr in prs:
+    body = pr.get('body') or ''
+    title = pr.get('title', '')
+    url = pr.get('url', '')
+    comments = pr.get('comments') or []
+    state = 'MERGED' if pr.get('mergedAt') else pr.get('state', '').upper()
+    all_text = body + ' ' + ' '.join(c.get('body','') for c in comments)
+
+    signals = []
+    for keyword in ['MISTAKE', 'RULE:', 'lesson learned', 'never do', 'we decided', 'chose', 'opted for', 'considered.*but', 'TODO', 'REASON:', 'trade-off', 'alternative']:
+        if keyword.lower() in all_text.lower():
+            signals.append(keyword)
+
+    if signals or len(all_text) > 200:
+        found += 1
+        print(f'  [{state}] #{pr.get(\"number\")} - {title}')
+        print(f'    URL: {url}')
+        size = pr.get('additions',0)+pr.get('deletions',0)
+        print(f'    Size: +{pr.get(\"additions\",0)}/-{pr.get(\"deletions\",0)} ({size} lines)')
+        if signals:
+            print(f'    Signals: {', '.join(set(signals))}')
+        body_preview = body[:300].replace(chr(10), ' ') if body else '(empty)'
+        print(f'    Description: {body_preview}...' if len(body) > 300 else f'    Description: {body_preview}')
+        if comments:
+            for i, c in enumerate(comments[:3]):
+                cbody = (c.get('body') or '')[:200].replace(chr(10), ' ')
+                print(f'    Comment {i+1}: {cbody}...' if len((c.get('body') or '')) > 200 else f'    Comment {i+1}: {cbody}')
+            if len(comments) > 3:
+                print(f'    ... +{len(comments)-3} more comments')
+        print()
+
+if found == 0:
+    print('  No PRs with detectable tribal knowledge found.')
+else:
+    print(f'  Found {found} PR(s) with potential tribal knowledge.')
+" 2>/dev/null || echo "  Error fetching PRs."
+
+  echo "---"
+  echo "GitHub scan complete. To ingest these into cued-recall memory,"
+  echo "the model will read each candidate and propose entries for validation."
+  return 0
+}
+
 status_corpus() {
   if [[ ! -f "$INDEX_FILE" ]]; then
     echo "No memory corpus yet at $MEMORY_DIR/."
@@ -147,12 +272,14 @@ case "$CMD" in
   scan)    scan_sources ;;
   ingest)  ingest_sources ;;
   status)  status_corpus ;;
+  github-scan|github)  github_scan ;;
   *)
-    echo "Usage: $0 {scan|ingest|status}"
+    echo "Usage: $0 {scan|ingest|status|github-scan}"
     echo ""
-    echo "  scan    — Report what would be ingested (default, dry-run)"
-    echo "  ingest  — Initialize .ciel/memory/ structure and instruct model to ingest"
-    echo "  status  — Report current corpus stats"
+    echo "  scan         — Report what would be ingested (default, dry-run)"
+    echo "  ingest       — Initialize .ciel/memory/ structure and instruct model to ingest"
+    echo "  status       — Report current corpus stats"
+    echo "  github-scan  — Scan GitHub issues/PRs for tribal knowledge"
     exit 1
     ;;
 esac
