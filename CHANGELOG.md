@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.8.0](https://github.com/KaosKyun/Ciel/compare/v6.7.0...v6.8.0) (2026-05-10)
+
+
+### Features
+
+* **hooks:** memory-bootstrap github-scan mode + fix install deployment ([#43](https://github.com/KaosKyun/Ciel/issues/43)) ([a17b946](https://github.com/KaosKyun/Ciel/commit/a17b946aaad522ca50cd0a0bb261e7b3a35ec251))
+
 ## [6.7.0](https://github.com/KaosKyun/Ciel/compare/v6.6.1...v6.7.0) (2026-05-08)
 
 
