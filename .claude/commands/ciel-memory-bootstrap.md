@@ -8,6 +8,8 @@ description: Scan project for ingestable tribal docs (lessons.md, ciel-overlay.m
 
 **Usage:** `/ciel-memory-bootstrap` (no args)
 
+Scans both **local tribal docs** and **GitHub issues/PRs** for actionable knowledge. The `github-scan` mode of `memory-bootstrap.sh` fetches issues and PRs with comments and flags discussions containing signals like "MISTAKE", "RULE:", "we decided", "lesson learned", etc.
+
 This is **deterministic**: no agent dispatch, no pipeline, no DIVERGE/EVALUER. Just scan, propose, write on user confirmation.
 
 ---
@@ -21,7 +23,10 @@ You are bootstrapping the cued-recall memory for this project. Follow these step
 Run the bootstrap script in `scan` mode:
 
 ```bash
-bash "$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh" scan
+# Try installed location first, fallback to dev location
+script="$CLAUDE_PROJECT_DIR/.claude/hooks/memory-bootstrap.sh"
+[ -f "$script" ] || script="$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh"
+bash "$script" scan
 ```
 
 Or, if running on an installed Ciel: `bash "$HOME/.ciel/hooks/memory-bootstrap.sh" scan`.
@@ -40,7 +45,9 @@ Based on the scan output:
 Run:
 
 ```bash
-bash "$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh" ingest
+script="$CLAUDE_PROJECT_DIR/.claude/hooks/memory-bootstrap.sh"
+[ -f "$script" ] || script="$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh"
+bash "$script" ingest
 ```
 
 This creates `.ciel/memory/{episodes,concepts,guards}/` and an empty `index.json`. It does NOT auto-write memories — auto-ingestion would create cargo-cult entries from possibly-stale docs (see ADR-0001).

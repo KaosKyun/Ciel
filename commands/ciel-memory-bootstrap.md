@@ -21,7 +21,10 @@ You are bootstrapping the cued-recall memory for this project. Follow these step
 Run the bootstrap script in `scan` mode:
 
 ```bash
-bash "$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh" scan
+# Try installed location first, fallback to dev location
+script="$CLAUDE_PROJECT_DIR/.claude/hooks/memory-bootstrap.sh"
+[ -f "$script" ] || script="$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh"
+bash "$script" scan
 ```
 
 Or, if running on an installed Ciel: `bash "$HOME/.ciel/hooks/memory-bootstrap.sh" scan`.
@@ -40,7 +43,9 @@ Based on the scan output:
 Run:
 
 ```bash
-bash "$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh" ingest
+script="$CLAUDE_PROJECT_DIR/.claude/hooks/memory-bootstrap.sh"
+[ -f "$script" ] || script="$CLAUDE_PROJECT_DIR/hooks/memory-bootstrap.sh"
+bash "$script" ingest
 ```
 
 This creates `.ciel/memory/{episodes,concepts,guards}/` and an empty `index.json`. It does NOT auto-write memories — auto-ingestion would create cargo-cult entries from possibly-stale docs (see ADR-0001).
