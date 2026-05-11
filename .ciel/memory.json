@@ -1,12 +1,4 @@
 {
-  "cielVersion": "6.4.3",
-  "lastUpdated": "2026-05-08T04:08:00.000Z",
-  "lastChange": "Enhanced ciel check command with installation integrity verification",
-  "changes": [
-    "packages/ciel/src/cli/check.ts — Added checkIntegrity() that verifies all Ciel files per platform (Claude Code + OpenCode), validates settings.json (JSON + hooks), validates opencode.json (plugin reference), checks hook executability. Exported for testing.",
-    "packages/ciel/test/cli.test.ts — Added 9 integrity check tests (missing files, valid installs, invalid configs, non-exec hooks, no-platform detection)",
-    ".claude/commands/ciel-status.md — Updated to delegate to npx ciel-init check",
-    ".opencode/commands/ciel-status.md — Updated to delegate to npx ciel-init check",
-    "Critic RELIRE findings fixed: HTTP timeout (AbortSignal), JSON parse error sanitization (no content leak)"
-  ]
+  "cielVersion": "6.8.0",
+  "lastUpdated": "2026-05-11T05:55:45.670Z"
 }

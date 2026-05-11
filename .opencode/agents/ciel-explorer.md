@@ -1,11 +1,12 @@
 ---
 description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
 mode: subagent
+model: anthropic/claude-haiku-4-5-20251001
 temperature: 0.2
 tools:
   write: false
   edit: false
-  bash: true
+  bash: false
   read: true
   glob: true
   grep: true
@@ -201,6 +202,14 @@ For impacted files, build a minimal map:
 
 ---
 
+## How to verify
+
+- [ ] 3-question fitness check applied (same problem? same constraints? same volume)?
+- [ ] Prior AI-generated patterns flagged?
+- [ ] Duplication check performed (≥ 2 copies)?
+- [ ] Mini repo-map generated (impacted files, key signatures, dependents)?
+- [ ] Hub check performed (high fan-in files)?
+
 ## When triggered
 
 - Standard/Critical tasks, during CODEBASE step
@@ -213,11 +222,11 @@ For impacted files, build a minimal map:
 ### Skill: `flux-narrator`
 
 
-# flux-narrator — Narrate data flow before coding
+# Data Flow Tracing — Narrate Before You Code
 
-Step 7 of CRÉER. Can't narrate the flow → don't understand the system → read more code.
+## What this covers
 
----
+How to trace and narrate data flow through a system. If you can't narrate the flow, you don't understand the system — read more code before implementing.
 
 ## Core narration
 
@@ -243,23 +252,21 @@ When user clicks "Save" on ProfileForm →
 Where does control pass between layers? Each boundary is a place where contracts can break.
 
 ### ASSUMPTIONS
-What must be true for this flow to work? E.g. "assumes user is authenticated", "assumes DB connection is not exhausted", "assumes the client sent the right Content-Type".
+What must be true for this flow to work? E.g. "assumes user is authenticated", "assumes DB connection is not exhausted".
 
 ### BREAK POINTS
-Where can the flow fail WITHOUT visible error? E.g. silent swallowed exceptions, network retries that mask failures, caching that hides stale data, fire-and-forget writes.
+Where can the flow fail WITHOUT visible error? E.g. silent swallowed exceptions, network retries that mask failures, caching that hides stale data.
 
----
+**Break points ≠ assumptions**: an assumption is "must be true"; a break point is "how it fails silently even when all assumptions hold".
 
-## Test-specific addendum (4 mandatory items when writing tests)
+## Test-specific items (when writing tests)
 
-When the current task involves writing a test:
+When the task involves writing tests, also determine:
 
-- **Test level**: unit (isolated logic) / integration (layer boundary) / E2E (user flow) — justify the choice
-- **URL routing**: request `host:port` vs handler `host:port` — match or mismatch? (CI often differs from local — MSW mock at wrong host = test passes locally, fails in CI)
-- **Mock lifecycle**: fires at module load? function call? render cycle? (Wrong lifecycle = stale or absent mock)
-- **Timing**: expected delay in ms / CI runner capabilities (fake timers? jest/vitest default timeout?)
-
----
+- **Test level**: unit / integration / E2E — justify the choice
+- **URL routing**: request `host:port` vs handler `host:port` — match or mismatch? (CI often differs from local)
+- **Mock lifecycle**: fires at module load? function call? render cycle?
+- **Timing**: expected delay in ms / CI runner capabilities (fake timers? timeout?)
 
 ## Output format
 
@@ -281,32 +288,27 @@ When <trigger>
 ### Break points (silent failures)
 - <list: how the flow fails without visible error>
 
-[If writing tests — 4 mandatory items:]
-
+[If writing tests:]
 ### Test-specific
 - Test level: <unit | integration | E2E> — <justification>
-- URL routing: request → <host:port>, handler → <host:port> — <MATCH ✓ | MISMATCH ⚠️>
-- Mock lifecycle: fires at <module load | function call | render>
-- Timing: expected <X ms>, CI runner: <capable | insufficient ⚠️>
+- URL routing: MATCH ✓ | MISMATCH ⚠️
+- Mock lifecycle: <module load | function call | render>
+- Timing: <X ms>, CI: <capable | insufficient ⚠️>
 ```
 
----
+## How to verify
 
-## Guardrails
+- [ ] ≥ 3 layers in the flow (trigger → middle → output)?
+- [ ] BOUNDARIES identified?
+- [ ] ASSUMPTIONS listed (what must be true)?
+- [ ] BREAK POINTS identified (silent failures)?
+- [ ] Narration based on grep (not memory)?
 
-- **Narration granularity**: minimum 3 layers (trigger → middle → output). If you can only name 2 layers, you don't understand the flow.
-- **Break points are NOT the same as assumptions**: an assumption is "must be true"; a break point is "how it fails silently even when all assumptions hold".
-- **Test items are mandatory when writing tests**: skipping any one risks CI/local mismatch, mock lifecycle issues, or flaky tests.
+## Key rules
+
+- **Minimum 3 layers**: trigger → middle → output. Only 2 = don't understand the flow.
 - **Don't narrate from memory**: grep the actual call graph. Pattern-matching produces plausible but wrong narrations.
-
----
-
-## When triggered
-
-- Standard/Critical tasks, after CODEBASE step
-- Before writing ANY test (always invoke with test-specific addendum)
-- When debugging: "the flow is broken somewhere" → narrate to find the gap
-- When user asks "walk me through how X works"
+- **Test items mandatory when writing tests**: skipping any one risks CI/local mismatch or flaky tests.
 
 ---
 
@@ -448,6 +450,14 @@ INFO:  1  (opportunistic)
 - **Stop at 10 findings per file** — above 10, return "file needs a dedicated modernization task" rather than a linter dump.
 
 ---
+
+## How to verify
+
+- [ ] Anti-pattern catalogue checked for each language in stack?
+- [ ] Each finding has 2026 canonical replacement?
+- [ ] Stack compatibility confirmed?
+- [ ] VERDICT issued (CLEAN / FINDINGS)?
+- [ ] Migration notes provided for each finding?
 
 ## When triggered
 
@@ -622,6 +632,14 @@ INFO:  1
 
 ---
 
+## How to verify
+
+- [ ] All 6 failure modes checked (invented APIs, hallucinated deps, version drift, async/sync, confident-wrong, extrinsic)?
+- [ ] Each finding has evidence (file:line or URL)?
+- [ ] VERDICT issued (CLEAN / FINDINGS)?
+- [ ] Author identified (LLM vs human)?
+- [ ] External API calls validated against official docs?
+
 ## When triggered
 
 - Post-write hook when AUTHOR=LLM and task is Standard/Critical
@@ -648,59 +666,59 @@ INFO:  1
 ### Skill (compact): `test-strategy-vitest-playwright`
 
 
-**Purpose:** Designs the test strategy for a feature — which tests belong at which level (unit 70% / integration 20% / e2e 10%), which tooling fits (Vitest + MSW + Playwright + fast-check), what to mock vs what to hit real, and how to keep the suite fast. 2026 convention: browser-native runners, property-based for edge cases, accessibility-tree assertions over screenshots. Invoked during CRÉER step 4 (test planning) before code is written.
+**Purpose:** How to plan a test strategy — test pyramid (70/20/10), what to test at each level (unit/integration/E2E), what to mock vs hit real, property-based testing for boundaries, and keeping the suite fast. 2026 convention: browser-native runners, accessibility-tree assertions over screenshots.
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/test-strategy-vitest-playwright/`):
 
 
 
-The anti-pattern is 70% E2E Playwright, 5% unit — slow CI, flaky, expensive. The 2026 pyramid: most tests at the unit level, very few real-browser E2E, property-based for boundary conditions.
+## What this covers
 
----
+How to decide which tests go where, what to mock, and how to keep a test suite fast. The anti-pattern is 70% E2E Playwright, 5% unit — slow CI, flaky, expensive. The 2026 pyramid: most tests at the unit level, very few real-browser E2E.
 
-## Inputs
+## Core principle
 
-```
-FEATURE_DESCRIPTION: [what the feature does, user-level]
-COMPONENTS_TOUCHED: [files / modules / routes]
-EXISTING_TESTS: [coverage map of the affected area]
-STACK: [TS/JS framework + test tooling currently used]
-```
-
----
+**Most tests should be unit tests.** E2E is for critical user paths across 3+ components, not coverage inflation. If you're writing E2E because "it's hard to isolate", the code needs a refactor, not more tests.
 
 ## The 2026 pyramid (target ratios)
 
 ```
+        ┌───────────────┐
+        │  E2E (10%)     │  Playwright — critical user paths only
+        ├───────────────┤
+        │  Integ (20%)   │  Vitest + MSW (no real network) OR test DB
+        ├───────────────┤
+        │                │
+        │  Unit (70%)    │  Vitest — pure logic, reducers, utils
 
 ---
 
 ### Skill (compact): `playwright-visual-critic`
 
 
-**Purpose:** Wraps Playwright MCP to give Ciel visual critique capability — launches the dev server, navigates to a target page, captures the accessibility tree and (optionally) a screenshot, then dispatches @ciel-critic to analyze layout, contrast, focus order, and responsive behavior. Prefers accessibility-tree analysis over pixel screenshots (deterministic, 2-5KB vs 100KB+). Requires Playwright MCP to be configured (install with `bash install.sh --with-mcp=playwright`).
+**Purpose:** How to review UI visually using Playwright MCP — launch dev server, capture accessibility tree (not screenshots), check layout/contrast/focus/responsive at multiple viewports, and produce structured findings. Prefers accessibility-tree analysis over pixel screenshots (deterministic, 2-5KB vs 100KB+). Requires Playwright MCP configured.
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/playwright-visual-critic/`):
 
 
 
-UI bugs invisible to code review: clipped text, contrast failures, broken focus order, mobile overflow. The 2026 pattern is NOT "screenshot → vision model"; it's "accessibility tree → structured critique", which is 20-50x cheaper and more accurate.
+## What this covers
 
----
+How to visually review UI using Playwright MCP. UI bugs invisible to code review: clipped text, contrast failures, broken focus order, mobile overflow. The 2026 pattern is NOT "screenshot → vision model"; it's "accessibility tree → structured critique", which is 20-50x cheaper and more accurate.
+
+## Core principle
+
+**Accessibility tree first, screenshots last.** Tree is deterministic, cheap, and doesn't break on font/rendering differences. Screenshots are brittle and expensive to analyze.
 
 ## Prerequisites
 
-Playwright MCP must be installed and registered:
+Playwright MCP must be installed:
 
 ```bash
-bash ~/.claude/plugins/ciel/scripts/install.sh --with-mcp=playwright
-
 claude mcp add playwright --transport stdio -- npx @playwright/mcp@latest
 ```
 
 Verify with: `claude mcp list | grep playwright`.
-
-If not installed → STOP and instruct the user to run the command above. Do not attempt to critique without it.
 
 
 ---
@@ -715,29 +733,29 @@ If not installed → STOP and instruct the user to run the command above. Do not
 
 **Triggers on paths:** `"**/*.{tsx,jsx,vue,svelte,js,ts}"`
 
-**Purpose:** Expert patterns for React, Vue, Svelte, Solid frontend development — hooks, state management, routing, forms, accessibility, rendering. Auto-activates on .tsx, .jsx, .vue, .svelte files. Invoked in parallel with researcher agent during CODEBASE/FLUX steps when frontend stack is detected. Focuses on idiomatic patterns, common bypass signals, and anti-patterns the framework wants you to avoid.
+**Purpose:** Expert patterns for React, Vue, Svelte, Solid frontend development — hooks, state management, routing, forms, accessibility, rendering. Auto-activates on .tsx, .jsx, .vue, .svelte files. Focuses on idiomatic patterns, common bypass signals, and anti-patterns the framework wants you to avoid.
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/frontend-mastery/`):
 
 
 
-Applied in parallel with `researcher` when a frontend task is detected. Contributes framework-idiomatic patterns + bypass signals specific to the component model.
+## What this covers
+Framework-idiomatic patterns + bypass signals specific to the component model. Ensures code matches how the framework WANTS problems solved, not just how they CAN be solved.
 
-For framework-specific cheatsheets (React, Vue, Svelte), see `reference.md`.
+## Core principle
+**Framework philosophy first.** If React 19 wants data fetching on the server, don't fetch on the client. If Svelte 5 uses runes, don't use stores. Match the framework's intent.
 
----
+## Key patterns (2026)
 
-## Inputs
+### React 19 — Server-first rendering
 
-```
-TASK: [1-sentence description]
-STACK: [React | Vue | Svelte | Solid | other]
-VERSION: [exact version from avec-quoi-versioner]
-```
-
----
-
-## Process
+```jsx
+// ❌ BEFORE: Client waterfall
+function Author({id}) {
+  const [author, setAuthor] = useState('');
+  useEffect(() => { fetch(`/api/authors/${id}`).then(d => setAuthor(d)); }, [id]);
+  return <span>{author.name}</span>;
+}
 
 
 ---
@@ -746,30 +764,30 @@ VERSION: [exact version from avec-quoi-versioner]
 
 **Triggers on paths:** `"**/build.gradle*,**/pom.xml,**/go.mod,**/requirements.txt,**/Gemfile,**/routes/**,**/controllers/**,**/services/**,**/middleware/**"`
 
-**Purpose:** Expert patterns for backend server development across Ktor, Go net/http, Node/Express, Rails, Django, FastAPI, Spring — routing, middleware, authentication, background jobs, connection pooling, error handling. Auto-activates on server framework files. Invoked in parallel with researcher agent when server-side change detected.
+**Purpose:** Expert patterns for backend server development across Ktor, Go net/http, Node/Express, Rails, Django, FastAPI, Spring — routing, middleware, authentication, background jobs, connection pooling, error handling. Auto-activates on server framework files.
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/backend-mastery/`):
 
 
 
-Applied in parallel with `researcher` when server-side task detected. Contributes framework-idiomatic patterns specific to request-response / middleware / background processing.
+## What this covers
+Framework-idiomatic patterns for request-response, middleware, error handling, and background processing. Ensures code follows how the framework WANTS the problem solved.
 
-For framework-specific cheatsheets, see `reference.md`.
+## Core principle
+**Layer discipline.** Business logic in services, not routes. Errors handled centrally, not per-handler. Resources always closed.
 
----
+## Key patterns (2026)
 
-## Inputs
+### Express 5 — Native async (no wrappers)
 
-```
-TASK: [1-sentence description]
-STACK: [Ktor | Express | Rails | Django | FastAPI | Spring | Go net/http | other]
-VERSION: [exact version]
-```
+```js
+// ❌ BEFORE: Express 4 async wrapper boilerplate
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+app.get('/users', asyncHandler(async (req, res) => { ... }));
 
----
-
-## Process
-
+// ✅ AFTER: Express 5 native async
+app.get('/users', async (req, res) => {
 
 ---
 
@@ -777,30 +795,30 @@ VERSION: [exact version]
 
 **Triggers on paths:** `"**/*.sql,**/migrations/**,**/prisma/**,**/supabase/**,**/schema.*,**/*Migration*,**/*migration*"`
 
-**Purpose:** Expert patterns for PostgreSQL, MySQL, Redis, MongoDB, SQLite — migrations, indexes, query planning, connection pooling, parameterized queries, schema evolution. Auto-activates on SQL files, migrations, prisma schemas, supabase folders. Invoked in parallel with researcher when DB work detected. Always verifies real schema before asserting column existence.
+**Purpose:** Expert patterns for PostgreSQL, MySQL, Redis, MongoDB, SQLite — migrations, indexes, query planning, connection pooling, parameterized queries, schema evolution. Auto-activates on SQL files, migrations, prisma schemas. Always verifies real schema before asserting column existence.
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/database-mastery/`):
 
 
 
-Applied in parallel with `researcher` when DB work detected. Contributes schema/query patterns + safety checks specific to transactional systems.
+## What this covers
+Schema/query patterns + safety checks specific to transactional systems. Ensures migrations are safe, queries are efficient, and schema claims are verified.
 
-For engine-specific cheatsheets, see `reference.md`.
+## Core principle
+**Never assume a column exists.** Verify from migration or `pg_attribute`. Never trust memory for schema details.
 
----
+## Key patterns (2026)
 
-## Inputs
+### PostgreSQL 17 — Measure before optimizing
 
-```
-TASK: [1-sentence description]
-DB: [PostgreSQL | MySQL | Redis | MongoDB | SQLite | other]
-VERSION: [exact version]
-```
+```sql
+-- ❌ BEFORE: Blind optimization
+CREATE INDEX idx_orders_customer ON orders(customer_id);
 
----
-
-## Process
-
+-- ✅ AFTER: Measure first
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM orders WHERE customer_id = 42;
+-- Shows: Seq Scan on orders (cost=0..1520 rows=50)
 
 ---
 
