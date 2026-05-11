@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && \"$CLAUDE_PROJECT_DIR\"/hooks/session-version-check.sh"
+            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-version-check.sh"
           }
         ]
       }
@@ -35,7 +35,7 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/pre-tool-write.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-tool-write.sh"
           }
         ]
       },
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/pre-agent-gate.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-agent-gate.sh"
           }
         ]
       }
@@ -69,7 +69,7 @@
           },
           {
             "type": "command",
-            "command": "COUNT=$(cat \"$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json\" 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print(len(d))\" 2>/dev/null || echo \"?\"); echo \"[CIEL] Tracked files: $COUNT — RELIRE recommended at 5+ files or on Critical paths\" >&2"
+            "command": "COUNT=$(cat \"${CLAUDE_PROJECT_DIR:-$PWD}/.ciel/tracked-files.json\" 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print(len(d))\" 2>/dev/null || echo \"?\"); echo \"[CIEL] Tracked files: $COUNT — RELIRE recommended at 5+ files or on Critical paths\" >&2"
           }
         ]
       }

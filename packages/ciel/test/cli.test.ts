@@ -294,6 +294,54 @@ describe("CLI — Integrity check", () => {
   });
 });
 
+describe("CLI — Claude install merge", () => {
+  it("--force migrates legacy hooks/ paths to .claude/hooks/ without duplicating entries", () => {
+    // Regression: mergeSettings used to detect Ciel wrappers by ".claude/hooks/"
+    // substring, so legacy entries with "hooks/<script>.sh" leaked through as
+    // "user entries" and ended up duplicated alongside the new template entries.
+    const srcDir = join(__dirname, "..", "assets");
+    if (!existsSync(join(srcDir, ".claude/settings.json"))) return; // not built
+
+    // realpath-resolve to bypass the /var → /private/var symlink on macOS,
+    // which mkdirSafe (claude.ts) doesn't tolerate. The symlink behavior is a
+    // separate latent bug; this test stays focused on the merge fix.
+    const targetDir = require("fs").realpathSync(createTempProject());
+    mkdirSync(join(targetDir, ".claude"), { recursive: true });
+    writeFileSync(
+      join(targetDir, ".claude/settings.json"),
+      JSON.stringify({
+        hooks: {
+          SessionStart: [{
+            hooks: [{
+              type: "command",
+              command: '"$CLAUDE_PROJECT_DIR"/hooks/session-version-check.sh',
+            }],
+          }],
+        },
+      })
+    );
+
+    const { installClaude } = require("../src/cli/claude");
+    installClaude({ targetDir, srcDir, force: true, quiet: true });
+
+    const merged = JSON.parse(
+      require("fs").readFileSync(join(targetDir, ".claude/settings.json"), "utf8")
+    );
+    const sessionStart = merged.hooks?.SessionStart ?? [];
+    assert.equal(sessionStart.length, 1, "expected exactly one SessionStart wrapper after merge");
+    const cmds = (sessionStart[0].hooks ?? []).map((h: any) => String(h.command ?? ""));
+    assert.ok(
+      cmds.some((c: string) => c.includes(".claude/hooks/session-version-check.sh")),
+      "expected migrated path to .claude/hooks/"
+    );
+    assert.ok(
+      !cmds.some((c: string) => /\/hooks\/session-version-check\.sh/.test(c) && !c.includes(".claude/")),
+      "legacy hooks/ path must not remain"
+    );
+    cleanupTempProject(targetDir);
+  });
+});
+
 describe("CLI — OpenCode install", () => {
   it("installOpenCode creates plugin file from source", () => {
     // This test needs source files — skip if not in dev mode

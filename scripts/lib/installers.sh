@@ -22,7 +22,7 @@ install_central_resources() {
   done
   
   # Commands (central copies)
-  for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+  for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-audit; do
     curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$CIEL_CENTRAL/commands/${cmd}.md" 2>/dev/null && ok "Central command: $cmd" || true
   done
   
@@ -102,7 +102,7 @@ install_claude_code() {
     done
     
     # Commands (symlinks to central)
-    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-audit; do
       rm -f "$commands_dir/$cmd.md"
       ln -sf "$CIEL_CENTRAL/commands/$cmd.md" "$commands_dir/$cmd.md" && ok "Command: /$cmd" || warn "Command: $cmd"
     done
@@ -112,7 +112,7 @@ install_claude_code() {
     cp -r "$ciel_dir/hooks/" "$plugin_dir/" 2>/dev/null || true
     cp -r "$ciel_dir/agents/" "$plugin_dir/" 2>/dev/null || true
     # Create command symlinks
-    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-audit; do
       rm -f "$commands_dir/$cmd.md"
       ln -sf "$CIEL_CENTRAL/commands/$cmd.md" "$commands_dir/$cmd.md" 2>/dev/null || true
     done
@@ -230,7 +230,7 @@ install_opencode() {
     # No subagents/ directory needed — avoids frontmatter format conflicts
     
     # Commands
-    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-audit; do
       curl -fsSL "$GITHUB_BASE/.opencode/commands/${cmd}.md" -o "$project_root/.opencode/commands/${cmd}.md" 2>/dev/null && ok "Command: $cmd" || true
     done
     
@@ -330,7 +330,7 @@ install_generic() {
       curl -fsSL "$GITHUB_BASE/agents/${agent}.md" -o "$platform_dir/agents/${agent}.md" 2>/dev/null || true
     done
     
-    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-recommend ciel-audit; do
+    for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-audit; do
       curl -fsSL "$GITHUB_BASE/commands/${cmd}.md" -o "$platform_dir/commands/${cmd}.md" 2>/dev/null || true
     done
     

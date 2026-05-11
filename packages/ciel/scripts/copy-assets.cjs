@@ -39,6 +39,9 @@ const TEMPLATE_PATTERNS = [
   { src: ".claude/hooks/block-destructive.sh", dest: ".claude/hooks/block-destructive.sh" },
   { src: ".claude/hooks/track-file.sh", dest: ".claude/hooks/track-file.sh" },
   { src: ".claude/hooks/meta-critiquer.sh", dest: ".claude/hooks/meta-critiquer.sh" },
+  { src: ".claude/hooks/session-version-check.sh", dest: ".claude/hooks/session-version-check.sh" },
+  { src: ".claude/hooks/pre-tool-write.sh", dest: ".claude/hooks/pre-tool-write.sh" },
+  { src: ".claude/hooks/pre-agent-gate.sh", dest: ".claude/hooks/pre-agent-gate.sh" },
   // Cued-recall memory hooks
   { src: ".claude/hooks/session-start.sh", dest: ".claude/hooks/session-start.sh" },
   { src: ".claude/hooks/user-prompt-submit.sh", dest: ".claude/hooks/user-prompt-submit.sh" },

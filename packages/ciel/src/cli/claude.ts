@@ -17,6 +17,20 @@ export interface InstallResult {
   skipped: string[];
 }
 
+// Hook scripts shipped by Ciel. Used both to copy assets on install
+// and to detect Ciel-managed wrappers in mergeSettings — so legacy paths
+// (e.g. $CLAUDE_PROJECT_DIR/hooks/x.sh) get migrated on --force upgrade
+// rather than preserved alongside the new $CLAUDE_PROJECT_DIR/.claude/hooks/x.sh.
+const CIEL_HOOK_FILES = [
+  "check-test-first.sh",
+  "block-destructive.sh",
+  "track-file.sh",
+  "meta-critiquer.sh",
+  "session-version-check.sh",
+  "pre-tool-write.sh",
+  "pre-agent-gate.sh",
+];
+
 /**
  * Detect if the project has Claude Code configuration.
  */
@@ -65,13 +79,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   }
 
   // Hook files
-  const hookFiles = [
-    "check-test-first.sh",
-    "block-destructive.sh",
-    "track-file.sh",
-    "meta-critiquer.sh",
-  ];
-  for (const hook of hookFiles) {
+  for (const hook of CIEL_HOOK_FILES) {
     const src = join(srcDir, ".claude/hooks", hook);
     const dest = join(hooksDest, hook);
     if (existsSync(src)) {
@@ -91,6 +99,9 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     "ciel-eval.md",
     "ciel-create-skill.md",
     "ciel-audit.md",
+    "ciel-memory-bootstrap.md",
+    "ciel-migrate.md",
+    "ciel-status.md",
   ];
   for (const cmd of commandFiles) {
     const src = join(srcDir, "commands", cmd);
@@ -198,10 +209,10 @@ function mkdirSafe(dir: string, fence: string): void {
 /**
  * Merge the hooks section of a Ciel settings.json template into an existing
  * settings file. Replaces Ciel-managed hook entries (those whose inner
- * hooks[].command references .claude/hooks/) with the template entries;
- * user-added wrappers are preserved. All other top-level keys (mcpServers,
- * permissions, etc.) are kept from the existing file.
- * Returns null if either file cannot be read or parsed.
+ * hooks[].command references a known Ciel hook script basename, regardless
+ * of path) with the template entries; user-added wrappers are preserved.
+ * All other top-level keys (mcpServers, permissions, etc.) are kept from
+ * the existing file. Returns null if either file cannot be read or parsed.
  */
 function mergeSettings(existingPath: string, templatePath: string): object | null {
   let existing: Record<string, unknown>;
@@ -238,13 +249,18 @@ function mergeSettings(existingPath: string, templatePath: string): object | nul
     for (const event of allEvents) {
       const templateEntries = templateHooks[event] ?? [];
       const existingEntries = existingHooks[event] ?? [];
-      // A wrapper is Ciel-managed if any of its inner hooks reference .claude/hooks/
+      // A wrapper is Ciel-managed if any inner hook command references a
+      // known Ciel hook script basename — matches both new `.claude/hooks/x.sh`
+      // and legacy `hooks/x.sh` paths so upgrades migrate cleanly.
       const userEntries = existingEntries.filter((e) => {
         const wrapper = e as Record<string, unknown>;
         const inner = Array.isArray(wrapper.hooks)
           ? (wrapper.hooks as Record<string, string>[])
           : [];
-        return !inner.some((h) => String(h.command ?? "").includes(".claude/hooks/"));
+        return !inner.some((h) => {
+          const cmd = String(h.command ?? "");
+          return CIEL_HOOK_FILES.some((name) => cmd.includes(name));
+        });
       });
       const entries = [...templateEntries, ...userEntries];
       // Omit event key if empty (avoids clobbering user events dropped from template)
