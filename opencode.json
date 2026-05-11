@@ -16,13 +16,11 @@
     "websearch": "allow",
     "bash": {
       "*": "allow",
-
       "rm *": "deny",
       "rmdir *": "ask",
       "unlink *": "ask",
       "find * -delete*": "ask",
       "find * -exec rm*": "ask",
-
       "git rm*": "ask",
       "git clean *": "ask",
       "git branch -D*": "ask",
@@ -36,7 +34,6 @@
       "git checkout -- *": "ask",
       "git restore *": "ask",
       "git tag -d*": "ask",
-
       "npm uninstall*": "ask",
       "npm rm *": "ask",
       "npm remove *": "ask",
@@ -45,7 +42,6 @@
       "pnpm rm *": "ask",
       "yarn remove *": "ask",
       "bun remove *": "ask",
-
       "docker rm*": "ask",
       "docker rmi*": "ask",
       "docker volume rm*": "ask",
@@ -56,7 +52,6 @@
       "docker compose down -v*": "ask",
       "docker compose rm*": "ask",
       "docker container prune*": "ask",
-
       "psql *DROP*": "ask",
       "psql *DELETE*": "ask",
       "psql *TRUNCATE*": "ask",
@@ -66,12 +61,10 @@
       "terraform destroy*": "ask",
       "aws s3 rm *": "ask",
       "aws s3api delete*": "ask",
-
       "gh repo delete*": "ask",
       "gh release delete*": "ask",
       "gh issue delete*": "ask",
       "gh pr close*": "ask",
-
       "sudo *": "deny",
       "shutdown*": "deny",
       "reboot*": "deny",

@@ -39,6 +39,11 @@ const TEMPLATE_PATTERNS = [
   { src: ".claude/hooks/block-destructive.sh", dest: ".claude/hooks/block-destructive.sh" },
   { src: ".claude/hooks/track-file.sh", dest: ".claude/hooks/track-file.sh" },
   { src: ".claude/hooks/meta-critiquer.sh", dest: ".claude/hooks/meta-critiquer.sh" },
+  // Cued-recall memory hooks
+  { src: ".claude/hooks/session-start.sh", dest: ".claude/hooks/session-start.sh" },
+  { src: ".claude/hooks/user-prompt-submit.sh", dest: ".claude/hooks/user-prompt-submit.sh" },
+  { src: ".claude/hooks/memory-bootstrap.sh", dest: ".claude/hooks/memory-bootstrap.sh" },
+  { src: ".claude/hooks/memory-engine.py", dest: ".claude/hooks/memory-engine.py" },
   { src: ".claude/settings.json", dest: ".claude/settings.json" },
   { src: "CLAUDE.md", dest: "CLAUDE.md" },
   { src: "AGENTS.md", dest: "AGENTS.md" },
@@ -52,6 +57,7 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-status.md", dest: "commands/ciel-status.md" },
   { src: "commands/ciel-migrate.md", dest: "commands/ciel-migrate.md" },
   { src: "commands/ciel-audit.md", dest: "commands/ciel-audit.md" },
+  { src: "commands/ciel-memory-bootstrap.md", dest: "commands/ciel-memory-bootstrap.md" },
 
   // Ciel skill files (for Claude Code)
   { src: "skills/ciel/SKILL.md", dest: "skills/ciel/SKILL.md" },

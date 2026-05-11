@@ -1,33 +1,45 @@
 ---
-description: Displays the current Ciel environment status — active version, loaded skills, registered hooks, last session state, and configuration health. A diagnostic entry point for "is Ciel working?" questions.
+description: ---
 subtask: false
+---
+
+---
+description: Displays the current Ciel environment status — active version, loaded skills, registered hooks, last session state, and configuration health. A diagnostic entry point for "is Ciel working?" questions.
 ---
 
 # /ciel-status — Ciel Environment Health Check
 
 *Displays the current Ciel environment status: version, skills, hooks, and config.*
 
-Usage: `/ciel-status`
+Usage: `/ciel-status [--check]`
 
-## Instructions
+- `--check` — run diagnostics (verify hooks fire, skills load, config is valid)
 
-1. **Run integrity check first**: Execute `npx ciel-init check` — this verifies version against NPM AND checks all Ciel files are present, opencode.json references the plugin, agents/commands exist, etc.
+## Output
 
-2. **If CLI not available** (npx fails), fall back to manual checks:
-   - Check `.ciel/memory.json` for installed version
-   - Verify `opencode.json` is valid JSON with Ciel plugin reference
-   - Verify `.opencode/plugins/ciel.js` (or `.ts`) exists
-   - Verify `.opencode/agents/` has all 5 agent definitions
-   - Verify `.opencode/commands/ciel*.md` exist (commands)
-   - Verify `.ciel/map.json` and `.ciel/memory.json` exist and are parseable
-   - Verify `AGENTS.md` exists and references Ciel pipeline
-   - Verify `opencode.json` has `instructions: ["AGENTS.md"]`
+```
+## CIEL STATUS
 
-3. **Present results** — show a clear summary: what's OK, what's missing, version status.
+Version: v6.2.4
+Platform: Claude Code
+Config: .claude/settings.json — OK (4 hooks registered)
+Skills directory: skills/ — 43 skills loaded
+Commands: 7 commands available
+Last session: 2026-05-06T11:20:00Z — Skills library reorg
+```
+
+## Diagnostics (--check)
+
+- [ ] CLAUDE.md readable and includes Ciel pipeline
+- [ ] .claude/settings.json valid JSON, hooks registered
+- [ ] .ciel/map.json parseable and up-to-date
+- [ ] .ciel/memory.json parseable
+- [ ] Shell hooks executable (check-test-first, block-destructive, track-file, meta-critiquer)
+- [ ] Skills directory non-empty and accessible
+- [ ] Agent definitions present (.claude/agents/ or .opencode/agents/)
 
 ## When triggered
 
 - User asks "is Ciel working?" or "check Ciel health"
 - After ciel-init to verify installation
 - Debugging hook failures or missing depth classification
-- User reports missing commands or broken Ciel behavior

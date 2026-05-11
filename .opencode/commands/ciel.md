@@ -1,6 +1,5 @@
 ---
-command: ciel
-description: Ciel orchestrator — full 16-step deep-reasoning pipeline
+description: Slash trigger for the Ciel orchestrator skill on OpenCode.
 ---
 
 Invoke the `ciel` skill via the Skill tool with the user's arguments:

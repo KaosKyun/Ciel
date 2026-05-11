@@ -1,10 +1,10 @@
 ---
-description: Audits the current Claude Code session for Ciel paradigm violations (missed Task dispatches, inline gathering, hook inactivity, skill overlaps, intent routing misses). Produces a structured report with a Ciel Health Score (0-100). If score < 75, creates a GitHub Issue on the Ciel repository with the findings and session timeline. Hook-independent — works even when Ciel hooks are broken.
+description: Audits the current Claude Code session for Ciel paradigm violations (missed Task dispatches, inline gathering, hook inactivity, skill overlaps, intent routing misses). Produces a structured report with a Ciel Health Score (0-100). If score < 90, creates a GitHub Issue on the Ciel repository with the findings and session timeline. Hook-independent — works even when Ciel hooks are broken.
 ---
 
 # /ciel-audit — Session post-mortem
 
-*Generates a structured report of Ciel behavior violations observed in the current session. Calculates a Ciel Health Score (0-100). If the score is below 75, creates a GitHub Issue on the Ciel repository (github.com/KaosKyun/Ciel) with the full timeline and findings — otherwise produces the report only without creating an issue.*
+*Generates a structured report of Ciel behavior violations observed in the current session. Calculates a Ciel Health Score (0-100). If the score is below 90, creates a GitHub Issue on the Ciel repository (github.com/KaosKyun/Ciel) with the full timeline and findings — otherwise produces the report only without creating an issue.*
 
 Usage: `/ciel-audit`
 
@@ -85,17 +85,78 @@ If npm version > local version, include an **Update notification** in the report
 
 #### Dimension 8: Platform health — penalty up to -5
 
-Check which Ciel platforms are present and whether they have valid configurations:
+Check that Ciel platform installations exist and are valid. Ciel currently supports two platforms: **claude** and **opencode**.
 
+**Claude Code** — check for expected agent and hook files:
 ```bash
-ls /path/to/platforms/ 2>/dev/null
+CLAUDE_AGENTS=$(ls .claude/agents/ciel-*.md 2>/dev/null | wc -l | tr -d ' ')
+CLAUDE_HOOK=$(test -f .claude/hooks/session-start.sh && echo "1" || echo "0")
+CLAUDE_SETTINGS=$(test -f .claude/settings.json && echo "1" || echo "0")
+echo "Claude: agents=$CLAUDE_AGENTS hook=$CLAUDE_HOOK settings=$CLAUDE_SETTINGS"
+if [ "$CLAUDE_AGENTS" -ge 3 ] && [ "$CLAUDE_HOOK" = "1" ] && [ "$CLAUDE_SETTINGS" = "1" ]; then
+  echo "Claude platform: OK"
+else
+  echo "Claude platform: INCOMPLETE"
+fi
 ```
+Expected: at least 3 agent files + session-start.sh + settings.json
 
-Expected platforms: codex, cursor, kilocode, lmstudio, ollama, opencode, windsurf
+**OpenCode** — check for expected plugin, agent, and command files:
+```bash
+OPENCODE_PLUGIN=$(test -f .opencode/plugins/ciel.ts && echo "1" || echo "0")
+OPENCODE_AGENTS=$(ls .opencode/agents/ciel-*.md 2>/dev/null | wc -l | tr -d ' ')
+OPENCODE_COMMANDS=$(ls .opencode/commands/ciel*.md 2>/dev/null | wc -l | tr -d ' ')
+echo "OpenCode: plugin=$OPENCODE_PLUGIN agents=$OPENCODE_AGENTS commands=$OPENCODE_COMMANDS"
+if [ "$OPENCODE_PLUGIN" = "1" ] && [ "$OPENCODE_AGENTS" -ge 3 ] && [ "$OPENCODE_COMMANDS" -ge 5 ]; then
+  echo "OpenCode platform: OK"
+else
+  echo "OpenCode platform: INCOMPLETE"
+fi
+```
+Expected: ciel.ts plugin + at least 3 agent files + at least 5 command files
 
-- All platforms present: **0**
-- Missing 1-2 platforms: **-3**
-- Missing 3+ platforms: **-5**
+Scoring:
+- Both platforms fully present and valid: **0**
+- One platform missing or incomplete: **-3**
+- Both platforms missing or critically incomplete: **-5**
+
+**Important**: Do NOT check for `.claude/plugins/ciel/platforms/` or `.opencode/platforms/` directories — these are not part of the v6 architecture. Platform files are installed directly into `.claude/` and `.opencode/` respectively. Do NOT check for codex, cursor, kilocode, lmstudio, ollama, or windsurf — these platforms are not yet implemented.
+
+#### Dimension 9: Memory health — penalty up to -10
+
+Check the cued-recall memory system (see `docs/adrs/0001-cued-recall-memory.md`):
+
+- **index.json missing**: `.ciel/memory/index.json` does not exist. The memory system was never bootstrapped. **-10**
+- **index.json exists but episodes/ empty**: `.ciel/memory/episodes/` has no files. Bootstrap ran but no memories were ingested, or the directory structure is incomplete. **-5**
+- **Low trigger ratio**: Count memories with `trigger_count > 0` vs total. If < 30% of memories have ever been triggered, the cue-matching system may be misconfigured or the memories are not relevant to actual usage. **-3**
+- **Stale memories**: Any memory with `stale: true` or with `last_triggered` older than `stale_after_days` (default 90). Stale memories waste index space and should be cleaned up by `memory-engine.py rebuild-index`. **-2**
+
+Scoring:
+- index.json missing: **-10** (blocks all other checks)
+- index.json present but no episode files: **-5**
+- All checks pass: **0**
+
+Run these checks:
+```bash
+# Check index.json exists
+test -f .ciel/memory/index.json && echo "index: OK" || echo "index: MISSING"
+
+# Count episodes
+EPISODES=$(ls .ciel/memory/episodes/*.md 2>/dev/null | wc -l | tr -d ' ')
+echo "episodes: $EPISODES"
+
+# Count triggered vs total (requires python3)
+python3 -c "
+import json
+with open('.ciel/memory/index.json') as f:
+    idx = json.load(f)
+mems = idx.get('memories', {})
+total = len(mems)
+triggered = sum(1 for m in mems.values() if m.get('trigger_count', 0) > 0)
+stale = sum(1 for m in mems.values() if m.get('stale'))
+print(f'total: {total}, triggered: {triggered} ({0 if total==0 else triggered*100//total}%), stale: {stale}')
+" 2>/dev/null || echo "memory check failed (no python3?)"
+```
 
 ---
 
@@ -106,9 +167,7 @@ Expected platforms: codex, cursor, kilocode, lmstudio, ollama, opencode, windsur
 | Score range | Status | Issue created? |
 |-------------|--------|----------------|
 | 90-100 | Excellent | No |
-| 75-89 | Good (minor issues) | No |
-| 50-74 | Needs improvement | **Yes** — creates issue with timeline |
-| 0-49 | Critical | **Yes** — creates issue with timeline |
+| 0-89 | Needs improvement | **Yes** — creates issue with timeline |
 
 The score is calculated automatically from the detected violations.
 
@@ -124,7 +183,7 @@ Begin the output with the literal line `# Ciel Session Audit Report`. End with t
 **Date**: <today's date>
 **Ciel Health Score**: <N>/100 — <Excellent|Good|Needs improvement|Critical>
 **npm**: local v<X.Y.Z> | npm v<X.Y.Z> | <up-to-date|update available>
-**Platforms**: codex ✓ cursor ✓ kilo ✓ lmstudio ✓ ollama ✓ opencode ✓ windsurf ✓ (or ✗ if missing)
+**Platforms**: claude ✓ opencode ✓ (or ✗ if missing)
 **Session summary**: <N> /ciel invocation(s), <N> total tool calls, <N> Task() dispatches, <N> inline Bash/Read/Grep/WebSearch calls in main session.
 
 **Verdict**: <PASS | VIOLATIONS FOUND>
@@ -173,6 +232,7 @@ Begin the output with the literal line `# Ciel Session Audit Report`. End with t
 | D6 — Intent routing | -<N> |
 | D7 — npm version | -<N> |
 | D8 — Platform health | -<N> |
+| D9 — Memory health | -<N> |
 | **Total** | **-<N>** |
 | **Health Score** | **<N>/100** |
 
@@ -202,7 +262,7 @@ Output a single short section — **no issue is created** for PASS verdicts:
 **Date**: <today's date>
 **Ciel Health Score**: 100/100 — Excellent
 **npm**: local v<X.Y.Z> | npm v<X.Y.Z> | up-to-date
-**Platforms**: all 7 platforms present ✓
+**Platforms**: claude ✓ opencode ✓
 **Session summary**: <N> /ciel invocation(s), <N> tool calls, <N> Task() dispatches.
 **Verdict**: PASS
 
@@ -213,11 +273,11 @@ Output a single short section — **no issue is created** for PASS verdicts:
 
 ---
 
-### GitHub Issue creation (only if score < 75)
+### GitHub Issue creation (only if score < 90)
 
-If the Ciel Health Score is **below 75**, create a GitHub Issue with the report AND the session timeline.
+If the Ciel Health Score is **below 90**, create a GitHub Issue with the report AND the session timeline.
 
-**Important**: Do NOT create an issue if score >= 75. Only create for scores < 75.
+**Important**: Do NOT create an issue if score >= 90. Only create for scores < 90.
 
 1. **Check for duplicate issues first**:
    ```bash
@@ -299,6 +359,6 @@ If the Ciel Health Score is **below 75**, create a GitHub Issue with the report 
 - Do NOT invoke other Ciel skills. This command is fully self-contained.
 - Do NOT dispatch `Task()` agents. Audit happens inline.
 - Do NOT ask clarifying questions. Produce the report with the information you have.
-- Do NOT create an issue if score >= 75. Only create for score < 75.
+- Do NOT create an issue if score >= 90. Only create for score < 90.
 - Do NOT create duplicate issues — run the `gh issue list` check before creating.
 - Do NOT restart, rerun, or attempt to fix the session in-flight. The audit report is the deliverable.

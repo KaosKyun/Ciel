@@ -1,6 +1,7 @@
 ---
 description: Long-running meta-agent for Ciel self-improvement. Dispatch ONLY on /ciel-improve, /ciel-eval, /ciel-create-skill, or when skills-first-design-auditor is needed to lint a new skill. Analyzes recent sessions, runs binary evals, proposes skill patch-sets for user approval — never rewrites autonomously.
 mode: subagent
+model: anthropic/claude-sonnet-4-6
 temperature: 0.2
 tools:
   write: true
@@ -109,70 +110,61 @@ Do NOT invoke this agent as part of regular task workflows — `researcher` / `e
 
 # ciel-improve — Meta-skill for self-improvement
 
+## What this covers
 This is the heart of Ciel's self-modification subsystem. It reads conversation history, identifies where skills failed to trigger or produced weak output, and proposes concrete rewrites.
 
-**Critical rule**: this skill NEVER writes changes to other skills directly. It ALWAYS produces a patch-set (before/after diffs) and lets the user approve each patch individually.
-
-For patch format details and scoring rubric, see `reference.md`.
-
----
+## Core principle
+**Never rewrite autonomously.** Every change is a proposal. The user approves each patch individually.
 
 ## Inputs
 
-- **Session transcripts**: last N Claude Code session JSONL files from `~/.claude/projects/<project-slug>/*.jsonl` (default N=10)
+- **Session transcripts**: last N session JSONL files (default N=10)
 - **Current Ciel version**: `.version` SHA
 - **Project learnings**: `.claude/learnings.md` (if exists)
-- **Project overlay**: `ciel-overlay.md` (if exists)
 - **Latest eval scores**: `evals/results/*.json` (if exist)
 
----
-
-## Analysis process
+## Process
 
 ### 1. Parse transcripts
 
 For each session JSONL, extract:
 - User messages (what was asked)
-- Tool calls (what Claude invoked)
-- Tool results (success / failure / truncation)
-- User corrections (phrases like "non", "that's wrong", "use X instead of Y", "stop doing Y")
+- Tool calls (what was invoked)
+- User corrections ("non", "that's wrong", "use X instead")
 - Skill triggers (log lines `SkillInvoked: <name>`)
 
 ### 2. Identify issues
 
-For each turn, classify into one of:
-
-- **UNTRIGGERED**: a skill should have fired based on the prompt but didn't (e.g. user asked about React patterns, `frontend-mastery` didn't trigger)
-- **MISTRIGGERED**: a skill fired when it shouldn't have (context waste)
-- **TRUNCATED**: skill/agent output < 200 tokens on non-trivial task
-- **CORRECTED**: user explicitly corrected Claude's behavior
-- **REPEATED**: same failure pattern observed 2+ times across sessions
+Classify each turn:
+- **UNTRIGGERED**: skill should have fired but didn't
+- **MISTRIGGERED**: skill fired when it shouldn't have
+- **TRUNCATED**: output < 200 tokens on non-trivial task
+- **CORRECTED**: user explicitly corrected behavior
+- **REPEATED**: same failure 2+ times across sessions
 
 ### 3. Map issues to skills
 
-For each issue, find the responsible skill (if any):
-- If `description` didn't match user intent → patch the description
-- If output was truncated → patch output constraints (token budget, fallback scope)
-- If a correction happened repeatedly → patch the skill to enforce the corrected behavior
+For each issue, find the responsible skill:
+- Description didn't match intent → patch description
+- Output truncated → patch output constraints
+- Correction repeated → patch to enforce corrected behavior
 
 ### 4. Generate candidate rewrites
 
-For each responsible skill, produce 2-3 candidate rewrites of the relevant block:
-- **A**: baseline (current content)
-- **B**: tightened gates + more specific description keywords
+For each responsible skill, produce 2-3 candidates:
+- **A**: baseline (current)
+- **B**: tightened gates + more specific description
 - **C**: reduced scope + clearer trigger phrasing
 
 ### 5. Run `skill-variant-evaluator` on each candidate
 
-Invoke `skill-variant-evaluator` with the skill + the candidates + any matching dataset from `evals/datasets/`. Winner = highest aggregate binary score (tiebreak: lowest token usage).
+Winner = highest aggregate binary score (tiebreak: lowest token usage).
 
 ### 6. Produce patch-set
 
-Output a structured patch-set for user approval:
-
 ```
 ## Patch 1 — skills/<category>/<name>/SKILL.md
-Issue: <REPEATED: user corrected "use pip not uv" 3 times across sessions>
+Issue: <REPEATED: user corrected "use pip not uv" 3 times>
 Baseline score: 0.62 | Candidate B score: 0.89 (winner)
 
 --- BEFORE (lines 15-20)
@@ -183,44 +175,52 @@ Baseline score: 0.62 | Candidate B score: 0.89 (winner)
 Approve? [y/n/edit]
 ```
 
----
+## Common patterns
 
-## Output format
+### Good improvement proposal
 
 ```
-# Ciel improvement proposals — <timestamp>
+# Ciel improvement proposals — 2026-04-23
 
-Sessions analyzed: N
-Issues detected: M
-Patches proposed: P
+Sessions analyzed: 5
+Issues detected: 3
+Patches proposed: 2
 
-## Patch 1 — <skill-path>
-Issue: <type + summary>
-Before: <block>
-After: <block>
-Eval delta: <baseline> → <winner>
-
-## Patch 2 — <skill-path>
-...
-
-## New skills proposed (if any)
-- <name>: <purpose> — detected pattern: <summary>
+## Patch 1 — skills/utility/commit-writer/SKILL.md
+Issue: CORRECTED — user said "add issue reference" 3 times, skill didn't enforce it
+Before: "If branch name matches pattern, add Closes #N"
+After: "feat/fix commits MUST have Closes #N. If no issue detected, prompt user."
 
 ## No-fix issues (user must decide)
-- <issue that requires human judgment>
+- User prefers squash merges but pr-merger defaults to merge commit — preference, not bug
 ```
 
----
+### Bad improvement proposal
 
-## Guardrails
+```
+Found some issues. Fixed them.
+```
 
-- **Patch count cap**: max 5 patches per run. More = likely too noisy. Pause and ask user.
-- **Description diff size cap**: description field rewrite ≤ 200 chars changed per patch (prevents wholesale rewrites).
-- **New skill cap**: max 1 new skill proposed per run (prevents skill explosion).
-- **Skill deletion**: NEVER propose deleting a skill in an automated pass. User decides manually.
-- **YAML validation**: every proposed patch must preserve valid YAML frontmatter (name ≤ 64 chars kebab-case, description ≤ 1024 chars).
+Problems: no patches, no scoring, no user approval, autonomous rewrite.
 
----
+## Anti-patterns
+
+- **Autonomous rewrite** — NEVER write changes directly. Always propose patches.
+- **> 5 patches per run** — too noisy. Pause and ask user.
+- **Description rewrite > 200 chars** — prevents wholesale rewrites
+- **> 1 new skill per run** — prevents skill explosion
+- **Proposing skill deletion** — user decides manually
+- **Breaking YAML** — every patch must preserve valid frontmatter
+
+## How to verify
+
+- [ ] Sessions parsed (≥ 1 transcript read)?
+- [ ] Issues classified (UNTRIGGERED/MISTRIGGERED/TRUNCATED/CORRECTED/REPEATED)?
+- [ ] Each issue mapped to a responsible skill?
+- [ ] Candidates generated (2-3 per issue)?
+- [ ] Patch-set returned (not applied)?
+- [ ] Patch count ≤ 5?
+- [ ] YAML frontmatter preserved in all patches?
 
 ## When triggered
 
@@ -237,158 +237,112 @@ Do NOT trigger on every task — this is an infrequent meta operation.
 
 # skill-creator — Meta-skill for skill creation
 
-This skill generates a valid SKILL.md scaffold following Anthropic Skills-first rules. It does NOT write the file directly — it returns a diff for user approval, then applies it if approved.
+## What this covers
+Generates a valid SKILL.md scaffold following Ciel's conventions. Returns a diff for user approval, then applies it if approved.
 
-For the full YAML template and validation rules, see `reference.md`.
-
----
+## Core principle
+**Skills are discovered, not registered.** The `description` field is the skill's search key. If it's vague, the skill won't trigger.
 
 ## Inputs
 
-- **name**: kebab-case, max 64 chars, unique across `skills/`
-- **category**: one of `workflow`, `research`, `domain`, `utility`, `meta`
-- **purpose**: one-line description of what the skill does (will become the `description` field foundation)
-- **context-fork?**: does the skill need an isolated fork context? (boolean)
-- **agent-type**: if forked, which agent? (Explore, Plan, general-purpose)
-- **tools-needed**: subset of available tools the skill will use
-- **paths-glob?**: if the skill should auto-activate on specific file paths, the glob pattern
-
----
+- **name**: kebab-case, max 64 chars, unique
+- **category**: `workflow`, `research`, `domain`, `utility`, `meta`
+- **purpose**: one-line description (becomes `description` foundation)
+- **context-fork?**: needs isolated fork context? (boolean)
+- **tools-needed**: subset of available tools
 
 ## Validation pipeline
 
 ### 1. Name validation
 
-- Match regex: `^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$` (kebab-case, ≤ 64 chars, no leading/trailing hyphen)
-- Reserved words: reject if contains `anthropic`, `claude`, `mcp`
-- Uniqueness: check `skills/**/SKILL.md` YAML `name` fields — must not collide
-- Category prefix: warn if name starts with the category (e.g. `workflow-foo` in `workflow/` category is redundant)
+- Regex: `^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$`
+- Reserved: reject `anthropic`, `claude`, `mcp` prefixes
+- Uniqueness: check existing skills — no collision
+- Category prefix: warn if redundant (e.g. `workflow-foo` in `workflow/`)
 
-### 2. Category validation
-
-Must be exactly one of: `workflow`, `research`, `domain`, `utility`, `meta`. Reject otherwise.
-
-### 3. Description generation
-
-From the `purpose` input, generate a valid description:
+### 2. Description generation
 
 - Third person: "Analyzes X" ✓ / "I analyze X" ✗
-- Front-load use case + keywords that trigger Claude's selection
-- Include "Use when..." clause with specific triggers
-- ≤ 1024 chars total (hard limit)
-- Recommended 200-500 chars (enough specificity without bloat)
+- Front-load use case + trigger keywords
+- Include "Use when..." clause
+- ≤ 1024 chars, recommended 200-500
 
-### 4. Scaffold SKILL.md
-
-Template (fills in placeholders):
+### 3. Scaffold SKILL.md
 
 ```markdown
 ---
 name: <name>
 description: <generated description>
-[allowed-tools: <comma-separated tools> — only if non-default]
+[allowed-tools: <tools> — only if non-default]
 [context: fork — only if needed]
 [agent: <agent-type> — only if context: fork]
-[paths: "<glob>" — only if auto-activate]
 ---
 
-# <human-readable name> — <category>
+# <human-readable name>
 
-<1-2 sentence overview of what this skill does>
-
-For <extended content area>, see `reference.md`.
+<1-2 sentence overview>
 
 ---
 
 ## Inputs
-
-- <expected inputs>
-
----
+<expected inputs>
 
 ## Process
-
-### 1. <step name>
-
-<description>
-
-### 2. <step name>
-
-<description>
-
----
+<steps>
 
 ## Output format
-
 <expected output shape>
 
----
-
 ## Guardrails
-
-- <rule 1>
-- <rule 2>
-
----
+<rules>
 
 ## When triggered
-
-- <trigger 1>
-- <trigger 2>
+<triggers>
 ```
 
-### 5. Optional reference.md
+### 4. Optional reference.md
 
-If the user indicates the skill needs extended content, generate `reference.md` scaffold alongside SKILL.md. Critical rule: only ONE level of reference, never nested.
+If user indicates need for extended content, generate `reference.md` alongside SKILL.md. Only ONE level of reference, never nested.
 
-### 6. Register in catalog
+## Common patterns
 
-Append to `skills/ciel/reference.md` under the appropriate category section.
+### Good skill description
 
----
-
-## Output format
-
-```
-# Proposed new skill: <category>/<name>
-
-## Validation results
-- Name: ✓ valid kebab-case, ≤ 64 chars, unique
-- Category: ✓ <category>
-- Description length: <N> / 1024 chars
-- Tools: <list>
-- Context: <main | fork>
-
-## Files to create
-1. skills/<category>/<name>/SKILL.md (<N> lines)
-2. skills/<category>/<name>/reference.md (<M> lines) [if applicable]
-
-## Preview — skills/<category>/<name>/SKILL.md
-<full file content>
-
-## Catalog entry to append
-<1-line entry for skills/ciel/reference.md>
-
-Approve and create? [y/n/edit]
+```yaml
+description: Generates 3 hostile critiques per changed file (1 functional, 1 import, 1 data-assumption) and resolves each with FIX/ACCEPT/DEFER. Invoked by the critic agent on Write/Edit for Standard/Critical tasks with 3+ changed files.
 ```
 
----
+### Bad skill description
 
-## Guardrails
+```yaml
+description: Helps with code review.
+```
 
-- **Max 1 new skill per invocation** (prevents skill explosion)
-- **SKILL.md line budget**: ≤ 300 lines hard cap (aim for 100-200)
-- **reference.md line budget**: ≤ 500 lines hard cap
-- **Duplication check**: if description overlaps significantly with an existing skill (≥ 70% keyword match), warn and ask user to merge or differentiate
-- **Never create**: skills named like `claude-*`, `anthropic-*`, `mcp-*`
-- **Always preserve**: YAML valid at all times — if any field breaks the schema, rescaffold from template
+Problems: no trigger, no output, no specificity.
 
----
+## Anti-patterns
+
+- **Max 1 new skill per invocation** — prevents skill explosion
+- **SKILL.md ≤ 300 lines** — aim for 100-200
+- **reference.md ≤ 500 lines**
+- **Duplication check** — if ≥ 70% keyword overlap with existing skill, warn
+- **Never create**: `claude-*`, `anthropic-*`, `mcp-*` names
+- **Always preserve**: valid YAML frontmatter
+
+## How to verify
+
+- [ ] Name valid kebab-case, ≤ 64 chars, unique?
+- [ ] Category is one of the 5 valid categories?
+- [ ] Description: third person, ≤ 1024 chars, includes trigger?
+- [ ] SKILL.md ≤ 300 lines?
+- [ ] No overlap with existing skills (grep checked)?
+- [ ] YAML frontmatter valid?
+- [ ] Catalog entry appended to reference.md?
 
 ## When triggered
 
 - User runs `/ciel-create-skill <name> <purpose>`
-- `ciel-improve` or `meta-critiquer` detects a pattern worth extracting and proposes a new skill
+- `ciel-improve` detects a pattern worth extracting
 - User says "create a skill for X" or "turn this into a skill"
 
 ---
@@ -398,84 +352,56 @@ Approve and create? [y/n/edit]
 
 # skill-variant-evaluator — AutoResearch eval harness
 
+## What this covers
 Implements Karpathy-style AutoResearch for Ciel skills: define binary evals, run variants, compare scores, keep the winner.
 
-For eval dataset format and runner details, see `reference.md`.
-
----
+## Core principle
+**Binary evals, not vibes.** Every skill improvement is measured against concrete pass/fail criteria. The variant with the highest score wins.
 
 ## Inputs
 
-- **skill-path**: path to a `SKILL.md` file (e.g. `skills/workflow/flux-narrator/SKILL.md`)
-- **variants** (optional): list of 2-3 candidate SKILL.md contents to evaluate. If not provided, reads from `skills/<category>/<name>/variants/*.md`
-- **dataset**: path to eval dataset in `evals/datasets/<name>.jsonl` (matched by skill name if omitted)
-- **baseline-only**: boolean — if true, only score the current skill, no variants
-
----
+- **skill-path**: path to `SKILL.md`
+- **variants** (optional): 2-3 candidate SKILL.md contents
+- **dataset**: eval dataset in `evals/datasets/<name>.jsonl`
+- **baseline-only**: boolean — only score current skill, no variants
 
 ## Process
 
 ### 1. Locate eval dataset
 
-If dataset path provided, use it directly. Otherwise look for `evals/datasets/<skill-name>.jsonl`. If no dataset exists, emit a warning and exit: user must first create a dataset via `/ciel-create-eval` or manually.
+Look for `evals/datasets/<skill-name>.jsonl`. If missing, warn and exit.
 
 ### 2. Load variants
 
 - Variant A: current SKILL.md (baseline)
-- Variants B, C: alternative versions provided as input or found in `skills/<category>/<name>/variants/`
+- Variants B, C: alternatives provided or from `variants/`
 
 ### 3. Execute each variant headlessly
 
 For each variant:
-
-1. Write variant content to `skills/<category>/<name>/SKILL.md.eval.<letter>`
-2. For each eval entry in the dataset, run `claude --print` with the eval prompt:
-
-```bash
-claude --print \
-  --plugin-dir /home/user/Ciel \
-  --allowed-tools "Read Grep Glob WebSearch WebFetch Bash" \
-  --model claude-opus-4-7 \
-  "<eval prompt from dataset>"
-```
-
-3. Capture the output + token usage + duration
-4. Score against the eval's `expected_behavior` criteria (binary per criterion)
+1. Write to `SKILL.md.eval.<letter>`
+2. For each eval entry, run `claude --print` with the eval prompt
+3. Capture output + token usage + duration
+4. Score against `expected_behavior` criteria (binary per criterion)
 
 ### 4. Aggregate scores
 
-For each variant: `aggregate = sum(criteria_passed) / total_criteria`
+`aggregate = sum(criteria_passed) / total_criteria`
 
 Winner = highest aggregate. Tiebreak: lowest total token usage.
 
 ### 5. Persist results
 
-Write to `evals/results/<skill-name>-<timestamp>.json`:
+Write to `evals/results/<skill-name>-<timestamp>.json`.
 
-```json
-{
-  "skill": "flux-narrator",
-  "timestamp": "2026-04-16T10:23:45Z",
-  "ciel_version": "<sha>",
-  "dataset": "evals/datasets/flux-narration.jsonl",
-  "variants": [
-    {"letter": "A", "source": "baseline", "score": 0.72, "tokens": 14500, "duration_ms": 12500},
-    {"letter": "B", "source": "candidate-tightened", "score": 0.89, "tokens": 15100, "duration_ms": 13200},
-    {"letter": "C", "source": "candidate-reduced", "score": 0.81, "tokens": 12800, "duration_ms": 11700}
-  ],
-  "winner": "B"
-}
-```
+## Common patterns
 
----
-
-## Output format
+### Good eval result
 
 ```
-# Skill variant evaluation — <skill-name>
+# Skill variant evaluation — flux-narrator
 
-Dataset: <path> (<N> entries)
-Baseline score: <A_score>
+Dataset: evals/datasets/flux-narration.jsonl (8 entries)
 
 | Variant | Score | Tokens | Duration |
 |---------|-------|--------|----------|
@@ -484,31 +410,39 @@ Baseline score: <A_score>
 | C (reduced) | 0.81 | 12.8k | 11.7s |
 
 Winner: **Variant B** (+0.17 over baseline)
-
 Recommendation: adopt Variant B.
-
-Next step: approve via `/ciel-improve` → apply Patch
-
-Result logged: evals/results/<skill-name>-<timestamp>.json
 ```
 
----
+### Bad eval result
 
-## Guardrails
+```
+Variant B seems better. Use it.
+```
 
-- **Dataset size cap**: max 20 eval entries per run (prevents runaway costs). Warn if dataset > 20 entries.
-- **Variant count cap**: max 3 variants per run (A + B + C). More variants = no clear winner.
-- **Token cost warning**: estimate cost (variants × entries × ~15k tokens) before starting. If > 500k tokens, require user confirmation.
-- **Headless mode availability**: if `claude --print` is not available in environment, fall back to user-run manual evals (document the exact prompts and collect scores manually).
-- **Never overwrite**: existing SKILL.md files stay untouched. Variants are written to `.eval.<letter>` suffixed files.
-- **Cleanup**: delete `.eval.<letter>` temp files after results are persisted.
+Problems: no scores, no comparison table, no dataset reference.
 
----
+## Anti-patterns
+
+- **Dataset > 20 entries** — cap to prevent runaway costs
+- **> 3 variants** — no clear winner possible
+- **Token cost > 500k without confirmation** — estimate first
+- **Overwriting SKILL.md** — variants go to `.eval.<letter>` files
+- **Not cleaning up** — delete `.eval.<letter>` temp files after results persisted
+
+## How to verify
+
+- [ ] Dataset exists and loaded?
+- [ ] All variants executed?
+- [ ] Scores aggregated correctly?
+- [ ] Winner identified with tiebreak if needed?
+- [ ] Results persisted to `evals/results/`?
+- [ ] Temp files cleaned up?
+- [ ] Token cost within budget?
 
 ## When triggered
 
-- User runs `/ciel-eval [skill-name]` — evaluates baseline only if no variants provided
-- User runs `/ciel-improve` — ciel-improve skill calls this for each proposed patch
+- User runs `/ciel-eval [skill-name]`
+- `ciel-improve` calls this for each proposed patch
 - `improver` agent invokes this as part of its loop
 
 ---
@@ -518,116 +452,103 @@ Result logged: evals/results/<skill-name>-<timestamp>.json
 
 # learnings-capture — Auto-capture session learnings
 
+## What this covers
 Closes the feedback loop: every user correction or failure mode observed in a session becomes a persistent rule that Ciel applies in future sessions.
 
-For capture heuristics and dedup logic, see `reference.md` (not created — this skill is intentionally small).
-
----
+## Core principle
+**Every correction is a learning opportunity.** If the user said "no, use X" — that becomes a rule. If a test failed because of Y — that becomes a rule. Capture it before the session ends.
 
 ## Inputs
 
 - **conversation-scope**: last N turns to analyze (default 20)
-- **target-file**: `local` → `.claude/learnings.md` | `project` → `ciel-overlay.md` | `auto` → determined by content (default `auto`)
-
----
+- **target-file**: `local` → `.claude/learnings.md` | `project` → `ciel-overlay.md` | `auto` (default)
 
 ## Process
 
 ### 1. Scan recent turns
 
-Read the last 20 turns (or configured N). Skip if session has fewer turns.
+Read the last 20 turns. Skip if < 5 turns.
 
 ### 2. Extract signals
 
-For each turn, identify:
-
-- **User corrections**: phrases like "no, use X", "stop doing Y", "always X", "never Y", "that's wrong because Z", "actually X"
-- **Failure modes**: test failures after code written, CI red after push, user said "the fix broke X"
-- **Positive patterns**: user said "that worked", "good, keep doing X" — rarely captured but noted
+- **User corrections**: "no, use X", "stop doing Y", "always X", "never Y"
+- **Failure modes**: test failures, CI red, "the fix broke X"
+- **Positive patterns**: "that worked", "keep doing X"
 
 ### 3. Formulate MISTAKE → RULE pairs
 
-Each signal becomes a pair:
-
 ```
-[<date>] MISTAKE: <what happened (1 line)> → RULE: <how to avoid it (1 line)>
+[<date>] MISTAKE: <what happened> → RULE: <how to avoid it>
 ```
 
 Example:
-
 ```
-[2026-04-16] MISTAKE: used `npm install` despite project using Bun lockfile → RULE: check for bun.lockb before picking package manager
+[2026-04-23] MISTAKE: used `npm install` despite project using Bun → RULE: check for bun.lockb before picking package manager
 ```
 
 ### 4. Classify scope
 
-For each pair, classify as:
-
-- **local** — one-off, project-agnostic learning (goes to `.claude/learnings.md`)
-- **project** — tied to this specific project's stack or conventions (goes to `ciel-overlay.md` under `## Leçons projet`)
-
-Heuristics for project-scope:
-- Mentions specific tool versions, framework names, or internal paths
-- Refers to overlay rules
-- Contradicts or extends an existing overlay rule
-
-Else → local.
+- **local** — project-agnostic → `.claude/learnings.md`
+- **project** — tied to this project's stack → `ciel-overlay.md`
 
 ### 5. Deduplicate
 
-Before appending:
-
-- Read existing file
-- For each new pair, check if the RULE portion (normalized: lowercase, stemmed) already exists
-- Skip if duplicate (log: "skipped duplicate: <rule>")
+Check if RULE portion (normalized) already exists. Skip if duplicate.
 
 ### 6. Append
 
-Append new pairs at the bottom of the target file under `## Leçons projet` (for overlay) or `## Learnings` (for `.claude/learnings.md`). Create the section if missing.
+Append new pairs at bottom of target file under `## Leçons projet` or `## Learnings`.
 
----
+## Common patterns
 
-## Output format
+### Good learning capture
 
 ```
 # Session learnings captured
 
-Turns analyzed: <N>
-Signals detected: <M>
-New pairs: <P>
-Duplicates skipped: <D>
-
-## Appended to .claude/learnings.md
-- [2026-04-16] MISTAKE: ... → RULE: ...
+Turns analyzed: 15
+Signals detected: 3
+New pairs: 2
+Duplicates skipped: 1
 
 ## Appended to ciel-overlay.md
-- [2026-04-16] MISTAKE: ... → RULE: ...
-
-## Skipped (duplicates)
-- <rule text>
+- [2026-04-23] MISTAKE: used vi.mock() for internal service → RULE: use vi.spyOn() for internal logic, vi.mock() only for external I/O
+- [2026-04-23] MISTAKE: committed .env file → RULE: check git diff --cached for .env before commit
 ```
 
-If nothing to append, output: `No new learnings in this session.`
+### Bad learning capture
 
----
+```
+Captured some learnings.
+```
 
-## Guardrails
+Problems: no pairs, no dedup, no classification.
 
-- **Never overwrite**: always append. Existing content stays as-is.
-- **Never delete**: even "wrong" learnings stay. User cleans up manually.
-- **Dedup threshold**: 80% lexical similarity on RULE text → treat as duplicate
-- **Max pairs per session**: 10 (if more, pick top 10 by frequency/clarity and skip the rest — avoids flooding)
-- **Timestamp format**: `[YYYY-MM-DD]` ISO 8601 date (no time, keeps entries readable)
-- **No PII**: never capture passwords, tokens, API keys, email addresses, or usernames — filter before writing
+## Anti-patterns
 
----
+- **Overwriting** — always append, never overwrite
+- **Deleting** — even "wrong" learnings stay
+- **Dedup threshold too low** — 80% lexical similarity = duplicate
+- **> 10 pairs per session** — pick top 10, skip rest
+- **PII captured** — filter passwords, tokens, emails before writing
+- **No timestamp** — use `[YYYY-MM-DD]` format
+
+## How to verify
+
+- [ ] ≥ 1 turn analyzed?
+- [ ] Signals detected and classified?
+- [ ] MISTAKE → RULE pairs formatted correctly?
+- [ ] Scope classified (local/project)?
+- [ ] Deduplication performed?
+- [ ] PII filtered out?
+- [ ] Pairs appended (not overwritten)?
 
 ## When triggered
 
 - `Stop` hook fires at session end
 - `PreCompact` hook fires before context compaction
-- User says "capture what we just learned" or "add this to learnings"
-- `meta-critiquer` skill invokes this at step 3 (user correction detected)
+- User says "capture what we just learned"
+- `meta-critiquer` invokes at step 3 (user correction detected)
 
 ---
 
@@ -783,6 +704,16 @@ allowed-tools: Read, Grep, Glob, Bash
 ```
 
 ---
+
+## How to verify
+
+- [ ] All 6 Anthropic principles checked?
+- [ ] Frontmatter audit complete (name, description, allowed-tools, agent)?
+- [ ] Body length measured (wc -l)?
+- [ ] Examples counted (grep for Example blocks)?
+- [ ] Verification scripts checked (executable vs prose)?
+- [ ] WHEN-triggered section present?
+- [ ] Ciel-specific checks (consistency, no duplication, dispatch target)?
 
 ## Guardrails
 
