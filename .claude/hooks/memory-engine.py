@@ -1,0 +1,632 @@
+#!/usr/bin/env python3
+"""Ciel cued-recall memory engine.
+
+Subcommands:
+  query         — given prompt + cwd, return top-K memories under token cap.
+                  Updates trigger_count and last_triggered for matched memories.
+                  Marks stale entries on the fly.
+  init          — create empty .ciel/memory/{episodes,concepts,guards}/ + index.json
+  rebuild-index — scan all *.md frontmatter, regenerate index.json from source
+
+Designed to be called from hooks/user-prompt-submit.sh and from
+hooks/memory-bootstrap.sh. No external Python dependencies (stdlib only) —
+must run wherever Ciel is installed without `pip install`.
+
+See docs/adrs/0001-cued-recall-memory.md for design rationale.
+"""
+
+import sys
+import os
+import json
+import re
+import fnmatch
+import argparse
+import secrets
+from datetime import datetime, timezone
+from pathlib import Path
+
+# ─── Constants ──────────────────────────────────────────────────────────────
+
+TOKEN_CAPS = {
+    "trivial": 1000,
+    "standard": 3000,
+    "critical": 5000,
+}
+
+# Map file extensions to language tags. Used for language scoping.
+LANG_BY_EXT = {
+    ".ts": "typescript", ".tsx": "typescript",
+    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
+    ".py": "python",
+    ".kt": "kotlin", ".kts": "kotlin",
+    ".go": "go",
+    ".rs": "rust",
+    ".sql": "sql",
+    ".sh": "bash", ".bash": "bash",
+    ".rb": "ruby",
+    ".java": "java",
+    ".cs": "csharp",
+    ".php": "php",
+    ".swift": "swift",
+    ".c": "c", ".cpp": "cpp", ".cc": "cpp", ".h": "c", ".hpp": "cpp",
+    ".md": "markdown",
+}
+
+# Common intent keywords. Extensible; first match wins per kw.
+INTENT_KEYWORDS = [
+    ("migration", "schema-change"),
+    ("schema", "schema-change"),
+    ("alter table", "schema-change"),
+    ("route", "new-route"),
+    ("endpoint", "new-route"),
+    ("controller", "new-route"),
+    ("component", "new-component"),
+    ("test", "testing"),
+    ("vitest", "testing"),
+    ("jest", "testing"),
+    ("pytest", "testing"),
+    ("deploy", "deploy"),
+    ("release", "deploy"),
+    ("ci/cd", "deploy"),
+    ("auth", "auth"),
+    ("login", "auth"),
+    ("oauth", "auth"),
+    ("jwt", "auth"),
+    ("session", "auth"),
+    ("payment", "payment"),
+    ("stripe", "payment"),
+    ("webhook", "webhook"),
+    ("hook", "hook"),
+    ("refactor", "refactor"),
+    ("rename", "rename"),
+]
+
+# ─── Cue extraction ─────────────────────────────────────────────────────────
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate: 1 token ≈ 4 chars (English/code)."""
+    return max(1, len(text) // 4)
+
+
+# URL/domain patterns that should never be treated as file paths. Matches
+# example.com/foo, github.com/x, api.service.io/...
+_URL_TLD_RE = re.compile(r'^[\w-]+\.(com|org|io|dev|sh|net|co|me|app|cloud|ai|gg|run|site|xyz|page|blog)\b', re.I)
+
+# Built-in/standard-library names that look like PascalCase but are too generic
+# to be useful symbol cues. Mentioning "Promise" in prose shouldn't fire any memory.
+_SYMBOL_STOPLIST = frozenset({
+    'Promise', 'Array', 'String', 'Number', 'Object', 'Map', 'Set', 'Date',
+    'Error', 'Boolean', 'JSON', 'Math', 'RegExp', 'Symbol', 'Function',
+    'List', 'Dict', 'Tuple', 'None', 'True', 'False', 'Any',  # Python
+    'When', 'Then', 'After', 'Before', 'While', 'If', 'Else', 'Otherwise',
+    'TODO', 'FIXME', 'NOTE', 'XXX', 'HACK', 'NB',
+})
+
+
+def extract_path_cues(prompt: str):
+    """Find file/path-like tokens in the prompt.
+
+    Filters out URLs, version ratios (1/2), and bare domains. False positives
+    on a path-shaped token still get filtered at scoring time when fnmatch
+    finds no match against any memory's path_patterns.
+    """
+    raw = re.findall(r'[\w./*\-]+/[\w./*\-]+|\b[\w-]+\.[a-z]{1,5}\b', prompt)
+    cleaned = []
+    for p in raw:
+        # Strip only TRAILING punctuation (paths can legitimately start with
+        # `.` — `.claude/settings.json`, `.gitignore`, `.env`). Leading-dot
+        # stripping was a v1 bug that made dotfile paths invisible.
+        p = p.rstrip('.,)(\'"`')
+        # Strip a few common leading punctuation chars but NEVER the dot.
+        p = p.lstrip(',)(\'"`')
+        if not p or len(p) <= 2:
+            continue
+        # Drop URLs / domains (github.com/foo, example.com/bar).
+        if _URL_TLD_RE.match(p):
+            continue
+        # Drop protocol-prefixed cruft from raw URL captures.
+        if p.startswith('//') or p.startswith('http'):
+            continue
+        # Drop pure numeric ratios like "1/2", "2026-05-08".
+        if re.match(r'^[\d./-]+$', p):
+            continue
+        cleaned.append(p)
+    return cleaned
+
+
+def extract_symbol_cues(prompt: str):
+    """Extract camelCase, PascalCase, and snake_case identifiers.
+
+    Filters out the symbol stoplist (built-ins like Promise/Array/String,
+    English sentence-starts like When/Then/After) to avoid score inflation
+    from prose. PascalCase requires ≥2 capital transitions to skip plain
+    capitalized words.
+    """
+    out = set()
+    out.update(re.findall(r'\b[a-z]+(?:[A-Z][a-zA-Z0-9]+)+\b', prompt))                    # camelCase
+    # PascalCase: require at least one inner camel boundary (≥2 capitals).
+    # `+` not `*` rejects single-capital words like "When" / "Then".
+    out.update(re.findall(r'\b[A-Z][a-z0-9]+(?:[A-Z][a-zA-Z0-9]+)+\b', prompt))            # PascalCase
+    out.update(re.findall(r'\b[a-z]+(?:_[a-z0-9]+){2,}\b', prompt))                        # snake_case (≥2 underscores)
+    return [s for s in out if s not in _SYMBOL_STOPLIST]
+
+
+def extract_intent_cues(prompt: str):
+    """Detect intent keywords in the prompt. Lowercase substring match."""
+    p = prompt.lower()
+    intents = set()
+    for kw, label in INTENT_KEYWORDS:
+        if kw in p:
+            intents.add(label)
+    return list(intents)
+
+
+def extract_language_cues(prompt: str):
+    """Infer programming language from file extensions mentioned in prompt."""
+    langs = set()
+    for ext, lang in LANG_BY_EXT.items():
+        if re.search(rf'\b\w+{re.escape(ext)}\b', prompt):
+            langs.add(lang)
+    return list(langs)
+
+
+# ─── Matching & scoring ─────────────────────────────────────────────────────
+
+
+# Cache for compiled glob-to-regex patterns. Patterns are read from the corpus
+# and rarely change between calls within a single hook invocation.
+_PATTERN_CACHE = {}
+
+
+def _glob_to_regex(pattern: str):
+    """Translate a gitignore-style glob (with `**`) to a Python regex.
+
+    `**` matches any sequence including slashes (recursive).
+    `*`  matches any sequence excluding slashes (single segment).
+    `?`  matches a single non-slash char.
+    Other characters are escaped literally.
+
+    fnmatch.fnmatch's `*` greedily eats slashes too, which silently produces
+    false positives on patterns like `src/*.ts`. This translator is stricter
+    and matches what users coming from gitignore/tsconfig expect.
+    """
+    if pattern in _PATTERN_CACHE:
+        return _PATTERN_CACHE[pattern]
+    out = []
+    i = 0
+    n = len(pattern)
+    while i < n:
+        c = pattern[i]
+        if c == '*':
+            if i + 1 < n and pattern[i + 1] == '*':
+                # `**` — match any sequence (including /)
+                out.append('.*')
+                i += 2
+                # Eat trailing `/` after `**` for clean alignment
+                if i < n and pattern[i] == '/':
+                    i += 1
+            else:
+                # `*` — match anything except /
+                out.append('[^/]*')
+                i += 1
+        elif c == '?':
+            out.append('[^/]')
+            i += 1
+        elif c in '.+()^$|{}\\[]':
+            out.append('\\' + c)
+            i += 1
+        else:
+            out.append(c)
+            i += 1
+    compiled = re.compile('^' + ''.join(out) + '$')
+    _PATTERN_CACHE[pattern] = compiled
+    return compiled
+
+
+def match_path_pattern(pattern: str, paths) -> bool:
+    """Match a glob pattern against any candidate path. Supports `**`."""
+    rx = _glob_to_regex(pattern)
+    for path in paths:
+        if rx.match(path):
+            return True
+    return False
+
+
+def score_memory(mem, paths, symbols, intents, langs) -> int:
+    """Score a memory's relevance. 0 = exclude. Positive = include, higher first."""
+    # Hard language gate: if memory is language-specific AND prompt has language
+    # cues AND no overlap → exclude. Avoids Kotlin memories firing on TS edits.
+    mem_langs = mem.get('languages') or []
+    if mem_langs and langs and not (set(mem_langs) & set(langs)):
+        return 0
+
+    score = 0
+    for pattern in mem.get('path_patterns') or []:
+        if match_path_pattern(pattern, paths):
+            score += 10
+    for sym in mem.get('symbols') or []:
+        if sym in symbols:
+            score += 8
+    for intent in mem.get('intents') or []:
+        if intent in intents:
+            score += 5
+
+    # No cue match at all → don't include (cued recall, not free recall)
+    if score == 0:
+        return 0
+
+    # Boost for proven utility (frequent triggers)
+    score += min(mem.get('trigger_count') or 0, 10)
+
+    # Recency factor — clamp negative ages (clock skew, future-dated entries)
+    last = mem.get('last_triggered') or mem.get('captured_at')
+    if last:
+        try:
+            then = datetime.fromisoformat(last.replace('Z', '+00:00'))
+            age_days = max(0, (datetime.now(timezone.utc) - then).days)
+            if age_days < 7:
+                score += 5
+            elif age_days < 30:
+                score += 2
+            elif age_days > 180:
+                score -= 3
+        except (ValueError, TypeError):
+            pass
+
+    return score
+
+
+# ─── Decay ──────────────────────────────────────────────────────────────────
+
+
+def mark_stale_inplace(memories: dict, now: datetime) -> int:
+    """Flag stale=True for memories past their stale_after_days threshold.
+
+    Returns count newly marked. Active memories that have never been triggered
+    decay from captured_at; triggered memories from last_triggered.
+
+    Future-dated anchors (clock skew, manual edit) are clamped to now → those
+    memories are immune to staling, which matches user expectation that a
+    just-captured memory shouldn't decay regardless of timestamp source.
+    """
+    newly_stale = 0
+    for mid, m in memories.items():
+        if m.get('stale'):
+            continue
+        anchor = m.get('last_triggered') or m.get('captured_at')
+        threshold = m.get('stale_after_days', 90)
+        if not anchor:
+            continue
+        try:
+            then = datetime.fromisoformat(anchor.replace('Z', '+00:00'))
+            age_days = max(0, (now - then).days)
+            if age_days > threshold:
+                m['stale'] = True
+                newly_stale += 1
+        except (ValueError, TypeError):
+            pass
+    return newly_stale
+
+
+# ─── Subcommands ────────────────────────────────────────────────────────────
+
+
+def resolve_cwd(arg_cwd):
+    return Path(arg_cwd or os.environ.get('CLAUDE_PROJECT_DIR') or os.getcwd())
+
+
+def atomic_write_json(path: Path, data) -> None:
+    """Write JSON atomically via per-process tmp file + rename.
+
+    Per-process unique tmp prevents two concurrent writers from corrupting
+    each other's tmp during the write phase. Rename is atomic on the same
+    filesystem.
+
+    NOTE: this prevents *partial writes*, not *lost updates*. If session A
+    and session B both read index.json at the same time, increment, and
+    write, the later writer wins. For lock-protected read-modify-write,
+    use atomic_update_index() which holds an fcntl advisory lock for the
+    full read-update-write cycle.
+    """
+    tmp = path.with_suffix(f'.{os.getpid()}.{secrets.token_hex(2)}.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    tmp.replace(path)
+
+
+def atomic_update_index(path: Path, mutator):
+    """Read-modify-write index.json under an fcntl advisory lock.
+
+    `mutator` is a callable taking the parsed dict and mutating it in place
+    (or returning a new dict). Returns the final dict written to disk.
+
+    This serializes concurrent sessions: each waits for the previous to
+    finish its read-modify-write before proceeding. Trigger increments
+    therefore compose correctly (8 → 9 → 10) instead of last-writer-wins.
+
+    On platforms without fcntl (Windows), falls back to plain atomic write
+    without the lock — accept lost-update risk on those platforms.
+    """
+    try:
+        import fcntl
+    except ImportError:
+        # Windows fallback — no advisory lock available in stdlib
+        if path.exists():
+            with open(path, encoding='utf-8') as f:
+                data = json.load(f)
+        else:
+            data = {}
+        result = mutator(data)
+        final = result if result is not None else data
+        atomic_write_json(path, final)
+        return final
+
+    # POSIX: hold an exclusive lock on the index file for the read-write cycle.
+    # Open in r+ mode so we can read and write through the same fd.
+    if not path.exists():
+        atomic_write_json(path, {})
+    with open(path, 'r+', encoding='utf-8') as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.seek(0)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+            result = mutator(data)
+            final = result if result is not None else data
+            f.seek(0)
+            f.truncate()
+            json.dump(final, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    return final
+
+
+def cmd_query(args):
+    cwd = resolve_cwd(args.cwd)
+    index_file = cwd / '.ciel' / 'memory' / 'index.json'
+    if not index_file.exists():
+        return  # Silent: no memory corpus yet
+
+    prompt = args.prompt or ''
+    cap = TOKEN_CAPS.get((args.depth or 'standard').lower(), 3000)
+
+    paths = extract_path_cues(prompt)
+    symbols = extract_symbol_cues(prompt)
+    intents = extract_intent_cues(prompt)
+    langs = extract_language_cues(prompt)
+    now = datetime.now(timezone.utc)
+    iso_now = now.isoformat().replace('+00:00', 'Z')
+
+    # The selection is computed inside the mutator so it sees the
+    # locked-and-fresh state, then the same mutator persists triggers.
+    output_lines = []
+    output_used = [0]
+
+    def mutator(idx):
+        mems = idx.get('memories', {})
+        if not mems:
+            return idx
+
+        mark_stale_inplace(mems, now)
+
+        scored = []
+        for mid, m in mems.items():
+            if m.get('stale'):
+                continue
+            s = score_memory(m, paths, symbols, intents, langs)
+            if s > 0:
+                scored.append((s, mid, m))
+
+        if not scored:
+            return idx
+
+        scored.sort(key=lambda x: -x[0])
+
+        selected = []
+        used = estimate_tokens("Cued-recall memory matches:\n")
+        overhead = estimate_tokens(
+            "\nRead full content from .ciel/memory/{episodes,concepts,guards}/ when relevant."
+        )
+        budget = cap - overhead
+        for _, mid, m in scored:
+            line = f"  [{mid}, fired {m.get('trigger_count', 0)}×] {m.get('title', '?')}"
+            cost = estimate_tokens(line) + 1
+            if used + cost > budget:
+                break
+            used += cost
+            selected.append((mid, m, line))
+
+        if not selected:
+            return idx
+
+        # Update triggers under the lock — composes correctly across sessions
+        for mid, m, _ in selected:
+            m['trigger_count'] = (m.get('trigger_count') or 0) + 1
+            m['last_triggered'] = iso_now
+
+        for _, _, line in selected:
+            output_lines.append(line)
+        output_used[0] = used
+        return idx
+
+    atomic_update_index(index_file, mutator)
+
+    if not output_lines:
+        return
+
+    print("Cued-recall memory matches:")
+    for line in output_lines:
+        print(line)
+    print(f"Read full content from .ciel/memory/{{episodes,concepts,guards}}/ when relevant. ({output_used[0]}/{cap} tokens)")
+
+
+def cmd_init(args):
+    cwd = resolve_cwd(args.cwd)
+    base = cwd / '.ciel' / 'memory'
+    for sub in ('episodes', 'concepts', 'guards'):
+        (base / sub).mkdir(parents=True, exist_ok=True)
+    index_file = base / 'index.json'
+    if not index_file.exists():
+        atomic_write_json(index_file, {
+            "version": 2,
+            "memories": {},
+            "by_path": {},
+            "by_symbol": {},
+            "by_intent": {},
+            "by_language": {},
+        })
+        print(f"Initialized memory corpus at {base}/")
+    else:
+        print(f"Memory corpus already exists at {base}/")
+
+
+# Fields whose values must remain string regardless of how they look.
+# Prevents int-coercion of numeric-looking ids (e.g. "12345") which would
+# break the index keying and JSON round-trip.
+_STRING_FIELDS = frozenset({'id', 'title', 'last_triggered', 'captured_at', 'file', 'source', 'captured_from'})
+
+
+def parse_yaml_frontmatter(text: str) -> dict:
+    """Minimal YAML parser for the frontmatter dialect we use.
+
+    Supports: scalar key:value, inline arrays [a, b], block lists with
+    '  - item' continuations, booleans (true/false), null. No anchors,
+    no nested maps. Sufficient for our frontmatter schema.
+
+    String-typed fields (id, title, timestamps) are NEVER int-coerced, even
+    if they look numeric. See _STRING_FIELDS.
+    """
+    out = {}
+    current_list_key = None
+    for raw_line in text.split('\n'):
+        if not raw_line.strip() or raw_line.strip().startswith('#'):
+            continue
+        if raw_line.startswith('  - ') or raw_line.startswith('- '):
+            if current_list_key:
+                val = raw_line.lstrip(' -').strip().strip('"\'')
+                out.setdefault(current_list_key, []).append(val)
+            continue
+        if ':' in raw_line:
+            key, _, val = raw_line.partition(':')
+            key = key.strip()
+            val = val.strip()
+            current_list_key = None
+            if not val:
+                current_list_key = key
+                out[key] = []
+            elif val.startswith('[') and val.endswith(']'):
+                inner = val[1:-1].strip()
+                items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+                out[key] = items
+            elif val.lower() == 'null' or val == '~':
+                out[key] = None
+            elif key in _STRING_FIELDS:
+                # Hard-typed as string regardless of numeric appearance.
+                # Null check above takes precedence so explicit nulls survive.
+                out[key] = val.strip('"\'')
+            elif val.lower() == 'true':
+                out[key] = True
+            elif val.lower() == 'false':
+                out[key] = False
+            else:
+                try:
+                    out[key] = int(val)
+                except ValueError:
+                    out[key] = val.strip('"\'')
+    return out
+
+
+def cmd_rebuild_index(args):
+    cwd = resolve_cwd(args.cwd)
+    base = cwd / '.ciel' / 'memory'
+    if not base.exists():
+        print(f"No memory directory at {base}", file=sys.stderr)
+        sys.exit(1)
+
+    idx = {
+        "version": 2,
+        "memories": {},
+        "by_path": {},
+        "by_symbol": {},
+        "by_intent": {},
+        "by_language": {},
+    }
+
+    parsed = 0
+    for mdfile in base.rglob('*.md'):
+        if mdfile.name.lower() in ('readme.md', 'review-queue.md'):
+            continue
+        try:
+            content = mdfile.read_text(encoding='utf-8')
+            m = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+            if not m:
+                continue
+            fm = parse_yaml_frontmatter(m.group(1))
+            mid = fm.get('id')
+            if not mid:
+                continue
+            fm['file'] = str(mdfile.relative_to(base))
+            idx['memories'][mid] = fm
+            for path in fm.get('path_patterns') or []:
+                idx['by_path'].setdefault(path, []).append(mid)
+            for sym in fm.get('symbols') or []:
+                idx['by_symbol'].setdefault(sym, []).append(mid)
+            for intent in fm.get('intents') or []:
+                idx['by_intent'].setdefault(intent, []).append(mid)
+            for lang in fm.get('languages') or []:
+                idx['by_language'].setdefault(lang, []).append(mid)
+            parsed += 1
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"Warning: skipping {mdfile}: {e}", file=sys.stderr)
+
+    out = base / 'index.json'
+    atomic_write_json(out, idx)
+    print(f"Rebuilt index: {parsed} memories")
+
+
+def cmd_new_id(args):
+    """Emit a fresh, collision-free memory id.
+
+    Format: mem_<unix_seconds>_<6 hex chars>. Two parallel sessions calling
+    this within the same second still get distinct ids (~16M space per sec).
+    """
+    ts = int(datetime.now(timezone.utc).timestamp())
+    suffix = secrets.token_hex(3)
+    print(f"mem_{ts}_{suffix}")
+
+
+# ─── CLI ────────────────────────────────────────────────────────────────────
+
+
+def main():
+    p = argparse.ArgumentParser(description='Ciel cued-recall memory engine')
+    sub = p.add_subparsers(dest='cmd', required=True)
+
+    qp = sub.add_parser('query', help='Match memories against prompt cues; update triggers')
+    qp.add_argument('--prompt', default='')
+    qp.add_argument('--cwd', default=None)
+    qp.add_argument('--depth', default='standard', choices=['trivial', 'standard', 'critical', 'Trivial', 'Standard', 'Critical'])
+    qp.set_defaults(func=cmd_query)
+
+    ip = sub.add_parser('init', help='Initialize empty .ciel/memory/ structure')
+    ip.add_argument('--cwd', default=None)
+    ip.set_defaults(func=cmd_init)
+
+    rp = sub.add_parser('rebuild-index', help='Scan *.md frontmatter, regenerate index.json')
+    rp.add_argument('--cwd', default=None)
+    rp.set_defaults(func=cmd_rebuild_index)
+
+    np = sub.add_parser('new-id', help='Emit a collision-free memory id')
+    np.set_defaults(func=cmd_new_id)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == '__main__':
+    main()

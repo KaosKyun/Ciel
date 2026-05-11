@@ -44,15 +44,17 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Sync VERSION file
+      - name: Sync distribution version files
         run: |
           VERSION="${{ needs.release-please.outputs.version }}"
-          echo "Syncing VERSION to $VERSION"
+          echo "Syncing distribution files to v$VERSION"
           echo "$VERSION" > VERSION
+          sed -i "s/CIEL_VERSION=\"[0-9.]*\"/CIEL_VERSION=\"$VERSION\"/" scripts/install.sh
+          sed -i "s/CIEL v[0-9]*\.[0-9]*\.[0-9]*/CIEL v$VERSION/" hooks/session-start.sh
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          git commit -m "chore: sync VERSION to v$VERSION" || echo "No changes to commit"
+          git add VERSION scripts/install.sh hooks/session-start.sh
+          git commit -m "chore: sync distribution files to v$VERSION" || echo "No changes to commit"
           git push origin main
 
   publish-npm:
