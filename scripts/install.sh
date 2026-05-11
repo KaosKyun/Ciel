@@ -19,7 +19,7 @@ set -euo pipefail
 # ============================================================
 { # <-- wrapper start
 
-CIEL_VERSION="6.8.0"
+CIEL_VERSION="6.9.0"
 GITHUB_RAW="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
 
 # ----- Config -----
