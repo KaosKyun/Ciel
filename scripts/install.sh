@@ -19,7 +19,7 @@ set -euo pipefail
 # ============================================================
 { # <-- wrapper start
 
-CIEL_VERSION="6.4.3"
+CIEL_VERSION="6.8.0"
 GITHUB_RAW="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
 
 # ----- Config -----
@@ -456,7 +456,7 @@ PY
         # so user-prompt-submit.sh and memory-bootstrap.sh can find memory-engine.py via the
         # $CLAUDE_PROJECT_DIR/.claude/hooks/ resolution path.
         for hook in user-prompt-submit.sh memory-bootstrap.sh memory-engine.py session-start.sh; do
-          curl -fsSL "$GITHUB_BASE/hooks/${hook}" -o "$TMP_DIR/.claude/hooks/${hook}" 2>/dev/null || warn "Missing: hooks/${hook}"
+          curl -fsSL "$GITHUB_RAW/hooks/${hook}" -o "$TMP_DIR/.claude/hooks/${hook}" 2>/dev/null || warn "Missing: hooks/${hook}"
         done
         # NOTE: ciel.md is NOT copied — /ciel is handled by the skill (skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
@@ -547,6 +547,9 @@ PY
 
   # Always create .ciel/ directory
   ensure mkdir -p "$target_dir/.ciel"
+  ensure mkdir -p "$target_dir/.ciel/memory/episodes"
+  ensure mkdir -p "$target_dir/.ciel/memory/concepts"
+  ensure mkdir -p "$target_dir/.ciel/memory/guards"
   touch "$target_dir/.ciel/parking.md"
   if [ ! -f "$target_dir/.ciel/map.json" ]; then
     printf '{"modules":[],"lastUpdated":""}\n' > "$target_dir/.ciel/map.json"

@@ -210,6 +210,10 @@ async function main() {
     writeFileSync(join(targetDir, ".ciel/map.json"), JSON.stringify({ modules: [], lastUpdated: "" }), "utf-8");
   if (!existsSync(join(targetDir, ".ciel/parking.md")))
     writeFileSync(join(targetDir, ".ciel/parking.md"), "# Ciel Parking Lot\n\n", "utf-8");
+  // Cued-recall memory directories
+  mkdirSync(join(targetDir, ".ciel/memory/episodes"), { recursive: true });
+  mkdirSync(join(targetDir, ".ciel/memory/concepts"), { recursive: true });
+  mkdirSync(join(targetDir, ".ciel/memory/guards"), { recursive: true });
 
   // Installer
   let total = 0;

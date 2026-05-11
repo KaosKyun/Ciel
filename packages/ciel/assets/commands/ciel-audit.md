@@ -122,6 +122,42 @@ Scoring:
 
 **Important**: Do NOT check for `.claude/plugins/ciel/platforms/` or `.opencode/platforms/` directories — these are not part of the v6 architecture. Platform files are installed directly into `.claude/` and `.opencode/` respectively. Do NOT check for codex, cursor, kilocode, lmstudio, ollama, or windsurf — these platforms are not yet implemented.
 
+#### Dimension 9: Memory health — penalty up to -10
+
+Check the cued-recall memory system (see `docs/adrs/0001-cued-recall-memory.md`):
+
+- **index.json missing**: `.ciel/memory/index.json` does not exist. The memory system was never bootstrapped. **-10**
+- **index.json exists but episodes/ empty**: `.ciel/memory/episodes/` has no files. Bootstrap ran but no memories were ingested, or the directory structure is incomplete. **-5**
+- **Low trigger ratio**: Count memories with `trigger_count > 0` vs total. If < 30% of memories have ever been triggered, the cue-matching system may be misconfigured or the memories are not relevant to actual usage. **-3**
+- **Stale memories**: Any memory with `stale: true` or with `last_triggered` older than `stale_after_days` (default 90). Stale memories waste index space and should be cleaned up by `memory-engine.py rebuild-index`. **-2**
+
+Scoring:
+- index.json missing: **-10** (blocks all other checks)
+- index.json present but no episode files: **-5**
+- All checks pass: **0**
+
+Run these checks:
+```bash
+# Check index.json exists
+test -f .ciel/memory/index.json && echo "index: OK" || echo "index: MISSING"
+
+# Count episodes
+EPISODES=$(ls .ciel/memory/episodes/*.md 2>/dev/null | wc -l | tr -d ' ')
+echo "episodes: $EPISODES"
+
+# Count triggered vs total (requires python3)
+python3 -c "
+import json
+with open('.ciel/memory/index.json') as f:
+    idx = json.load(f)
+mems = idx.get('memories', {})
+total = len(mems)
+triggered = sum(1 for m in mems.values() if m.get('trigger_count', 0) > 0)
+stale = sum(1 for m in mems.values() if m.get('stale'))
+print(f'total: {total}, triggered: {triggered} ({0 if total==0 else triggered*100//total}%), stale: {stale}')
+" 2>/dev/null || echo "memory check failed (no python3?)"
+```
+
 ---
 
 ### Scoring
@@ -196,6 +232,7 @@ Begin the output with the literal line `# Ciel Session Audit Report`. End with t
 | D6 — Intent routing | -<N> |
 | D7 — npm version | -<N> |
 | D8 — Platform health | -<N> |
+| D9 — Memory health | -<N> |
 | **Total** | **-<N>** |
 | **Health Score** | **<N>/100** |
 

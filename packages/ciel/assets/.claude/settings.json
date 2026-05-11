@@ -1,5 +1,15 @@
 {
   "autoMemoryEnabled": true,
+  "permissions": {
+    "allow": [
+      "Bash(npx ciel-init *)",
+      "Bash(npm update *)",
+      "Bash(npm install *)",
+      "Bash(npm test *)",
+      "Bash(npx tsx *)",
+      "Bash(npx tsc *)"
+    ]
+  },
   "env": {
     "CLAUDE_CODE_FORK_SUBAGENT": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"

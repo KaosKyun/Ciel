@@ -600,6 +600,80 @@ def cmd_new_id(args):
     print(f"mem_{ts}_{suffix}")
 
 
+def cmd_capture(args):
+    cwd = resolve_cwd(args.cwd)
+    base = cwd / '.ciel' / 'memory'
+    mem_type = args.type or 'episode'
+    target_dir = base / (mem_type + 's' if not mem_type.endswith('s') else mem_type)
+
+    if not target_dir.exists():
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = int(datetime.now(timezone.utc).timestamp())
+    suffix = secrets.token_hex(3)
+    mid = f"mem_{ts}_{suffix}"
+
+    now = datetime.now(timezone.utc)
+    iso_now = now.isoformat().replace('+00:00', 'Z')
+    date_str = now.strftime('%Y-%m-%d')
+
+    slug = re.sub(r'[^a-z0-9]+', '-', args.title.lower()).strip('-')[:60]
+    filename = f"{date_str}-{slug}.md"
+
+    languages = [l.strip() for l in (args.languages or '').split(',') if l.strip()]
+    path_patterns = [p.strip() for p in (args.path_patterns or '').split(',') if p.strip()]
+    symbols = [s.strip() for s in (args.symbols or '').split(',') if s.strip()]
+    intents = [i.strip() for i in (args.intents or '').split(',') if i.strip()]
+
+    content = args.content or args.title
+
+    frontmatter = {
+        "id": mid,
+        "title": args.title,
+        "languages": languages,
+        "path_patterns": path_patterns,
+        "symbols": symbols,
+        "intents": intents,
+        "captured_at": iso_now,
+        "captured_from": "runtime",
+        "source": args.source or 'manual capture',
+        "trigger_count": 0,
+        "last_triggered": None,
+        "stale_after_days": "90",
+        "stale": False,
+    }
+
+    lines = ["---"]
+    for key, val in frontmatter.items():
+        if isinstance(val, list):
+            lines.append(f"{key}:")
+            if val:
+                for item in val:
+                    lines.append(f"  - \"{item}\"")
+            else:
+                lines.append("  []")
+        elif val is None:
+            lines.append(f"{key}: null")
+        elif isinstance(val, bool):
+            lines.append(f"{key}: {'true' if val else 'false'}")
+        else:
+            lines.append(f"{key}: {val}")
+    lines.append("---")
+    lines.append("")
+    lines.append(f"# {args.title}")
+    lines.append("")
+    lines.append(content)
+    lines.append("")
+
+    episode_text = '\n'.join(lines)
+    filepath = target_dir / filename
+    filepath.write_text(episode_text, encoding='utf-8')
+    print(f"Created: {filepath.relative_to(cwd)}")
+
+    cmd_rebuild_index(args)
+    print(f"Index rebuilt with memory: {mid}")
+
+
 # ─── CLI ────────────────────────────────────────────────────────────────────
 
 
@@ -623,6 +697,18 @@ def main():
 
     np = sub.add_parser('new-id', help='Emit a collision-free memory id')
     np.set_defaults(func=cmd_new_id)
+
+    cp = sub.add_parser('capture', help='Create episode file and rebuild index in one call')
+    cp.add_argument('--title', required=True, help='Memory title')
+    cp.add_argument('--source', default=None, help='Source of the capture (e.g. hook name, PR URL)')
+    cp.add_argument('--intents', default=None, help='Comma-separated intent tags')
+    cp.add_argument('--path-patterns', default=None, help='Comma-separated glob patterns')
+    cp.add_argument('--symbols', default=None, help='Comma-separated symbol names')
+    cp.add_argument('--languages', default=None, help='Comma-separated language tags')
+    cp.add_argument('--content', default=None, help='Memory body text (defaults to title)')
+    cp.add_argument('--type', default='episode', choices=['episode', 'concept', 'guard'], help='Memory type')
+    cp.add_argument('--cwd', default=None)
+    cp.set_defaults(func=cmd_capture)
 
     args = p.parse_args()
     args.func(args)
