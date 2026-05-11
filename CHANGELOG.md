@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.9.0](https://github.com/KaosKyun/Ciel/compare/v6.8.0...v6.9.0) (2026-05-11)
+
+
+### Features
+
+* **memory:** deploy cued-recall system to npm package, wire hooks, fix install.sh ([a38fd63](https://github.com/KaosKyun/Ciel/commit/a38fd634a1e4ead6e4b1098a2cecf2b69e658229))
+
 ## [6.8.0](https://github.com/KaosKyun/Ciel/compare/v6.7.0...v6.8.0) (2026-05-10)
 
 
