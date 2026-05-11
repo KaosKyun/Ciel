@@ -4,8 +4,8 @@ mode: subagent
 model: anthropic/claude-sonnet-4-6
 temperature: 0.2
 tools:
-  write: false
-  edit: false
+  write: true
+  edit: true
   bash: true
   read: true
   glob: true
