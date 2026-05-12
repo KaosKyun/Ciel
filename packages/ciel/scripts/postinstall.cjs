@@ -225,6 +225,13 @@ async function main() {
 
   // Sauvegarder version
   writeFileSync(join(targetDir, ".ciel/memory.json"), JSON.stringify({ cielVersion: CIEL_VERSION, lastUpdated: new Date().toISOString() }, null, 2), "utf-8");
+  // Version sentinel — read by hooks/session-start.sh at runtime (no hardcoded MSG to drift).
+  writeFileSync(join(targetDir, ".ciel/version"), CIEL_VERSION + "\n", "utf-8");
+  try {
+    const userCielDir = join(require("os").homedir(), ".ciel");
+    mkdirSync(userCielDir, { recursive: true });
+    writeFileSync(join(userCielDir, "version"), CIEL_VERSION + "\n", "utf-8");
+  } catch {}
 
   console.error(`\n  ${green("✓")} Ciel v${CIEL_VERSION} installé !`);
   if (platforms.includes("OpenCode")) console.error(`    → plugin ${cyan("@neikyun/ciel")} ajouté à opencode.json`);

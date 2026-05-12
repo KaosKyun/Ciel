@@ -13,14 +13,23 @@
           "jsonpath": "$.version"
         },
         {
-          "type": "generic",
-          "path": "scripts/install.sh",
-          "pattern": "CIEL_VERSION=\"[^\"]+\""
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".claude-plugin/marketplace.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[0].version"
         },
         {
           "type": "generic",
-          "path": "hooks/session-start.sh",
-          "pattern": "CIEL v[0-9]+\\.[0-9]+\\.[0-9]+"
+          "path": "scripts/install.sh"
         }
       ]
     }
