@@ -103,7 +103,8 @@ Expected: at least 3 agent files + session-start.sh + settings.json
 
 **OpenCode** — check for expected plugin, agent, and command files:
 ```bash
-OPENCODE_PLUGIN=$(test -f .opencode/plugins/ciel.ts && echo "1" || echo "0")
+# Plugin file may be ciel.ts (legacy) or ciel.js (v6+ runtime); accept either.
+OPENCODE_PLUGIN=$( ( test -f .opencode/plugins/ciel.ts || test -f .opencode/plugins/ciel.js ) && echo "1" || echo "0")
 OPENCODE_AGENTS=$(ls .opencode/agents/ciel-*.md 2>/dev/null | wc -l | tr -d ' ')
 OPENCODE_COMMANDS=$(ls .opencode/commands/ciel*.md 2>/dev/null | wc -l | tr -d ' ')
 echo "OpenCode: plugin=$OPENCODE_PLUGIN agents=$OPENCODE_AGENTS commands=$OPENCODE_COMMANDS"
@@ -113,7 +114,7 @@ else
   echo "OpenCode platform: INCOMPLETE"
 fi
 ```
-Expected: ciel.ts plugin + at least 3 agent files + at least 5 command files
+Expected: ciel plugin (ciel.ts or ciel.js) + at least 3 agent files + at least 5 command files
 
 Scoring:
 - Both platforms fully present and valid: **0**
