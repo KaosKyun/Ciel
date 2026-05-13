@@ -1,5 +1,14 @@
 # Ciel — Changelog
 
+## [6.9.1](https://github.com/KaosKyun/Ciel/compare/v6.9.0...v6.9.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **install:** bump CIEL_VERSION to 6.9.0 ([f0ea90c](https://github.com/KaosKyun/Ciel/commit/f0ea90c40bd8faba012dc19a97648d8cbeaf5a89))
+* **install:** kill hardcoded version drift across distribution channels ([#50](https://github.com/KaosKyun/Ciel/issues/50)) ([f6360f9](https://github.com/KaosKyun/Ciel/commit/f6360f96bdb1af46cd3019e947fdaaeaa0f53ec6))
+* **install:** repair broken hook paths and missing commands on npm install ([de3bd88](https://github.com/KaosKyun/Ciel/commit/de3bd8853671e6194a2c19e9a936ef66fd74e15f))
+
 ## [6.9.0](https://github.com/KaosKyun/Ciel/compare/v6.8.0...v6.9.0) (2026-05-11)
 
 
