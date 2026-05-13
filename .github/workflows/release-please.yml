@@ -49,11 +49,22 @@ jobs:
           VERSION="${{ needs.release-please.outputs.version }}"
           echo "Syncing distribution files to v$VERSION"
           echo "$VERSION" > VERSION
-          sed -i "s/CIEL_VERSION=\"[0-9.]*\"/CIEL_VERSION=\"$VERSION\"/" scripts/install.sh
-          sed -i "s/CIEL v[0-9]*\.[0-9]*\.[0-9]*/CIEL v$VERSION/" hooks/session-start.sh
+          # install.sh still hardcodes CIEL_VERSION (used by --check-update logic
+          # and the help banner — read at script invocation, not at hook runtime).
+          # release-please's `extra-files` entry would handle this if we added
+          # an `x-release-please-version` comment; the sed below is belt-and-suspenders.
+          sed -i 's/CIEL_VERSION="[0-9.]*"/CIEL_VERSION="'"$VERSION"'"/' scripts/install.sh
+          # Mirror the canonical hook to its two distribution copies. The hook itself
+          # reads the version at runtime from .ciel/version + package.json fallbacks,
+          # so no version sed is needed — but the *file content* still needs to be
+          # mirrored in case the hook logic evolves between releases.
+          cp -f hooks/session-start.sh .claude/hooks/session-start.sh
+          cp -f hooks/session-start.sh packages/ciel/assets/.claude/hooks/session-start.sh
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION scripts/install.sh hooks/session-start.sh
+          git add VERSION scripts/install.sh hooks/session-start.sh \
+                  .claude/hooks/session-start.sh \
+                  packages/ciel/assets/.claude/hooks/session-start.sh
           git commit -m "chore: sync distribution files to v$VERSION" || echo "No changes to commit"
           git push origin main
 

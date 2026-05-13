@@ -19,7 +19,7 @@ set -euo pipefail
 # ============================================================
 { # <-- wrapper start
 
-CIEL_VERSION="6.9.0"
+CIEL_VERSION="6.9.0" # x-release-please-version
 GITHUB_RAW="https://raw.githubusercontent.com/KaosKyun/Ciel/main"
 
 # ----- Config -----
@@ -28,6 +28,12 @@ DO_UPDATE=false
 DO_QUIET=false
 DO_YES=false
 CIEL_LOG=""
+
+# Copy flag: `-n` by default (no-clobber, preserves user edits on fresh install);
+# flipped to `-f` when --update is set so upgrades actually overwrite managed files.
+# Convention follows oh-my-zsh / gh extension upgrade / Homebrew (managed files
+# get force-overwritten on upgrade; user state stays untouched elsewhere).
+CP_FLAG="-n"
 
 # ============================================================
 #  HELP
@@ -146,6 +152,23 @@ parse_flags() {
       *)                   warn "Ignoring unknown argument: $arg" ;;
     esac
   done
+  # On --update, force-overwrite managed files (hooks, agents, commands, skills,
+  # settings, CLAUDE.md). Without this, `cp -n` silently skips and "update" is a no-op.
+  if $DO_UPDATE; then CP_FLAG="-f"; fi
+}
+
+# Guard against cp src==dst (same realpath) which errors. Returns 0 if safe to copy.
+_cp_safe() {
+  local src="$1" dst="$2"
+  # If destination is a directory, resolve final path
+  local final_dst="$dst"
+  if [ -d "$dst" ]; then final_dst="$dst/$(basename "$src")"; fi
+  # Resolve realpaths if possible; if either fails, fall through to cp (it will error out cleanly)
+  local sr dr
+  sr=$(cd "$(dirname "$src")" 2>/dev/null && pwd)/$(basename "$src")
+  dr=$(cd "$(dirname "$final_dst")" 2>/dev/null && pwd)/$(basename "$final_dst") 2>/dev/null
+  [ "$sr" = "$dr" ] && return 1
+  return 0
 }
 
 # ============================================================
@@ -303,13 +326,19 @@ install_ciel_files() {
         ensure cp "$TMP_DIR/platforms/opencode/.opencode/plugins/ciel.ts" "$target_dir/.opencode/plugins/"
         ensure cp "$TMP_DIR/platforms/opencode/.opencode/agents/"*.md "$target_dir/.opencode/agents/"
         ensure cp "$TMP_DIR/platforms/opencode/.opencode/commands/"*.md "$target_dir/.opencode/commands/"
+      elif [ "$SRC_DIR" = "$target_dir" ]; then
+        # Self-install (running installer from inside the Ciel source repo).
+        # All targets are the source — `cp -f src src` errors with `same file`
+        # under `set -e`. Skip the copy step; the files are already in place.
+        log "opencode: self-install detected, skipping cp"
+        skipped+=("plugin" "agents" "commands")
       else
         local OPENCODE_SRC="$SRC_DIR/platforms/opencode/.opencode"
-        cp -n "$OPENCODE_SRC/plugins/ciel.ts" "$target_dir/.opencode/plugins/" 2>/dev/null && \
+        cp $CP_FLAG "$OPENCODE_SRC/plugins/ciel.ts" "$target_dir/.opencode/plugins/" 2>/dev/null && \
           installed+=("plugin") || skipped+=("plugin")
-        cp -n "$OPENCODE_SRC/agents/"*.md "$target_dir/.opencode/agents/" 2>/dev/null && \
+        cp $CP_FLAG "$OPENCODE_SRC/agents/"*.md "$target_dir/.opencode/agents/" 2>/dev/null && \
           installed+=("agents") || skipped+=("agents")
-        cp -n "$OPENCODE_SRC/commands/"*.md "$target_dir/.opencode/commands/" 2>/dev/null && \
+        cp $CP_FLAG "$OPENCODE_SRC/commands/"*.md "$target_dir/.opencode/commands/" 2>/dev/null && \
           installed+=("commands") || skipped+=("commands")
       fi
       log "opencode: installed=${installed[*]}, skipped=${skipped[*]}"
@@ -482,39 +511,45 @@ PY
         done
         ensure cp "$TMP_DIR/.claude/settings.json" "$target_dir/.claude/settings.json"
         ensure cp "$TMP_DIR/CLAUDE.md" "$target_dir/CLAUDE.md"
+      elif [ "$SRC_DIR" = "$target_dir" ]; then
+        # Self-install (running installer from inside the Ciel source repo).
+        # `cp -f src src` errors with `same file` under `set -e`; the files are
+        # already in place so the copy step is a no-op anyway.
+        log "claude: self-install detected, skipping cp"
+        skipped+=("agents" "hooks" "commands" "skills" "settings.json" "CLAUDE.md")
       else
-        cp -n "$SRC_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/" 2>/dev/null && \
+        cp $CP_FLAG "$SRC_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/" 2>/dev/null && \
           installed+=("agents") || skipped+=("agents")
-        cp -n "$SRC_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null && \
+        cp $CP_FLAG "$SRC_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null && \
           installed+=("hooks") || skipped+=("hooks")
         # Copy shared hooks from project root hooks/ (memory-bootstrap, session-start, user-prompt-submit, memory-engine)
         # These are in hooks/ (not .claude/hooks/) in the source project but get deployed to .claude/hooks/
         for shared_hook in memory-bootstrap.sh session-start.sh user-prompt-submit.sh; do
           if [ -f "$SRC_DIR/hooks/$shared_hook" ]; then
-            cp -n "$SRC_DIR/hooks/$shared_hook" "$target_dir/.claude/hooks/" 2>/dev/null || true
+            cp $CP_FLAG "$SRC_DIR/hooks/$shared_hook" "$target_dir/.claude/hooks/" 2>/dev/null || true
           fi
         done
         if [ -f "$SRC_DIR/hooks/memory-engine.py" ]; then
-          cp -n "$SRC_DIR/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
+          cp $CP_FLAG "$SRC_DIR/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
         fi
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
         for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
           if [ -f "$SRC_DIR/commands/${cmd}.md" ]; then
-            cp -n "$SRC_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/" 2>/dev/null && \
+            cp $CP_FLAG "$SRC_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/" 2>/dev/null && \
               installed+=("${cmd}") || skipped+=("${cmd}")
           fi
         done
         # Ciel skill (/ciel command on Claude Code)
         if [ -f "$target_dir/.claude/skills" ]; then rm -f "$target_dir/.claude/skills" 2>/dev/null || true; fi
         mkdir -p "$target_dir/.claude/skills/ciel"
-        cp -n "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null && \
+        cp $CP_FLAG "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null && \
           installed+=("ciel skill") || skipped+=("ciel skill")
-        cp -n "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null && \
+        cp $CP_FLAG "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null && \
           installed+=("ciel reference") || skipped+=("ciel reference")
-        cp -n "$SRC_DIR/.claude/settings.json" "$target_dir/.claude/settings.json" 2>/dev/null && \
+        cp $CP_FLAG "$SRC_DIR/.claude/settings.json" "$target_dir/.claude/settings.json" 2>/dev/null && \
           installed+=("settings.json") || skipped+=("settings.json")
-        cp -n "$SRC_DIR/CLAUDE.md" "$target_dir/CLAUDE.md" 2>/dev/null && \
+        cp $CP_FLAG "$SRC_DIR/CLAUDE.md" "$target_dir/CLAUDE.md" 2>/dev/null && \
           installed+=("CLAUDE.md") || skipped+=("CLAUDE.md")
       fi
       ensure chmod +x "$target_dir/.claude/hooks/"*.sh
@@ -557,6 +592,12 @@ PY
   if [ ! -f "$target_dir/.ciel/memory.json" ]; then
     printf '{}\n' > "$target_dir/.ciel/memory.json"
   fi
+  # Version sentinel — read by hooks/session-start.sh at runtime so the banner
+  # always reflects the installed version (no hardcoded MSG to drift).
+  printf '%s\n' "$CIEL_VERSION" > "$target_dir/.ciel/version"
+  # User-level sentinel too, so global plugin installs and CLI tools share the same source of truth.
+  mkdir -p "$HOME/.ciel" 2>/dev/null || true
+  printf '%s\n' "$CIEL_VERSION" > "$HOME/.ciel/version" 2>/dev/null || true
   installed+=(".ciel/")
 
   log ".ciel/ initialized"

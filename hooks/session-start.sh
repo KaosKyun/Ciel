@@ -6,6 +6,8 @@
 
 INPUT=$(cat 2>/dev/null || echo "{}")
 CWD=$(echo "$INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cwd', ''))" 2>/dev/null || pwd)
+# python3 succeeds with an empty string when stdin JSON lacks a 'cwd' key — fall through to pwd.
+[ -z "$CWD" ] && CWD="$(pwd)"
 
 # Detect overlay presence
 OVERLAY=""
@@ -25,7 +27,38 @@ fi
 TRACE_ID=$(date -u +%Y%m%dT%H%M%SZ)-$$
 export CIEL_TRACE_ID="$TRACE_ID"
 
-MSG="CIEL v6.9.0 — Skills-first deep-reasoning active. "
+# Resolve Ciel version at runtime (single source of truth, no hardcoded drift).
+# Fallback chain: project sentinel → user sentinel → npm package → marketplace plugin → repo VERSION → unknown.
+# Note: $HOME/.ciel/version is "last writer wins" across npm installs from different projects —
+# project sentinel ($CWD/.ciel/version) is authoritative when present.
+_resolve_ciel_version() {
+  local v=""
+  for f in \
+    "$CWD/.ciel/version" \
+    "$HOME/.ciel/version" \
+    "$HOME/.claude/plugins/ciel/package.json" \
+    "$HOME/.claude/plugins/ciel/.claude-plugin/plugin.json" \
+    "$(dirname "$0")/../../VERSION" \
+    "$(dirname "$0")/../VERSION"; do
+    # Skip entries that resolved against an empty $CWD/$HOME (e.g., "/.ciel/version").
+    case "$f" in /.ciel/*|/.claude/*) continue ;; esac
+    [ -r "$f" ] || continue
+    case "$f" in
+      *.json)
+        # Anchor to line-start whitespace so we only match top-level "version",
+        # not nested keys like "schema_version" or `"version"` deeper in the doc.
+        v=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" 2>/dev/null | head -1)
+        ;;
+      *)
+        v=$(tr -d '[:space:]' <"$f" 2>/dev/null)
+        ;;
+    esac
+    [ -n "$v" ] && { echo "$v"; return; }
+  done
+  echo "unknown"
+}
+CIEL_VERSION="$(_resolve_ciel_version)"
+MSG="CIEL v${CIEL_VERSION} — Skills-first deep-reasoning active. "
 if [[ -n "$OVERLAY" ]]; then
   MSG+="Overlay loaded: $OVERLAY. "
 else
