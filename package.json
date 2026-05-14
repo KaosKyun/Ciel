@@ -1,7 +1,7 @@
 {
   "name": "ciel-monorepo",
   "private": true,
-  "version": "6.9.1",
+  "version": "6.9.2",
   "description": "Ciel — Deep-reasoning pipeline for LLM-assisted development",
   "workspaces": [
     "packages/ciel"
