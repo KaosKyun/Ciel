@@ -1,5 +1,17 @@
 # Ciel — Changelog
 
+## [6.9.2](https://github.com/KaosKyun/Ciel/compare/v6.9.1...v6.9.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* **memory:** route 'save to memory' to Ciel cued-recall, never Claude Code auto-memory ([#52](https://github.com/KaosKyun/Ciel/issues/52)) ([3cdc495](https://github.com/KaosKyun/Ciel/commit/3cdc4958b41a3d7bdb8a6db30451776d5b566a7f))
+
+
+### Performance Improvements
+
+* **agents:** default ciel-researcher + ciel-explorer to haiku ([6775d83](https://github.com/KaosKyun/Ciel/commit/6775d83bbc8d5917678b6406340c8a6b1b8dffe1))
+
 ## [6.9.1](https://github.com/KaosKyun/Ciel/compare/v6.9.0...v6.9.1) (2026-05-13)
 
 
