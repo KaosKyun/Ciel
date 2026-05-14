@@ -51,19 +51,28 @@ except: print(0)
   fi
 fi
 
-# ─── Cued-recall: intervention pattern detection ─────────────────────────────
-# When the user message contains a clear correction/intervention pattern,
-# suggest capturing it as a memory. Patterns are intentionally narrow to keep
-# false-positive rate low — generic words like "wait" / "stop" / "actually"
-# are NOT triggers on their own; they must combine with a negation/correction
-# adjacent. Never auto-silent — the model surfaces a question to the user.
-# See ADR-0001 and skill `memoire`.
+# ─── Cued-recall: intervention + explicit-save detection ─────────────────────
+# Two narrow buckets, BOTH high-precision (POSIX-ERE, no PCRE lookahead):
+#  1. Intervention regex — user corrections ("you forgot", "non en fait", …)
+#  2. Explicit save-request regex — direct capture asks ("save this to memory", …)
+# Bare verbs without an explicit memory noun (e.g. "remember to commit",
+# "memorise this") are deliberately NOT triggers — an earlier draft used
+# `remember (this|that|it|to)` and fired on every casual "I'll remember to X"
+# prompt, polluting the cued-recall corpus. Each save-request branch REQUIRES
+# the noun `memory`/`mémoire` OR the unambiguous verb+object pair
+# `mémorise <ça/cela/ceci>` / `memorise <this/that/it>`. Anchored to sentence
+# boundary so trailing "remember" never fires. See ADR-0001, skill `memoire`,
+# and packages/ciel/test/hooks-regex.test.ts.
 INTERVENTION_GATE=""
-# POSIX-ERE only (no PCRE lookahead). Patterns are intentionally high-precision
-# to avoid false positives on generic words (wait/stop/actually). Each pattern
-# is a clear signal of correction or "you missed something".
+# Bucket 1: corrections / "you missed something" (unchanged from v6.2 — proven precise)
 if echo "$PROMPT" | grep -qiE "(tu as oublié|t'as oublié|n'oublie pas (que|de)|non en fait|non,? en fait|attention que|rappelle-toi (que|de)|ici on (fait|utilise) plutôt|non on (fait|utilise) plutôt|en fait c'est pas|c'est pas comme ça|mauvaise approche|tu te trompes|you forgot (to|that)|don't forget (to|that)|that's not (right|correct|how)|that's wrong|no[,]? actually|actually,? no|wait[,—-] (no|don't|you forgot)|stop[,—-] (no|you forgot|don't))"; then
   INTERVENTION_GATE=" | CAPTURE GATE: intervention pattern detected — propose AskUserQuestion to capture as memory under .ciel/memory/episodes/ (skill: memoire). Never silent-write."
+fi
+# Bucket 2: explicit save requests — every branch requires the memory noun or
+# unambiguous mémorise/memorise+object. Anchored to start-of-prompt or
+# sentence boundary so "I'll remember the memory of …" never fires.
+if [ -z "$INTERVENTION_GATE" ] && echo "$PROMPT" | grep -qiE "(^|[[:space:].!?])(save (this|that|it) (to|in|into) (the )?memory|put (this|that|it) (in|into) (the )?memory|put (it|this|that) in (the )?memory of ciel|garde (ça|cela|ceci) en (mémoire|memoire)|mets (ça|cela|ceci) en (mémoire|memoire)|enregistre (ça|cela|ceci) (en|dans la|à la) (mémoire|memoire)|sauvegarde (ça|cela|ceci) (en|dans la|à la) (mémoire|memoire)|mémorise (ça|cela|ceci)|memorise (this|that|it))"; then
+  INTERVENTION_GATE=" | CAPTURE GATE: explicit save request detected — propose AskUserQuestion then capture as memory under .ciel/memory/episodes/ via memory-engine.py (skill: memoire). NEVER write to Claude Code auto-memory (~/.claude/projects/<slug>/memory/MEMORY.md) — that is a DIFFERENT system and invisible to /ciel-audit. Never silent-write."
 fi
 
 # ─── Cued-recall: query memory engine for matching memories ──────────────────

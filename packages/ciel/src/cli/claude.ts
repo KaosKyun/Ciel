@@ -17,11 +17,11 @@ export interface InstallResult {
   skipped: string[];
 }
 
-// Hook scripts shipped by Ciel. Used both to copy assets on install
-// and to detect Ciel-managed wrappers in mergeSettings — so legacy paths
-// (e.g. $CLAUDE_PROJECT_DIR/hooks/x.sh) get migrated on --force upgrade
-// rather than preserved alongside the new $CLAUDE_PROJECT_DIR/.claude/hooks/x.sh.
-const CIEL_HOOK_FILES = [
+// Hook scripts CURRENTLY shipped by Ciel. Used by BOTH the install copy loop
+// AND mergeSettings() to recognize Ciel-managed wrappers. Anything in this
+// list will be (re)installed on `--force` upgrade.
+// Exported for test/merge-settings.test.ts — internal API, not for SDK consumers.
+export const CIEL_HOOK_FILES = [
   "check-test-first.sh",
   "block-destructive.sh",
   "track-file.sh",
@@ -29,7 +29,40 @@ const CIEL_HOOK_FILES = [
   "session-version-check.sh",
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
+  // Cued-recall hooks — ship from `.claude/hooks/` to the same destination.
+  "session-start.sh",
+  "user-prompt-submit.sh",
+  "memory-bootstrap.sh",
+  "memory-engine.py",
 ];
+
+// Legacy hook basenames from PRIOR Ciel versions. Used ONLY by mergeSettings()
+// to evict stale wrappers on `--force` upgrade — NEVER iterated by the install
+// copy loop (assets/ no longer ships these files).
+//
+// IMPORTANT: every entry here is a basename Ciel has owned at some point.
+// Do NOT add basenames that may belong to USER-DEFINED custom hooks (the
+// mergeSettings() filter uses a substring `cmd.includes(name)` check, so
+// adding a user-owned basename here causes silent data loss on `--force`).
+// Specifically: `post-edit-check.sh` is intentionally absent — it has never
+// been a Ciel-shipped hook; it appears in some user settings as a custom
+// post-edit linter wrapper. Preserve it.
+export const CIEL_LEGACY_HOOK_FILES = [
+  "pre-write-gate.sh",      // renamed → pre-tool-write.sh in v2.0
+  "post-write-relire.sh",   // renamed → post-tool-write.sh in v2.0
+  "post-tool-write.sh",     // removed in v6.x (replaced by track-file + RELIRE gate)
+];
+
+// Top-level settings.json keys that Ciel OWNS and SHOULD overwrite on `--force`
+// upgrade, even when the user already has a value. Everything else stays
+// user-controlled (existing wins). Add with care — each entry here is a key
+// the user cannot override via settings.json once they run `ciel-init --force`.
+export const CIEL_OWNED_SETTINGS_KEYS = [
+  // autoMemoryEnabled MUST be false on Ciel projects: Claude Code's auto-memory
+  // competes with the cued-recall corpus and is invisible to /ciel-audit.
+  // See ADR-0001 and CLAUDE.md "Ciel memory ≠ Claude Code auto-memory".
+  "autoMemoryEnabled",
+] as const;
 
 /**
  * Detect if the project has Claude Code configuration.
@@ -214,7 +247,7 @@ function mkdirSafe(dir: string, fence: string): void {
  * All other top-level keys (mcpServers, permissions, etc.) are kept from
  * the existing file. Returns null if either file cannot be read or parsed.
  */
-function mergeSettings(existingPath: string, templatePath: string): object | null {
+export function mergeSettings(existingPath: string, templatePath: string): object | null {
   let existing: Record<string, unknown>;
   let template: Record<string, unknown>;
 
@@ -246,12 +279,14 @@ function mergeSettings(existingPath: string, templatePath: string): object | nul
       ...Object.keys(templateHooks),
     ]);
 
+    // A wrapper is Ciel-managed if any inner hook command references a
+    // currently-shipped or legacy Ciel basename. Substring match — catches
+    // both new `.claude/hooks/x.sh` and legacy `hooks/x.sh` / absolute paths.
+    const cielBasenames = [...CIEL_HOOK_FILES, ...CIEL_LEGACY_HOOK_FILES];
+
     for (const event of allEvents) {
       const templateEntries = templateHooks[event] ?? [];
       const existingEntries = existingHooks[event] ?? [];
-      // A wrapper is Ciel-managed if any inner hook command references a
-      // known Ciel hook script basename — matches both new `.claude/hooks/x.sh`
-      // and legacy `hooks/x.sh` paths so upgrades migrate cleanly.
       const userEntries = existingEntries.filter((e) => {
         const wrapper = e as Record<string, unknown>;
         const inner = Array.isArray(wrapper.hooks)
@@ -259,7 +294,7 @@ function mergeSettings(existingPath: string, templatePath: string): object | nul
           : [];
         return !inner.some((h) => {
           const cmd = String(h.command ?? "");
-          return CIEL_HOOK_FILES.some((name) => cmd.includes(name));
+          return cielBasenames.some((name) => cmd.includes(name));
         });
       });
       const entries = [...templateEntries, ...userEntries];
@@ -268,6 +303,13 @@ function mergeSettings(existingPath: string, templatePath: string): object | nul
     }
 
     merged.hooks = mergedHooks;
+  }
+
+  // Propagate Ciel-owned top-level keys from template — overwrites existing
+  // values on `--force`. Without this, flipping a setting in the template
+  // (e.g. autoMemoryEnabled false) never reaches users on upgrade.
+  for (const k of CIEL_OWNED_SETTINGS_KEYS) {
+    if (k in template) merged[k] = template[k];
   }
 
   return merged;
