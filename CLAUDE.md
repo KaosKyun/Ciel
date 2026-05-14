@@ -151,6 +151,25 @@ The MEMOIRE step writes to a structured corpus that auto-replays when context cu
 
 **Capture is never auto-silent** — the model surfaces a confirmation question to the user before writing a memory.
 
+### Ciel memory ≠ Claude Code auto-memory (HARD ROUTING RULE)
+
+Claude Code ships an independent **auto-memory** system (`~/.claude/projects/<slug>/memory/MEMORY.md`) that is **NOT** the Ciel cued-recall corpus. They are different stores with different scopes, formats, and consumers.
+
+| | Ciel cued-recall | Claude Code auto-memory |
+|--|--|--|
+| Location | `.ciel/memory/episodes/` (in repo) | `~/.claude/projects/<slug>/memory/MEMORY.md` (per machine, outside repo) |
+| Portable | ✅ ships with the project | ❌ machine-local, lost on `git clone` |
+| Seen by `/ciel-audit` | ✅ Dim 9 reads `index.json` | ❌ invisible |
+| Cued retrieval | ✅ auto-replays on path/symbol/intent match | ❌ broad context injection only |
+| Write API | `python3 hooks/memory-engine.py capture …` | Internal Claude Code tool |
+
+**Routing rule (mandatory)**: when the user says "save to memory", "remember this", "put it in memory", "mémoire", "retiens", "enregistre", "garde en mémoire", or any synonym in any language:
+
+1. The target is **always** `.ciel/memory/episodes/` via `memory-engine.py capture` — never the Claude Code auto-memory.
+2. Confirm with `AskUserQuestion` first (capture is never silent — see ADR-0001).
+3. The `UserPromptSubmit` hook surfaces `CAPTURE GATE: …` when the phrasing matches — follow it.
+4. If `autoMemoryEnabled` is `true` in `.claude/settings.json` and you find yourself tempted to write to `MEMORY.md`, **STOP**. That setting is opt-in and not used by Ciel. The Ciel template ships with it disabled.
+
 ## Common failures to avoid
 
 These are the most frequently skipped pipeline steps. Do NOT fall into these traps:

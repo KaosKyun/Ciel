@@ -123,7 +123,7 @@ Scoring:
 
 **Important**: Do NOT check for `.claude/plugins/ciel/platforms/` or `.opencode/platforms/` directories — these are not part of the v6 architecture. Platform files are installed directly into `.claude/` and `.opencode/` respectively. Do NOT check for codex, cursor, kilocode, lmstudio, ollama, or windsurf — these platforms are not yet implemented.
 
-#### Dimension 9: Memory health — penalty up to -10
+#### Dimension 9: Memory health — penalty up to -15
 
 Check the cued-recall memory system (see `docs/adrs/0001-cued-recall-memory.md`):
 
@@ -131,10 +131,12 @@ Check the cued-recall memory system (see `docs/adrs/0001-cued-recall-memory.md`)
 - **index.json exists but episodes/ empty**: `.ciel/memory/episodes/` has no files. Bootstrap ran but no memories were ingested, or the directory structure is incomplete. **-5**
 - **Low trigger ratio**: Count memories with `trigger_count > 0` vs total. If < 30% of memories have ever been triggered, the cue-matching system may be misconfigured or the memories are not relevant to actual usage. **-3**
 - **Stale memories**: Any memory with `stale: true` or with `last_triggered` older than `stale_after_days` (default 90). Stale memories waste index space and should be cleaned up by `memory-engine.py rebuild-index`. **-2**
+- **Auto-memory contamination**: Claude Code's built-in auto-memory (`~/.claude/projects/<slug>/memory/MEMORY.md`) exists for THIS project. This is a DIFFERENT memory store than the Ciel cued-recall corpus. If a user (or the model on their behalf) said "save to memory" and the write landed in `MEMORY.md` instead of `.ciel/memory/episodes/`, that knowledge is invisible to Ciel — not portable across machines, not seen by this audit's cue-matching checks, not replayed when context cues fire. **-5** if `MEMORY.md` is present AND newer than the most recent Ciel episode (suggests recent mis-routed capture).
 
 Scoring:
 - index.json missing: **-10** (blocks all other checks)
 - index.json present but no episode files: **-5**
+- Auto-memory contamination detected: **-5** (additive)
 - All checks pass: **0**
 
 Run these checks:
@@ -157,6 +159,27 @@ triggered = sum(1 for m in mems.values() if m.get('trigger_count', 0) > 0)
 stale = sum(1 for m in mems.values() if m.get('stale'))
 print(f'total: {total}, triggered: {triggered} ({0 if total==0 else triggered*100//total}%), stale: {stale}')
 " 2>/dev/null || echo "memory check failed (no python3?)"
+
+# Detect Claude Code auto-memory contamination
+# The auto-memory slug is the cwd with / replaced by -. If this file exists
+# AND is newer than the most recent Ciel episode, a recent capture was
+# mis-routed to Claude Code auto-memory instead of Ciel's cued-recall store.
+PROJECT_SLUG=$(pwd | sed 's|/|-|g')
+AUTO_MEM="$HOME/.claude/projects/${PROJECT_SLUG}/memory/MEMORY.md"
+if [ -f "$AUTO_MEM" ]; then
+  echo "auto-memory: present at $AUTO_MEM"
+  LATEST_EPISODE=$(ls -t .ciel/memory/episodes/*.md 2>/dev/null | head -1)
+  if [ -z "$LATEST_EPISODE" ] || [ "$AUTO_MEM" -nt "$LATEST_EPISODE" ]; then
+    echo "auto-memory: CONTAMINATION — auto-memory newer than latest Ciel episode (mis-routed capture suspected)"
+    echo "  → root cause: 'autoMemoryEnabled' in .claude/settings.json is enabled."
+    echo "    fix: set it to false, then migrate entries from $AUTO_MEM"
+    echo "    to .ciel/memory/episodes/ via memory-engine.py capture"
+  else
+    echo "auto-memory: present but older than Ciel episodes — likely legacy, no penalty"
+  fi
+else
+  echo "auto-memory: absent (clean)"
+fi
 ```
 
 ---
