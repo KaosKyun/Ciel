@@ -851,6 +851,17 @@ def cmd_analyze(args):
     insights_json = base / 'insights.json'
     atomic_write_json(insights_json, insights)
 
+    # Cap human-readable INSIGHTS.md sections when the corpus is large.
+    # insights.json (machine consumer) keeps everything; INSIGHTS.md is read
+    # by humans + by ciel-audit narration so token cost matters at scale.
+    LARGE_CORPUS_THRESHOLD = 150
+    TOP_N = 10
+
+    def maybe_cap(items):
+        if total > LARGE_CORPUS_THRESHOLD and len(items) > TOP_N:
+            return items[:TOP_N], len(items) - TOP_N
+        return items, 0
+
     lines = [
         "# Memory insights",
         "",
@@ -866,50 +877,64 @@ def cmd_analyze(args):
     lines.append("")
 
     if promotion_candidates:
+        shown, omitted = maybe_cap(promotion_candidates)
         lines += [
             "## Promotion candidates",
             "",
             f"Episodes triggered >= {MIN_PROMOTION} times. Promote via skill `memoire-consolidator`.",
             "",
         ]
-        for mid in promotion_candidates:
+        for mid in shown:
             m = episodes[mid]
             lines.append(f"- `{mid}` (trigger_count={m.get('trigger_count', 0)}) - {m.get('title', '?')}")
+        if omitted:
+            lines.append(f"- _+{omitted} more, see insights.json_")
         lines.append("")
 
     if dead_anchors:
+        shown, omitted = maybe_cap(dead_anchors)
         lines += [
             "## Dead anchors",
             "",
             "Memories whose every `path_patterns` entry resolves to no file. Triage in `.ciel/memory/review-queue.md`.",
             "",
         ]
-        for mid in dead_anchors:
+        for mid in shown:
             m = memories[mid]
             patterns = ", ".join(m.get('path_patterns') or [])
             lines.append(f"- `{mid}` - {m.get('title', '?')} (patterns: {patterns})")
+        if omitted:
+            lines.append(f"- _+{omitted} more, see insights.json_")
         lines.append("")
 
     if intent_clusters:
+        ranked = sorted(intent_clusters.items(), key=lambda x: -len(x[1]))
+        shown, omitted = maybe_cap(ranked)
         lines += [
             "## Intent clusters",
             "",
             f"Intents shared by >= {MIN_SUPPORT} memories - recurring topics.",
             "",
         ]
-        for intent, ids in sorted(intent_clusters.items(), key=lambda x: -len(x[1])):
+        for intent, ids in shown:
             lines.append(f"- `{intent}` ({len(ids)}): {', '.join(ids)}")
+        if omitted:
+            lines.append(f"- _+{omitted} more, see insights.json_")
         lines.append("")
 
     if path_clusters:
+        ranked = sorted(path_clusters.items(), key=lambda x: -len(x[1]))
+        shown, omitted = maybe_cap(ranked)
         lines += [
             "## Path clusters",
             "",
             f"Paths referenced by >= {MIN_SUPPORT} memories - high-traffic surface.",
             "",
         ]
-        for path, ids in sorted(path_clusters.items(), key=lambda x: -len(x[1])):
+        for path, ids in shown:
             lines.append(f"- `{path}` ({len(ids)}): {', '.join(ids)}")
+        if omitted:
+            lines.append(f"- _+{omitted} more, see insights.json_")
         lines.append("")
 
     insights_md = base / 'INSIGHTS.md'

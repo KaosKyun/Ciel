@@ -199,6 +199,55 @@ describe("memory-engine analyze — health metrics", () => {
   });
 });
 
+describe("memory-engine analyze — INSIGHTS.md cap on large corpus", () => {
+  it("does not cap a small corpus (<= 150 memories)", () => {
+    // 5 promotion candidates with corpus size 5 → all listed, no "more" footer.
+    const memories = [];
+    for (let i = 0; i < 5; i++) {
+      memories.push({ id: `mem_small_${i}`, title: `small-${i}`, intents: ["hook"], trigger_count: 7 });
+    }
+    const dir = makeCorpus(memories);
+    const result = analyze(dir);
+    assert.equal(result.insightsJson.corpus_size.total, 5, "fixture corpus has 5 memories");
+    assert.ok(!/more, see insights\.json/.test(result.insightsMd),
+      "small corpus must not emit a '+N more' footer");
+    for (let i = 0; i < 5; i++) {
+      assert.ok(result.insightsMd.includes(`mem_small_${i}`),
+        `small-corpus INSIGHTS.md must list every promotion candidate (missing mem_small_${i})`);
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("caps each section at top-10 with a '+N more' footer when corpus > 150", () => {
+    // 200 promotion candidates → only top 10 listed in INSIGHTS.md, but
+    // insights.json keeps all 200.
+    const memories = [];
+    for (let i = 0; i < 200; i++) {
+      memories.push({
+        id: `mem_large_${String(i).padStart(3, "0")}`,
+        title: `large-${i}`,
+        intents: ["hook"],
+        // All entries above the promotion threshold (5); mem_large_000 ranks highest.
+        trigger_count: 205 - i,
+      });
+    }
+    const dir = makeCorpus(memories);
+    const result = analyze(dir);
+    assert.equal(result.insightsJson.corpus_size.total, 200, "fixture has 200 memories");
+    assert.equal(result.insightsJson.promotion_candidates.length, 200,
+      "insights.json keeps all 200 candidates (machine consumer is uncapped)");
+
+    const promotionSection = result.insightsMd.split("## Promotion candidates")[1] ?? "";
+    const candidateLines = (promotionSection.match(/^- `mem_large_/gm) ?? []).length;
+    assert.equal(candidateLines, 10, "INSIGHTS.md must cap promotion candidates at top 10 when corpus > 150");
+    assert.match(result.insightsMd, /\+\d+ more, see insights\.json/,
+      "INSIGHTS.md must emit a '+N more, see insights.json' footer when capping");
+    assert.ok(result.insightsMd.includes("mem_large_000"),
+      "highest-support entry (mem_large_000) must be in the top-10 slice");
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
 describe("memory-engine analyze — min-support floor", () => {
   it("does not emit an intent cluster supported by fewer than 3 episodes", () => {
     const dir = makeCorpus([
