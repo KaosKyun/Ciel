@@ -233,8 +233,16 @@ def match_path_pattern(pattern: str, paths) -> bool:
     return False
 
 
-def score_memory(mem, paths, symbols, intents, langs) -> int:
-    """Score a memory's relevance. 0 = exclude. Positive = include, higher first."""
+def score_memory(mem, paths, symbols, intents, langs, prompt_lower="") -> int:
+    """Score a memory's relevance. 0 = exclude. Positive = include, higher first.
+
+    Symbol and intent matching are case-insensitive and fall back to a
+    word-boundary search against the raw prompt. This lets a memory tagged
+    `symbols: [OkHttp]` fire on a prompt that mentions "okhttp" in prose,
+    and lets free-form intent tags (e.g. `intents: [okhttp, diagnostics]`)
+    match without being members of the fixed INTENT_KEYWORDS vocabulary.
+    Word boundaries prevent "test" intent from firing on "contest".
+    """
     # Hard language gate: if memory is language-specific AND prompt has language
     # cues AND no overlap → exclude. Avoids Kotlin memories firing on TS edits.
     mem_langs = mem.get('languages') or []
@@ -245,11 +253,23 @@ def score_memory(mem, paths, symbols, intents, langs) -> int:
     for pattern in mem.get('path_patterns') or []:
         if match_path_pattern(pattern, paths):
             score += 10
+
+    # Case-insensitive comparison sets — built once per memory call.
+    symbols_lower = {s.lower() for s in symbols}
+    intents_lower = {i.lower() for i in intents}
+
     for sym in mem.get('symbols') or []:
-        if sym in symbols:
+        sym_lower = sym.lower()
+        if sym_lower in symbols_lower or (
+            prompt_lower and re.search(r'\b' + re.escape(sym_lower) + r'\b', prompt_lower)
+        ):
             score += 8
+
     for intent in mem.get('intents') or []:
-        if intent in intents:
+        intent_lower = intent.lower()
+        if intent_lower in intents_lower or (
+            prompt_lower and re.search(r'\b' + re.escape(intent_lower) + r'\b', prompt_lower)
+        ):
             score += 5
 
     # No cue match at all → don't include (cued recall, not free recall)
@@ -399,6 +419,7 @@ def cmd_query(args):
     symbols = extract_symbol_cues(prompt)
     intents = extract_intent_cues(prompt)
     langs = extract_language_cues(prompt)
+    prompt_lower = prompt.lower()
     now = datetime.now(timezone.utc)
     iso_now = now.isoformat().replace('+00:00', 'Z')
 
@@ -418,7 +439,7 @@ def cmd_query(args):
         for mid, m in mems.items():
             if m.get('stale'):
                 continue
-            s = score_memory(m, paths, symbols, intents, langs)
+            s = score_memory(m, paths, symbols, intents, langs, prompt_lower=prompt_lower)
             if s > 0:
                 scored.append((s, mid, m))
 
