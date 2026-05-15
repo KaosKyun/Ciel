@@ -44,7 +44,7 @@ Principe : **"Understand before generating. Verify before claiming done."**
 | 12 | ADR | Documenter decisions architecturales |
 | 13 | RELIRE | @ciel-critic MODE=RELIRE |
 | 14 | PROUVER | Preuve AVANT/APRES |
-| 15 | MEMOIRE | Sauver .ciel/map.json |
+| 15 | MEMOIRE | Cued-recall: hooks capture interventions to .ciel/memory/episodes/ + index.json (see skill `memoire`, ADR-0001). |
 | 16 | META | 30s reflexion |
 
 ## Depth et dispatch
@@ -98,5 +98,6 @@ Pour les prompts non-anglais (francais, etc.), appliquer le matching semantique 
 ## References
 
 - **Depth signals** → load `depth-classifier`
+- **Memory (etape 15 MEMOIRE)** → load `memoire` (capture/recall) + `memoire-consolidator` (maintenance). Hooks `user-prompt-submit.sh` (capture trigger) + `session-start.sh` (recall injection). Engine `hooks/memory-engine.py`. Token budget by depth: Trivial 1K / Standard 3K / Critical 5K injected memory tokens. Design: `docs/adrs/0001-cued-recall-memory.md`.
 - **Utility skills** → load pr-opener, commit-writer, branch-setup, issue-creator, issue-closer
 - For full philosophy and guards, see `reference.md`
