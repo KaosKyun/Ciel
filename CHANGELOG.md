@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.10.1](https://github.com/KaosKyun/Ciel/compare/v6.10.0...v6.10.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **memory-engine:** case-insensitive symbol + free-form intent matching ([#55](https://github.com/KaosKyun/Ciel/issues/55)) ([1c6fedc](https://github.com/KaosKyun/Ciel/commit/1c6fedcac3e3ebed8120543f1369d1c30e16f60b))
+
 ## [6.10.0](https://github.com/KaosKyun/Ciel/compare/v6.9.2...v6.10.0) (2026-05-15)
 
 
