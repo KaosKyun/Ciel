@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.11.0](https://github.com/KaosKyun/Ciel/compare/v6.10.1...v6.11.0) (2026-05-15)
+
+
+### Features
+
+* **memoire:** wire cued-recall into pipeline + add analyzer Dim 10 ([#57](https://github.com/KaosKyun/Ciel/issues/57)) ([71c000a](https://github.com/KaosKyun/Ciel/commit/71c000a333d95132cd5e208eabcc6760791cb2c1))
+
 ## [6.10.1](https://github.com/KaosKyun/Ciel/compare/v6.10.0...v6.10.1) (2026-05-15)
 
 
