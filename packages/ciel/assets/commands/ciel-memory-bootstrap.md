@@ -1,10 +1,10 @@
 ---
-description: Scan project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, etc.) and propose ingestion into the cued-recall memory under .ciel/memory/. Reports findings if no sources found. Always confirms each candidate with the user before writing.
+description: Scan project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, Claude Code auto-memory at ~/.claude/projects/<slug>/memory/, etc.) and propose ingestion into the cued-recall memory under .ciel/memory/. Reports findings if no sources found. Always confirms each candidate with the user before writing.
 ---
 
 # /ciel-memory-bootstrap — Initialize Cued-Recall Memory
 
-**Purpose:** First-run scan of an existing project to convert tribal knowledge already documented in `lessons.md`, `ciel-overlay.md`, `.claude/rules/`, and similar files into the structured cued-recall memory at `.ciel/memory/`.
+**Purpose:** First-run scan of an existing project to convert tribal knowledge already documented in `lessons.md`, `ciel-overlay.md`, `.claude/rules/`, Claude Code's per-project auto-memory (`~/.claude/projects/<slug>/memory/`), and similar files into the structured cued-recall memory at `.ciel/memory/`.
 
 **Usage:** `/ciel-memory-bootstrap` (no args)
 
@@ -60,6 +60,39 @@ For each source found in Step 1, `Read` the file fully. Identify candidate memor
 | `## Heading\n\n- rule\n- rule` (rules.md style) | One memory per rule. |
 | Numbered lessons in `ciel-overlay.md` "Key Lessons" | One memory per lesson. |
 | `## section` in CLAUDE.md/AGENTS.md describing a non-obvious convention | One memory per section. |
+| **Claude Code auto-memory** entries (`~/.claude/projects/<slug>/memory/*.md`, excluding `MEMORY.md`) | One memory per file. Title = frontmatter `description`. Cues derived per "Auto-memory mapping" below. |
+
+#### Auto-memory mapping (special parser)
+
+Claude Code auto-memory uses a different frontmatter than Ciel's cued-recall. Each source file looks like:
+
+```yaml
+---
+name: feedback-okhttp-cookiejar-override
+description: Neiyomi shared PersistentCookieJar overrides manual Cookie headers via OkHttp BridgeInterceptor
+metadata:
+  type: feedback
+---
+
+(body markdown — Context / Why / How to apply sections)
+```
+
+When you encounter a file under `$AUTO_MEMORY_DIR`, map it to a Ciel episode as follows:
+
+| Auto-memory field | Ciel frontmatter field | Notes |
+|---|---|---|
+| `description:` | `title:` | one-line summary |
+| `name:` | base of slug for filename | already kebab-case |
+| `metadata.type:` (`user`/`feedback`/`project`/`reference`) | `intents:` `[<type>]` plus topic-specific intents inferred from body | e.g. `feedback` + `okhttp` + `cookie` |
+| body markdown | Ciel episode body, verbatim | preserve Context/Why/How to apply structure |
+| paths cited in body (e.g. `src/`, `*.kt`, `Caddyfile`) | `path_patterns:` | infer from grep — narrow patterns preferred |
+| symbols cited in body (class/function/table names) | `symbols:` | infer from grep |
+| language hint (file extensions in body) | `languages:` | `kotlin`/`typescript`/`python`/`sql`/etc. |
+| `captured_from:` (NEW) | `auto-memory-migration` | distinguishes from user-intervention captures |
+
+**Skip `MEMORY.md`** — it's a table-of-contents index, not memory content. The scan already excludes it.
+
+**Backup before delete.** After successfully writing an episode file for an auto-memory entry, MOVE (not delete) the source to `$AUTO_MEMORY_DIR/.migrated-to-ciel/<filename>` so the user can audit migration. The MEMORY.md index file itself stays in place — Claude Code may regenerate it on next session.
 
 Skip:
 - The pipeline / workflow descriptions (those belong in CLAUDE.md, not memory)
@@ -152,6 +185,8 @@ Report:
 | Nothing scanned | No tribal docs in this project | Working as intended; report and end |
 | Memories all tagged with broad paths | Source content didn't include path hints | Ask user to refine tags after listing |
 | index.json malformed after rebuild | python3 parse error | Recreate empty index, re-run rebuild step |
+| Auto-memory not detected | Slug derivation mismatch (cwd has unexpected characters) | Override via `CIEL_AUTO_MEMORY_DIR=<absolute-path> bash hooks/memory-bootstrap.sh scan` |
+| Auto-memory file has `name:` but no `description:` | Older auto-memory format | Use first heading or filename as title; ask user to confirm before writing |
 
 ## See also
 

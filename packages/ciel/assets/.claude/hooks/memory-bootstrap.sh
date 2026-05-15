@@ -33,6 +33,11 @@ declare -a SOURCES=(
 # .claude/rules/*.md detected separately (variable count)
 RULES_DIR="$PROJECT_DIR/.claude/rules"
 
+# Claude Code's per-project auto-memory dir. Lives OUTSIDE the repo, derived
+# from cwd with `/` replaced by `-`. Tests override via CIEL_AUTO_MEMORY_DIR.
+# Pattern: ~/.claude/projects/-Users-foo-Projects-Bar/memory/
+AUTO_MEMORY_DIR="${CIEL_AUTO_MEMORY_DIR:-$HOME/.claude/projects/$(echo "$PROJECT_DIR" | sed 's|/|-|g')/memory}"
+
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 scan_sources() {
@@ -55,6 +60,17 @@ scan_sources() {
     if [[ "$rules_count" -gt 0 ]]; then
       echo "  ✓ $RULES_DIR/ ($rules_count rule files)"
       found=$((found + rules_count))
+    fi
+  fi
+
+  # Claude Code auto-memory — excludes the MEMORY.md index file (just a TOC,
+  # not memory content). Each *.md sibling is a discrete entry to migrate.
+  if [[ -d "$AUTO_MEMORY_DIR" ]]; then
+    local auto_count
+    auto_count=$(find "$AUTO_MEMORY_DIR" -maxdepth 1 -name "*.md" -type f -not -name "MEMORY.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$auto_count" -gt 0 ]]; then
+      echo "  ✓ $AUTO_MEMORY_DIR/ ($auto_count Claude Code auto-memory entries — to migrate to .ciel/memory/)"
+      found=$((found + auto_count))
     fi
   fi
 
