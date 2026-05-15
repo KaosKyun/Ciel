@@ -499,6 +499,15 @@ PY
         download_if_needed "skills/ciel/reference.md"
         [ -f "$TMP_DIR/skills/ciel/SKILL.md" ] && cp "$TMP_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" || true
         [ -f "$TMP_DIR/skills/ciel/reference.md" ] && cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" || true
+        # Workflow skills (memoire, depth-classifier, quoi-framer, etc.) — ship the full set.
+        # Mirrored to .claude/skills/workflow/<name>/SKILL.md so Claude Code can auto-discover them.
+        for skill in adr-auto ai-failure-modes-detector ask-window avec-quoi-versioner ci-watcher critiquer-auditor debug-reasoning-rca depth-classifier diverge doc-validator-official evaluer-sizer faire-gatekeeper flux-narrator memoire memoire-consolidator meta-critiquer modern-patterns-checker pattern-fitness-check playwright-visual-critic pr-review-responder prouver-verifier quoi-framer relire-critic security-regression-check self-consistency-verifier spike-mode stride-analyzer test-strategy-vitest-playwright; do
+          download_if_needed "skills/workflow/${skill}/SKILL.md"
+          if [ -f "$TMP_DIR/skills/workflow/${skill}/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/workflow/${skill}"
+            cp "$TMP_DIR/skills/workflow/${skill}/SKILL.md" "$target_dir/.claude/skills/workflow/${skill}/SKILL.md"
+          fi
+        done
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
         [ -f "$TMP_DIR/.claude/hooks/memory-engine.py" ] && cp "$TMP_DIR/.claude/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
@@ -547,6 +556,18 @@ PY
           installed+=("ciel skill") || skipped+=("ciel skill")
         cp $CP_FLAG "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null && \
           installed+=("ciel reference") || skipped+=("ciel reference")
+        # Workflow skills (memoire, depth-classifier, quoi-framer, etc.). Iterate
+        # the source directory to ship every skill present, so adding a new one
+        # in skills/workflow/ propagates without touching install.sh again.
+        if [ -d "$SRC_DIR/skills/workflow" ]; then
+          for skill_src in "$SRC_DIR/skills/workflow"/*/SKILL.md; do
+            [ -f "$skill_src" ] || continue
+            skill_name="$(basename "$(dirname "$skill_src")")"
+            mkdir -p "$target_dir/.claude/skills/workflow/${skill_name}"
+            cp $CP_FLAG "$skill_src" "$target_dir/.claude/skills/workflow/${skill_name}/SKILL.md" 2>/dev/null || true
+          done
+          installed+=("workflow skills")
+        fi
         cp $CP_FLAG "$SRC_DIR/.claude/settings.json" "$target_dir/.claude/settings.json" 2>/dev/null && \
           installed+=("settings.json") || skipped+=("settings.json")
         cp $CP_FLAG "$SRC_DIR/CLAUDE.md" "$target_dir/CLAUDE.md" 2>/dev/null && \
