@@ -18,6 +18,7 @@ See docs/adrs/0001-cued-recall-memory.md for design rationale.
 import sys
 import os
 import json
+import math
 import re
 import fnmatch
 import argparse
@@ -695,6 +696,232 @@ def cmd_capture(args):
     print(f"Index rebuilt with memory: {mid}")
 
 
+def cmd_analyze(args):
+    """Mine recurring patterns across the corpus and emit insights.
+
+    Read-only on memories. Computes promotion candidates, dead anchors,
+    intent/path clusters and 7 health metrics, then writes:
+      - .ciel/memory/insights.json (machine; consumed by ciel-audit Dim 10)
+      - .ciel/memory/INSIGHTS.md (human digest)
+
+    Min-support floor (3 memories) enforced by the engine — refuses to
+    surface a "cluster" the model could narrate from sparse evidence.
+    Generation cap is computed from optional `derived_from` chains so a
+    future synthesizer cannot recurse on its own outputs without it
+    showing up as a metric.
+    """
+    cwd = resolve_cwd(args.cwd)
+    base = cwd / '.ciel' / 'memory'
+    if not base.exists():
+        print(f"No memory directory at {base}", file=sys.stderr)
+        sys.exit(1)
+
+    index_file = base / 'index.json'
+    if index_file.exists():
+        with index_file.open('r', encoding='utf-8') as f:
+            index = json.load(f)
+    else:
+        index = {"version": 2, "memories": {}, "by_path": {}, "by_symbol": {},
+                 "by_intent": {}, "by_language": {}}
+
+    memories = index.get('memories', {}) or {}
+    by_intent = index.get('by_intent', {}) or {}
+    by_path = index.get('by_path', {}) or {}
+
+    MIN_PROMOTION = 5
+    MIN_SUPPORT = 3
+
+    episodes = {mid: m for mid, m in memories.items()
+                if str(m.get('file', '')).startswith('episodes/')}
+    concepts = {mid: m for mid, m in memories.items()
+                if str(m.get('file', '')).startswith('concepts/')}
+    guards = {mid: m for mid, m in memories.items()
+              if str(m.get('file', '')).startswith('guards/')}
+
+    promotion_candidates = [mid for mid, m in episodes.items()
+                            if (m.get('trigger_count') or 0) >= MIN_PROMOTION]
+    promotion_candidates.sort(key=lambda mid: -(episodes[mid].get('trigger_count') or 0))
+
+    dead_anchors = []
+    for mid, m in memories.items():
+        patterns = m.get('path_patterns') or []
+        if not patterns:
+            continue
+        alive = False
+        for pat in patterns:
+            try:
+                # Path.glob raises NotImplementedError on absolute patterns
+                # in Python 3.13+, so route absolute paths through Path.exists
+                # directly. Relative patterns keep the glob (** support).
+                if pat.startswith('/'):
+                    if Path(pat).exists():
+                        alive = True
+                        break
+                elif any(True for _ in cwd.glob(pat)):
+                    alive = True
+                    break
+            except (ValueError, OSError, NotImplementedError):
+                continue
+        if not alive:
+            dead_anchors.append(mid)
+    dead_anchors.sort()
+
+    intent_clusters = {k: sorted(v) for k, v in by_intent.items() if len(v) >= MIN_SUPPORT}
+    path_clusters = {k: sorted(v) for k, v in by_path.items() if len(v) >= MIN_SUPPORT}
+
+    now = datetime.now(timezone.utc)
+
+    def days_ago(iso_str):
+        if not iso_str:
+            return None
+        try:
+            dt = datetime.fromisoformat(str(iso_str).replace('Z', '+00:00'))
+            return (now - dt).days
+        except (ValueError, TypeError):
+            return None
+
+    total = len(memories)
+
+    recent = sum(1 for m in memories.values()
+                 if (days_ago(m.get('captured_at')) or 10**6) <= 30)
+    recency_30d_ratio = round(recent / total, 3) if total else 0.0
+
+    intent_counts = [len(ids) for ids in by_intent.values() if ids]
+    intent_diversity_entropy = 0.0
+    if intent_counts:
+        total_tags = sum(intent_counts)
+        for c in intent_counts:
+            p = c / total_tags
+            intent_diversity_entropy -= p * math.log2(p)
+        intent_diversity_entropy = round(intent_diversity_entropy, 3)
+
+    dead_anchor_ratio = round(len(dead_anchors) / total, 3) if total else 0.0
+
+    # Generation depth from optional `derived_from` chains. Cycle-guarded.
+    def gen_depth(mid, seen):
+        if mid in seen:
+            return 0
+        m = memories.get(mid, {})
+        parents = m.get('derived_from') or []
+        if not parents:
+            return 1
+        return 1 + max(gen_depth(p, seen | {mid}) for p in parents)
+
+    max_generation_depth = max((gen_depth(mid, set()) for mid in memories), default=0)
+
+    flat_intents = [i for m in memories.values() for i in (m.get('intents') or [])]
+    tag_specificity = round(len(set(flat_intents)) / len(flat_intents), 3) if flat_intents else 0.0
+
+    promotion_ratio = round(len(concepts) / len(episodes), 3) if episodes else 0.0
+
+    corrections = sum(1 for m in episodes.values()
+                      if m.get('captured_from') in ('user-intervention', 'intervention'))
+    capture_correction_ratio = round(corrections / len(episodes), 3) if episodes else 0.0
+
+    health = {
+        "recency_30d_ratio": recency_30d_ratio,
+        "intent_diversity_entropy": intent_diversity_entropy,
+        "dead_anchor_ratio": dead_anchor_ratio,
+        "max_generation_depth": max_generation_depth,
+        "tag_specificity": tag_specificity,
+        "promotion_ratio": promotion_ratio,
+        "capture_correction_ratio": capture_correction_ratio,
+    }
+
+    insights = {
+        "version": 1,
+        "generated_at": now.isoformat().replace('+00:00', 'Z'),
+        "corpus_size": {
+            "episodes": len(episodes),
+            "concepts": len(concepts),
+            "guards": len(guards),
+            "total": total,
+        },
+        "promotion_candidates": promotion_candidates,
+        "dead_anchors": dead_anchors,
+        "intent_clusters": intent_clusters,
+        "path_clusters": path_clusters,
+        "health": health,
+        "thresholds": {
+            "min_promotion_trigger_count": MIN_PROMOTION,
+            "min_support_episodes": MIN_SUPPORT,
+        },
+    }
+
+    insights_json = base / 'insights.json'
+    atomic_write_json(insights_json, insights)
+
+    lines = [
+        "# Memory insights",
+        "",
+        f"_Generated {insights['generated_at']} by `memory-engine.py analyze`. Read by `ciel-audit` Dim 10._",
+        "",
+        f"**Corpus**: {len(episodes)} episodes, {len(concepts)} concepts, {len(guards)} guards (total {total}).",
+        "",
+        "## Health metrics",
+        "",
+    ]
+    for key, val in health.items():
+        lines.append(f"- `{key}`: **{val}**")
+    lines.append("")
+
+    if promotion_candidates:
+        lines += [
+            "## Promotion candidates",
+            "",
+            f"Episodes triggered >= {MIN_PROMOTION} times. Promote via skill `memoire-consolidator`.",
+            "",
+        ]
+        for mid in promotion_candidates:
+            m = episodes[mid]
+            lines.append(f"- `{mid}` (trigger_count={m.get('trigger_count', 0)}) - {m.get('title', '?')}")
+        lines.append("")
+
+    if dead_anchors:
+        lines += [
+            "## Dead anchors",
+            "",
+            "Memories whose every `path_patterns` entry resolves to no file. Triage in `.ciel/memory/review-queue.md`.",
+            "",
+        ]
+        for mid in dead_anchors:
+            m = memories[mid]
+            patterns = ", ".join(m.get('path_patterns') or [])
+            lines.append(f"- `{mid}` - {m.get('title', '?')} (patterns: {patterns})")
+        lines.append("")
+
+    if intent_clusters:
+        lines += [
+            "## Intent clusters",
+            "",
+            f"Intents shared by >= {MIN_SUPPORT} memories - recurring topics.",
+            "",
+        ]
+        for intent, ids in sorted(intent_clusters.items(), key=lambda x: -len(x[1])):
+            lines.append(f"- `{intent}` ({len(ids)}): {', '.join(ids)}")
+        lines.append("")
+
+    if path_clusters:
+        lines += [
+            "## Path clusters",
+            "",
+            f"Paths referenced by >= {MIN_SUPPORT} memories - high-traffic surface.",
+            "",
+        ]
+        for path, ids in sorted(path_clusters.items(), key=lambda x: -len(x[1])):
+            lines.append(f"- `{path}` ({len(ids)}): {', '.join(ids)}")
+        lines.append("")
+
+    insights_md = base / 'INSIGHTS.md'
+    insights_md.write_text('\n'.join(lines), encoding='utf-8')
+
+    print(f"Insights written: {insights_json.relative_to(cwd)}, {insights_md.relative_to(cwd)}")
+    print(f"  promotion_candidates: {len(promotion_candidates)}")
+    print(f"  dead_anchors: {len(dead_anchors)}")
+    print(f"  intent_clusters: {len(intent_clusters)}")
+    print(f"  path_clusters: {len(path_clusters)}")
+
+
 # ─── CLI ────────────────────────────────────────────────────────────────────
 
 
@@ -730,6 +957,10 @@ def main():
     cp.add_argument('--type', default='episode', choices=['episode', 'concept', 'guard'], help='Memory type')
     cp.add_argument('--cwd', default=None)
     cp.set_defaults(func=cmd_capture)
+
+    ap = sub.add_parser('analyze', help='Mine patterns + emit insights.json + INSIGHTS.md (read by ciel-audit Dim 10)')
+    ap.add_argument('--cwd', default=None)
+    ap.set_defaults(func=cmd_analyze)
 
     args = p.parse_args()
     args.func(args)

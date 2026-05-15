@@ -123,6 +123,106 @@ Scoring:
 
 **Important**: Do NOT check for `.claude/plugins/ciel/platforms/` or `.opencode/platforms/` directories — these are not part of the v6 architecture. Platform files are installed directly into `.claude/` and `.opencode/` respectively. Do NOT check for codex, cursor, kilocode, lmstudio, ollama, or windsurf — these platforms are not yet implemented.
 
+#### Dimension 9: Memory health — penalty up to -15
+
+Check the cued-recall memory system (see `docs/adrs/0001-cued-recall-memory.md`):
+
+- **index.json missing**: `.ciel/memory/index.json` does not exist. The memory system was never bootstrapped. **-10**
+- **index.json exists but episodes/ empty**: `.ciel/memory/episodes/` has no files. Bootstrap ran but no memories were ingested, or the directory structure is incomplete. **-5**
+- **Low trigger ratio**: Count memories with `trigger_count > 0` vs total. If < 30% of memories have ever been triggered, the cue-matching system may be misconfigured or the memories are not relevant to actual usage. **-3**
+- **Stale memories**: Any memory with `stale: true` or with `last_triggered` older than `stale_after_days` (default 90). Stale memories waste index space and should be cleaned up by `memory-engine.py rebuild-index`. **-2**
+- **Auto-memory contamination**: Claude Code's built-in auto-memory (`~/.claude/projects/<slug>/memory/MEMORY.md`) exists for THIS project. This is a DIFFERENT memory store than the Ciel cued-recall corpus. If a user (or the model on their behalf) said "save to memory" and the write landed in `MEMORY.md` instead of `.ciel/memory/episodes/`, that knowledge is invisible to Ciel — not portable across machines, not seen by this audit's cue-matching checks, not replayed when context cues fire. **-5** if `MEMORY.md` is present AND newer than the most recent Ciel episode (suggests recent mis-routed capture).
+
+Scoring:
+- index.json missing: **-10** (blocks all other checks)
+- index.json present but no episode files: **-5**
+- Auto-memory contamination detected: **-5** (additive)
+- All checks pass: **0**
+
+Run these checks:
+```bash
+# Check index.json exists
+test -f .ciel/memory/index.json && echo "index: OK" || echo "index: MISSING"
+
+# Count episodes
+EPISODES=$(ls .ciel/memory/episodes/*.md 2>/dev/null | wc -l | tr -d ' ')
+echo "episodes: $EPISODES"
+
+# Count triggered vs total (requires python3)
+python3 -c "
+import json
+with open('.ciel/memory/index.json') as f:
+    idx = json.load(f)
+mems = idx.get('memories', {})
+total = len(mems)
+triggered = sum(1 for m in mems.values() if m.get('trigger_count', 0) > 0)
+stale = sum(1 for m in mems.values() if m.get('stale'))
+print(f'total: {total}, triggered: {triggered} ({0 if total==0 else triggered*100//total}%), stale: {stale}')
+" 2>/dev/null || echo "memory check failed (no python3?)"
+
+# Detect Claude Code auto-memory contamination
+# The auto-memory slug is the cwd with / replaced by -. If this file exists
+# AND is newer than the most recent Ciel episode, a recent capture was
+# mis-routed to Claude Code auto-memory instead of Ciel's cued-recall store.
+PROJECT_SLUG=$(pwd | sed 's|/|-|g')
+AUTO_MEM="$HOME/.claude/projects/${PROJECT_SLUG}/memory/MEMORY.md"
+if [ -f "$AUTO_MEM" ]; then
+  echo "auto-memory: present at $AUTO_MEM"
+  LATEST_EPISODE=$(ls -t .ciel/memory/episodes/*.md 2>/dev/null | head -1)
+  if [ -z "$LATEST_EPISODE" ] || [ "$AUTO_MEM" -nt "$LATEST_EPISODE" ]; then
+    echo "auto-memory: CONTAMINATION — auto-memory newer than latest Ciel episode (mis-routed capture suspected)"
+    echo "  → root cause: 'autoMemoryEnabled' in .claude/settings.json is enabled."
+    echo "    fix: set it to false, then migrate entries from $AUTO_MEM"
+    echo "    to .ciel/memory/episodes/ via memory-engine.py capture"
+  else
+    echo "auto-memory: present but older than Ciel episodes — likely legacy, no penalty"
+  fi
+else
+  echo "auto-memory: absent (clean)"
+fi
+```
+
+#### Dimension 10: Memory insight quality — penalty up to -10
+
+Auto-runs the memory pattern analyzer (`python3 .claude/hooks/memory-engine.py analyze`) before scoring. The analyzer is read-only on the corpus — it scans `index.json`, computes pattern clusters and 7 health metrics, and writes `.ciel/memory/insights.json` + `.ciel/memory/INSIGHTS.md`. This dimension scores the *output* of that analysis: untreated promotion candidates, dead anchors, and structural drift in the memory corpus.
+
+**Anti-double-counting with Dim 9.** Memories already counted as `stale` in Dim 9 must be excluded from the Dim 10 dead-anchor penalty: compute `dead_anchors_new = insights.dead_anchors - dim9_stale_ids` before scoring. A single rotted memory that is both stale (Dim 9) and a dead anchor (Dim 10) is one defect, not two — never charge -4 for what costs the user one consolidator pass.
+
+- **Engine failed to produce insights**: `python3 .claude/hooks/memory-engine.py analyze` exited non-zero, OR `.ciel/memory/insights.json` was not written. The pattern surface is invisible — Dim 10 cannot grade. **-2**
+- **Promotion candidates ignored**: `insights.json.promotion_candidates.length >= 3` AND `insights.json.health.promotion_ratio == 0` — the analyzer flagged hot episodes (>= 5 triggers) but the consolidator skill has never crystallized any of them into concepts. The corpus accumulates without distillation. **-3**
+- **Dead anchors not triaged**: `insights.json.dead_anchors.length > 0` AND `.ciel/memory/review-queue.md` is missing or empty. Memories point to files that no longer exist; cued recall keeps firing on broken anchors until the user reviews. **-2**
+- **Recursion drift starting**: `insights.json.health.max_generation_depth >= 3`. Synthesizer outputs are being re-derived from prior synthesizer outputs beyond depth 2, violating ADR-0001's "no self-feeding loops" principle. **-2**
+- **Tag explosion**: `insights.json.health.tag_specificity > 0.9` AND total memories >= 10. Almost every tag is bespoke — clustering is impossible, recall degrades to per-memory matching. **-1**
+
+Run these checks:
+```bash
+# Auto-run analyzer (read-only on memories; writes only insights artifacts)
+python3 .claude/hooks/memory-engine.py analyze 2>&1 || echo "analyze: FAILED"
+
+# Read insights.json and emit per-check diagnostics
+python3 -c "
+import json, os, sys
+try:
+    with open('.ciel/memory/insights.json') as f:
+        ins = json.load(f)
+except FileNotFoundError:
+    print('insights: MISSING (engine failed?)')
+    sys.exit(0)
+pc = ins.get('promotion_candidates', [])
+da = ins.get('dead_anchors', [])
+h = ins.get('health', {})
+print(f'promotion_candidates: {len(pc)} (promotion_ratio={h.get(\"promotion_ratio\", 0)})')
+print(f'dead_anchors: {len(da)}')
+print(f'max_generation_depth: {h.get(\"max_generation_depth\", 0)}')
+print(f'tag_specificity: {h.get(\"tag_specificity\", 0)}')
+print(f'corpus: {ins.get(\"corpus_size\", {})}')
+review = '.ciel/memory/review-queue.md'
+print(f'review-queue: {\"present\" if os.path.exists(review) else \"absent\"}')
+" 2>/dev/null || echo "memory insights check failed (no python3?)"
+```
+
+The analyzer is **idempotent**: every audit run regenerates `insights.json` from the live corpus, so this dimension cannot be gamed by stale artifacts. Patches the audit recommends in this dimension should target either (a) running the consolidator skill to drain the promotion queue, or (b) populating `.ciel/memory/review-queue.md` to clear dead anchors.
+
 ---
 
 ### Scoring
@@ -197,6 +297,8 @@ Begin the output with the literal line `# Ciel Session Audit Report`. End with t
 | D6 — Intent routing | -<N> |
 | D7 — npm version | -<N> |
 | D8 — Platform health | -<N> |
+| D9 — Memory health | -<N> |
+| D10 — Memory insight quality | -<N> |
 | **Total** | **-<N>** |
 | **Health Score** | **<N>/100** |
 
