@@ -473,3 +473,10 @@ jobs:
           echo "copy-loops are forgotten — file present in source, absent from installed projects."
           echo ""
           bash scripts/test-install-coverage.sh
+
+      - name: Verify mirror parity (commands, hooks, skills/ciel)
+        run: |
+          echo "Catches the foot-gun where a command is added to commands/ but forgotten"
+          echo "in .opencode/commands/ or assets mirrors, or a hook drifts from its source."
+          echo ""
+          bash scripts/sync-mirrors.sh --check
