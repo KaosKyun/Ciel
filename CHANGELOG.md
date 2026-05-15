@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.10.0](https://github.com/KaosKyun/Ciel/compare/v6.9.2...v6.10.0) (2026-05-15)
+
+
+### Features
+
+* **memory-bootstrap:** detect Claude Code auto-memory in /ciel-memory-bootstrap ([#53](https://github.com/KaosKyun/Ciel/issues/53)) ([17bec3a](https://github.com/KaosKyun/Ciel/commit/17bec3a98189fa9dd0d8fc8bf95ff7966f925e6b))
+
 ## [6.9.2](https://github.com/KaosKyun/Ciel/compare/v6.9.1...v6.9.2) (2026-05-14)
 
 
