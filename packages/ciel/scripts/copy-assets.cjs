@@ -70,6 +70,23 @@ const TEMPLATE_PATTERNS = [
   { src: "packages/ciel/dist/plugin/index.js", dest: "dist/plugin/index.js" },
 ];
 
+// Auto-discover workflow skills (skills/workflow/<name>/SKILL.md). Avoids the
+// 28-entry hardcoded list — every new workflow skill gets shipped automatically.
+const workflowDir = join(REPO_ROOT, "skills", "workflow");
+if (existsSync(workflowDir)) {
+  for (const entry of readdirSync(workflowDir)) {
+    const skillPath = join("skills", "workflow", entry, "SKILL.md");
+    if (existsSync(join(REPO_ROOT, skillPath))) {
+      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
+    }
+    // Some workflow skills carry a reference.md sidecar.
+    const refPath = join("skills", "workflow", entry, "reference.md");
+    if (existsSync(join(REPO_ROOT, refPath))) {
+      TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
+    }
+  }
+}
+
 let count = 0;
 let errors = 0;
 

@@ -159,6 +159,21 @@ for f in SKILL.md reference.md; do
   require_byte_equal "skills/ciel/${f}" "packages/ciel/assets/skills/ciel/${f}"
 done
 
+# ─── Workflow skills — BYTE-EQUAL ───────────────────────────────────────────
+# Every skills/workflow/<name>/SKILL.md must mirror to the assets dir so
+# the npm package + install.sh ship the full workflow library.
+
+echo "Group: skills/workflow — byte-equal"
+if [ -d "skills/workflow" ]; then
+  for skill_dir in skills/workflow/*/; do
+    skill_name="$(basename "$skill_dir")"
+    require_byte_equal "skills/workflow/${skill_name}/SKILL.md" "packages/ciel/assets/skills/workflow/${skill_name}/SKILL.md"
+    if [ -f "skills/workflow/${skill_name}/reference.md" ]; then
+      require_byte_equal "skills/workflow/${skill_name}/reference.md" "packages/ciel/assets/skills/workflow/${skill_name}/reference.md"
+    fi
+  done
+fi
+
 # ─── Verdict ────────────────────────────────────────────────────────────────
 
 if [ "$MODE" = "check" ]; then
