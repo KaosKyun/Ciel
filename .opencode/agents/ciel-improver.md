@@ -265,7 +265,7 @@ Generates a valid SKILL.md scaffold following Ciel's conventions. Returns a diff
 - Third person: "Analyzes X" ✓ / "I analyze X" ✗
 - Front-load use case + trigger keywords
 - Include "Use when..." clause
-- ≤ 1024 chars, recommended 200-500
+- ≤ 1536 chars, recommended 200-500
 
 ### 3. Scaffold SKILL.md
 
@@ -333,7 +333,7 @@ Problems: no trigger, no output, no specificity.
 
 - [ ] Name valid kebab-case, ≤ 64 chars, unique?
 - [ ] Category is one of the 5 valid categories?
-- [ ] Description: third person, ≤ 1024 chars, includes trigger?
+- [ ] Description: third person, ≤ 1536 chars, includes trigger?
 - [ ] SKILL.md ≤ 300 lines?
 - [ ] No overlap with existing skills (grep checked)?
 - [ ] YAML frontmatter valid?

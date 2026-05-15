@@ -7,12 +7,12 @@ subtask: true
 > **OpenCode note**: This command requires `claude --print` headless mode for full functionality (binary evals, skill scaffold generation). On OpenCode it runs in degraded mode — the improver agent returns proposals only. For the full harness, use Claude Code.
 
 ---
-description: Generates a valid Ciel SKILL.md scaffold following Anthropic Skills-first rules (kebab-case ≤64, YAML description ≤1024, body ≤500 lines).
+description: Generates a valid Ciel SKILL.md scaffold following Anthropic Skills-first rules (kebab-case ≤64, YAML description ≤1536, body ≤500 lines).
 ---
 
 # /ciel-create-skill — Create a new Ciel skill
 
-*Generates a valid SKILL.md scaffold following Anthropic Skills-first rules (kebab-case name ≤64 chars, YAML frontmatter ≤1024-char description, ≤500-line body, progressive disclosure to one reference.md).*
+*Generates a valid SKILL.md scaffold following Anthropic Skills-first rules (kebab-case name ≤64 chars, YAML frontmatter ≤1536-char description, ≤500-line body, progressive disclosure to one reference.md).*
 
 Usage: `/ciel-create-skill <name> <purpose>`
 

@@ -118,7 +118,7 @@ Index lookups are O(1) via `index.json`. Memory contents are read on-demand by t
 ### Neutral
 
 - Adds ~400 lines to Ciel codebase (hooks + skill updates + bootstrap script + slash command + ADR).
-- New file structure under `.ciel/memory/` — gitignored as local state, like other `.ciel/` artefacts.
+- New file structure under `.ciel/memory/` — gitignored by default as local state, like other `.ciel/` artefacts. Each developer keeps their own corpus. Teams that want shared captures can either (a) drop `.ciel/memory/` from their project's `.gitignore` and commit the corpus, or (b) sync it manually across machines. The format is portable on disk (plain markdown + JSON), but the **distribution decision is project-local** — clarified in 2026-05-15 to remove the apparent contradiction with principle 3 below ("portable" describes the *format*, not the directory's git status).
 
 ## Design principles (binding for future evolution)
 
@@ -128,7 +128,7 @@ These principles guard against future drift back to free recall or blanket injec
 
 2. **Confirmation over auto-silent** — captures require user validation. Cargo-cult accumulation is worse than gaps.
 
-3. **Markdown over database** — the corpus must remain human-readable, editable, portable. A vector DB or external store may be added LATER as an indexing layer above markdown, never as a replacement.
+3. **Markdown over database** — the corpus must remain human-readable, editable, and format-portable (any markdown editor opens it, no proprietary parser required). Whether the directory itself ships across machines is a per-project distribution choice (see Neutral consequences above). A vector DB or external store may be added LATER as an indexing layer above markdown, never as a replacement.
 
 4. **Token cap by design** — every injection path has a hard cap. Adding new cue types must not bypass the cap.
 

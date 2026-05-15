@@ -199,7 +199,7 @@ Eval delta: <baseline> → <winner>
 - **Description diff size cap**: description field rewrite ≤ 200 chars changed per patch (prevents wholesale rewrites).
 - **New skill cap**: max 1 new skill proposed per run (prevents skill explosion).
 - **Skill deletion**: NEVER propose deleting a skill in an automated pass. User decides manually.
-- **YAML validation**: every proposed patch must preserve valid YAML frontmatter (name ≤ 64 chars kebab-case, description ≤ 1024 chars).
+- **YAML validation**: every proposed patch must preserve valid YAML frontmatter (name ≤ 64 chars kebab-case, description ≤ 1536 chars).
 
 ---
 
@@ -256,7 +256,7 @@ From the `purpose` input, generate a valid description:
 - Third person: "Analyzes X" ✓ / "I analyze X" ✗
 - Front-load use case + keywords that trigger Claude's selection
 - Include "Use when..." clause with specific triggers
-- ≤ 1024 chars total (hard limit)
+- ≤ 1536 chars total (hard limit)
 - Recommended 200-500 chars (enough specificity without bloat)
 
 ### 4. Scaffold SKILL.md
@@ -336,7 +336,7 @@ Append to `skills/ciel/reference.md` under the appropriate category section.
 ## Validation results
 - Name: ✓ valid kebab-case, ≤ 64 chars, unique
 - Category: ✓ <category>
-- Description length: <N> / 1024 chars
+- Description length: <N> / 1536 chars
 - Tools: <list>
 - Context: <main | fork>
 
