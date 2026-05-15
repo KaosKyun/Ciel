@@ -5,9 +5,9 @@
 ```yaml
 ---
 name: <kebab-case, max 64 chars, unique>
-description: <max 1024 chars, third person, front-loaded use case + keywords>
+description: <max 1536 chars, third person, front-loaded use case + keywords>
 # Optional fields below
-when_to_use: <appended to description, same 1024-char cap counts>
+when_to_use: <appended to description, same 1536-char cap counts>
 disable-model-invocation: true   # Only manual /<name> invocation
 user-invocable: false            # Hidden from / menu, only Claude can invoke
 allowed-tools: Read Grep Bash(git *)   # Pre-approved tools (space-separated or YAML list)

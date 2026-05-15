@@ -115,7 +115,7 @@ Eval delta: <baseline> → <winner>
 - **Description diff size cap**: description field rewrite ≤ 200 chars changed per patch (prevents wholesale rewrites).
 - **New skill cap**: max 1 new skill proposed per run (prevents skill explosion).
 - **Skill deletion**: NEVER propose deleting a skill in an automated pass. User decides manually.
-- **YAML validation**: every proposed patch must preserve valid YAML frontmatter (name ≤ 64 chars kebab-case, description ≤ 1024 chars).
+- **YAML validation**: every proposed patch must preserve valid YAML frontmatter (name ≤ 64 chars kebab-case, description ≤ 1536 chars).
 
 ---
 
