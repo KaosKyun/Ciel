@@ -1,5 +1,13 @@
 # Ciel — Changelog
 
+## [6.11.1](https://github.com/KaosKyun/Ciel/compare/v6.11.0...v6.11.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **install:** ship skills/workflow/* to end users + assets parity ([#60](https://github.com/KaosKyun/Ciel/issues/60)) ([1956c1f](https://github.com/KaosKyun/Ciel/commit/1956c1fc03fc8d86707dc328ce6c66950c65fe3e))
+* **memory-engine:** cap INSIGHTS.md sections at top-10 when corpus &gt; 150 ([#62](https://github.com/KaosKyun/Ciel/issues/62)) ([0ca4d83](https://github.com/KaosKyun/Ciel/commit/0ca4d833e086976f83d4cd2a65bd0f0d2c5d32fa))
+
 ## [6.11.0](https://github.com/KaosKyun/Ciel/compare/v6.10.1...v6.11.0) (2026-05-15)
 
 
