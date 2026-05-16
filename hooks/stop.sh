@@ -28,6 +28,20 @@ if [ "$ACTIVE" = "true" ]; then
   exit 0
 fi
 
+# Fail-safe: block at most once per 60s window even if stop_hook_active
+# is not set (older Claude Code versions, parsing edge cases, plugin
+# auto-discovery re-invoking the same hook from multiple registrations).
+# Without this, the same Stop event can fire 9 times → CC overrides the
+# hook and emits the "blocked turn 9 times" warning.
+PROJECT_KEY=$(echo "${CLAUDE_PROJECT_DIR:-$PWD}" | shasum 2>/dev/null | cut -c1-12)
+LAST_BLOCK_FILE="${TMPDIR:-/tmp}/ciel-stop-last-block-${PROJECT_KEY}"
+NOW=$(date +%s)
+LAST=$(cat "$LAST_BLOCK_FILE" 2>/dev/null || echo 0)
+if [ $((NOW - LAST)) -lt 60 ]; then
+  exit 0
+fi
+echo "$NOW" > "$LAST_BLOCK_FILE" 2>/dev/null || true
+
 CWD=$(python3 -c "
 import sys, json
 try:
