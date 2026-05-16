@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-version-check.sh"
+            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && { ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
           }
         ]
       }
@@ -31,11 +31,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-test-first.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-test-first.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-test-first.sh\""
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-tool-write.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-write.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-write.sh\""
           }
         ]
       },
@@ -45,7 +45,7 @@
           {
             "type": "command",
             "if": "Bash(rm *)",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-destructive.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-destructive.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-destructive.sh\""
           }
         ]
       },
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-agent-gate.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-agent-gate.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-agent-gate.sh\""
           }
         ]
       }
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/track-file.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\""
           },
           {
             "type": "command",
@@ -108,7 +108,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/meta-critiquer.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\""
           }
         ]
       }
@@ -118,7 +118,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/meta-critiquer.sh"
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\""
           }
         ]
       }
