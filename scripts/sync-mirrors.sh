@@ -159,6 +159,14 @@ for f in SKILL.md reference.md; do
   require_byte_equal "skills/ciel/${f}" "packages/ciel/assets/skills/ciel/${f}"
 done
 
+# ─── Claude Code settings template — BYTE-EQUAL ─────────────────────────────
+# .claude/settings.json is the canonical hook+permissions template that ships
+# to user projects. The asset mirror must stay byte-identical so npm installs
+# get the same hooks (and the same existence-guards) as bash installs.
+
+echo "Group: .claude/settings.json — byte-equal"
+require_byte_equal ".claude/settings.json" "packages/ciel/assets/.claude/settings.json"
+
 # ─── Workflow skills — BYTE-EQUAL ───────────────────────────────────────────
 # Every skills/workflow/<name>/SKILL.md must mirror to the assets dir so
 # the npm package + install.sh ship the full workflow library.
