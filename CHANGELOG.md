@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.11.3](https://github.com/KaosKyun/Ciel/compare/v6.11.2...v6.11.3) (2026-05-16)
+
+
+### Bug Fixes
+
+* **hooks:** stop.sh fail-safe — cap blocks at 1 per 60s per project ([#66](https://github.com/KaosKyun/Ciel/issues/66)) ([0c039e4](https://github.com/KaosKyun/Ciel/commit/0c039e4bf7d191e7cedfe7f5f5a86c2652be59db))
+
 ## [6.11.2](https://github.com/KaosKyun/Ciel/compare/v6.11.1...v6.11.2) (2026-05-16)
 
 

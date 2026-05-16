@@ -1,6 +1,6 @@
 {
   "name": "@neikyun/ciel",
-  "version": "6.11.2",
+  "version": "6.11.3",
   "description": "Ciel — Deep-reasoning pipeline for LLM-assisted development. OpenCode plugin + multi-platform CLI (OpenCode, Claude Code, more).",
   "main": "./dist/plugin/index.js",
   "types": "./dist/plugin/index.d.ts",
