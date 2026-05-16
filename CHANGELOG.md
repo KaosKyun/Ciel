@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.11.2](https://github.com/KaosKyun/Ciel/compare/v6.11.1...v6.11.2) (2026-05-16)
+
+
+### Bug Fixes
+
+* **settings:** guard hook commands so partial Ciel installs no-op silently ([#64](https://github.com/KaosKyun/Ciel/issues/64)) ([6559779](https://github.com/KaosKyun/Ciel/commit/65597795116ec8236ee7d230ed2ca516773c7c9a))
+
 ## [6.11.1](https://github.com/KaosKyun/Ciel/compare/v6.11.0...v6.11.1) (2026-05-15)
 
 
