@@ -50,31 +50,7 @@ Named after the Primordial Sage from *Tensei Shitara Slime Datta Ken* — the ad
 | `synthesize-findings` | Merge outputs into FINDINGS / ANTI-PATTERNS / PHILOSOPHY / API SURFACE / UNCERTAINTIES |
 | `fact-check-claims` | Grep source or fetch docs before asserting |
 
-### Domain (11) — auto-activated by paths glob
-
-| Skill | Paths trigger |
-|-------|---------------|
-| `frontend-mastery` | React/Vue/Svelte files |
-| `backend-mastery` | Server framework files |
-| `database-mastery` | `*.sql`, `migrations/**`, `prisma/**` |
-| `security-hardening` | `auth/**`, `security/**`, Token/Password/Secret names |
-| `api-architecture` | `routes/**`, `controllers/**`, `*.proto` |
-| `observability` | logging/metrics/tracing code |
-| `performance-engineering` | Performance-tagged tasks |
-| `refactoring-patterns` | Refactor tasks or duplication ≥ 2 |
-| `ts-js-patterns` | `.ts`, `.tsx`, `.js`, `.jsx` files |
-| `cicd-pipeline-designer` | `.github/workflows/**` |
-| `mcp-configurator` | `.mcp.json`, MCP configuration |
-
-### Meta (5) — self-improvement
-
-| Skill | Purpose |
-|-------|---------|
-| `ciel-improve` | Analyze sessions → propose skill rewrites (patch-set for approval) |
-| `skill-creator` | Create new skill from conversation pattern (validated scaffold) |
-| `skill-variant-evaluator` | AutoResearch: generate + eval + compare skill variants |
-| `learnings-capture` | Mine conversation for corrections → append to learnings.md or overlay |
-| `patch-spec` | Shared patch-set format for ciel-improve + skill-freshness-auditor |
+### Domain (9) — auto-activated by paths glob
 
 | Skill | Paths trigger |
 |-------|---------------|

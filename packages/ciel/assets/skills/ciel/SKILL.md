@@ -49,12 +49,12 @@ Principe : **"Understand before generating. Verify before claiming done."**
 
 ## Depth et dispatch
 
-| Depth | Subagents |
-|-------|-----------|
-| Standard | @ciel-researcher + @ciel-explorer en parallele |
-| Critical | Idem + @ciel-critic MODE=RELIRE obligatoire |
-| Trivial | Inline, pas de dispatch |
-| Spike | @ciel-explorer si necessaire |
+| Depth | Subagents | Seuil RELIRE |
+|-------|-----------|-------------|
+| Standard | @ciel-researcher + @ciel-explorer en parallele | ≥3 fichiers modifies → critic RELIRE obligatoire |
+| Critical | Idem + @ciel-critic MODE=RELIRE obligatoire | Tout fichier modifie → critic RELIRE obligatoire |
+| Trivial | Inline, pas de dispatch | — |
+| Spike | @ciel-explorer si necessaire | — |
 
 ## GATES (non-negociables)
 
@@ -70,15 +70,6 @@ Principe : **"Understand before generating. Verify before claiming done."**
 
 **GATE META** — avant de repondre a un nouveau prompt apres PROUVER :
 > Si la tache precedente a termine a PROUVER sans META → faire META maintenant (10 items) avant de traiter la nouvelle demande.
-
-## Depth Gauge
-
-| Depth | Exemple | Pipeline | Seuil RELIRE |
-|-------|---------|----------|-------------|
-| **Trivial** | rename, typo, 1-liner | QUOI → FAIRE → META | — |
-| **Standard** | hook, route, component, service | Full 16 steps | ≥3 fichiers modifies → critic RELIRE obligatoire |
-| **Critical** | auth, DB schema, security, payment | Full + STRIDE + critic mandatory | Tout fichier modifie → critic RELIRE obligatoire |
-| **Spike** | POC, draft, experimental | QUOI → ASK → AVEC QUOI → DIVERGE → FAIRE (relaxe) → META | — |
 
 ## Routage des intentions
 
