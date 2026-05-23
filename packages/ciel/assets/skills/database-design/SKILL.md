@@ -1,8 +1,6 @@
 ---
 name: database-design
 description: "Database Design — modelisation, normalisation, indexation, migrations sans downtime. A charger des qu'on cree ou modifie un schema de base de donnees."
-triggers:
-  path: "**/*.sql,**/migrations/**,**/prisma/**"
 ---
 
 # Database Design

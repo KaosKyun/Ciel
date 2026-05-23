@@ -1,8 +1,6 @@
 ---
 name: code-review
 description: "Code Review — PR/merge request, checklist, feedback, revue de securite, revue de performance. A charger quand on fait ou recoit une revue de code."
-triggers:
-  path: "**/PULL_REQUEST_TEMPLATE*,**/.github/PULL_REQUEST_TEMPLATE/**"
 ---
 
 # Code Review

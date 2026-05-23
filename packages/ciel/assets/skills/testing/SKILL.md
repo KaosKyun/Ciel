@@ -1,8 +1,6 @@
 ---
 name: testing
 description: "Testing — tests unitaires, integration, E2E, snapshot, mutation, TDD, couverture. A charger quand on ecrit ou planifie des tests."
-triggers:
-  path: "**/*.test.*,**/*.spec.*,**/__tests__/**,**/vitest*,**/jest.config*,**/pytest*"
 ---
 
 # Testing

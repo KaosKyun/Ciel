@@ -1,8 +1,6 @@
 ---
 name: chaos
 description: "Chaos Engineering — fault injection, Game Day, Chaos Monkey, experimentation, resiliency testing. A charger quand on fait du chaos engineering."
-triggers:
-  path: "**/chaos*,**/game-day*,**/fault-injection*"
 ---
 
 # Chaos Engineering

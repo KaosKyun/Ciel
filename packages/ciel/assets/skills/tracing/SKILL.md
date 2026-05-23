@@ -1,8 +1,6 @@
 ---
 name: tracing
 description: "Tracing — distributed tracing, spans, traces, OpenTelemetry, Jaeger, Zipkin, instrumentation. A charger quand on trace les requetes distribuees."
-triggers:
-  path: "**/tracing*,**/opentelemetry*,**/jaeger*,**/zipkin*,**/span*"
 ---
 
 # Tracing

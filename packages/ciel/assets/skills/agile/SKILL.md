@@ -1,8 +1,6 @@
 ---
 name: agile
 description: "Agile — Scrum, Kanban, sprint, ceremonies, estimation, velocity, retro, continuous improvement. A charger quand on travaille en mode agile."
-triggers:
-  path: "**/sprint*,**/scrum*,**/kanban*,**/retro*,**/standup*,**/agile*"
 ---
 
 # Agile

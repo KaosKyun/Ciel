@@ -1,8 +1,6 @@
 ---
 name: desktop
 description: "Desktop — Electron/Tauri/WPF/Qt, auto-update, code signing, distribution. A charger quand on travaille sur une app desktop."
-triggers:
-  path: "**/electron*,**/tauri*"
 ---
 
 # Desktop

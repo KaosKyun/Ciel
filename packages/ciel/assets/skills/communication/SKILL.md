@@ -1,8 +1,6 @@
 ---
 name: communication
 description: "Communication Technique — documentation, diagrammes, RFC, post-mortem, presentation, vulgarisation. A charger quand on communique sur un sujet technique."
-triggers:
-  path: "**/*.doc.*,**/RFC*,**/rfc*,**/diagram*,**/c4*,**/plantuml*,**/mermaid*"
 ---
 
 # Communication Technique

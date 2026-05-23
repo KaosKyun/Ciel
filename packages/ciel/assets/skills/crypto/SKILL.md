@@ -1,8 +1,6 @@
 ---
 name: crypto
 description: "Cryptographie — hash, chiffrement, signature, certificats, TLS, PKI, gestion de cles. A charger quand on manipule de la crypto."
-triggers:
-  path: "**/crypto*,**/encrypt*,**/hash*,**/cipher*,**/pki*"
 ---
 
 # Cryptographie

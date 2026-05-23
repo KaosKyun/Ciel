@@ -1,8 +1,6 @@
 ---
 name: devsecops
 description: "DevSecOps — securite dans le pipeline CI/CD, SAST, DAST, dependency scanning, secret scanning. A charger quand on integre la securite dans le pipeline."
-triggers:
-  path: "**/devsecops*,**/sast*,**/dast*,**/dependency-check*,**/snyk*,**/trivy*"
 ---
 
 # DevSecOps

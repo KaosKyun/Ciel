@@ -1,8 +1,6 @@
 ---
 name: oop-solid
 description: "OOP et SOLID — programmation orientee objet, principes SOLID, heritage, composition, polymorphisme. A charger quand on travaille avec des classes ou de l'OOP."
-triggers:
-  path: "**/*.class.*,**/*.entity.*,**/*.repository.*,**/*.service.*,**/*.factory.*"
 ---
 
 # OOP & SOLID

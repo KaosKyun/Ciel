@@ -1,8 +1,6 @@
 ---
 name: performance
 description: "Performance — profiling, benchmarking, optimisation, latence, throughput, bottleneck, caching. A charger quand on optimise les performances."
-triggers:
-  path: "**/benchmark*,**/profiler*,**/k6*,**/lighthouse*"
 ---
 
 # Performance

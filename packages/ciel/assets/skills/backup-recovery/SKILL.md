@@ -1,8 +1,6 @@
 ---
 name: backup-recovery
 description: "Backup & Recovery — RPO, RTO, sauvegarde, restore, retention, plan de reprise, test de restore. A charger quand on configure les sauvegardes."
-triggers:
-  path: "**/backup*,**/restore*,**/disaster*,**/drp*,**/wal*,**/dump*,**/pg_dump*"
 ---
 
 # Backup & Recovery

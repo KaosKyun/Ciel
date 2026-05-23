@@ -1,8 +1,6 @@
 ---
 name: servers
 description: "Servers — Nginx/Caddy/reverse proxy, TLS termination, process management (systemd/PM2), health checks, OS hardening. A charger quand on configure des serveurs."
-triggers:
-  path: "**/nginx*,**/Caddyfile,**/pm2*,**/systemd*"
 ---
 
 # Servers

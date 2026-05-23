@@ -1,8 +1,6 @@
 ---
 name: functional
 description: "Programmation Fonctionnelle — immutabilite, fonctions pures, composition, monade, curry, pattern matching. A charger quand on utilise un style fonctionnel."
-triggers:
-  path: "**/*.fp.*,**/fp-ts/**,**/effect/**,**/lodash/fp*,**/ramda*"
 ---
 
 # Programmation Fonctionnelle

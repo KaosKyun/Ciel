@@ -1,8 +1,6 @@
 ---
 name: reactive
 description: "Programmation Reactive — RxJS, observables, streams, event sourcing, backpressure, reactive forms. A charger quand on utilise un paradigme reactif."
-triggers:
-  path: "**/*.reactive*,**/rxjs*,**/observable*,**/subject*,**/event-sourcing*"
 ---
 
 # Programmation Reactive

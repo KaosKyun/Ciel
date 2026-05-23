@@ -1,8 +1,6 @@
 ---
 name: monitoring
 description: "Monitoring — metriques, dashboards, alerting, RED, USE, SLI/SLO/SLA, observabilite. A charger quand on met en place du monitoring."
-triggers:
-  path: "**/prometheus*,**/grafana*,**/datadog*,**/newrelic*,**/sentry*,**/monitoring*"
 ---
 
 # Monitoring

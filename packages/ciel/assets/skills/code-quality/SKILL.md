@@ -1,8 +1,6 @@
 ---
 name: code-quality
 description: "Code Quality — linting, formatting, analyse statique, dette technique, conventions, style guide. A charger quand on parle de qualite de code."
-triggers:
-  path: "**/.eslintrc*,**/tsconfig*,**/.prettierrc*,**/biome*,**/oxlint*"
 ---
 
 # Code Quality

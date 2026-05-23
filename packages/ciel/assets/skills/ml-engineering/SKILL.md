@@ -1,8 +1,6 @@
 ---
 name: ml-engineering
 description: "ML Engineering — pipelines ML, feature stores, model serving, drift, MLOps, experiment tracking, evaluation. A charger quand on met en production des modeles ML."
-triggers:
-  path: "**/*.ml.*,**/mlflow*,**/dvc*,**/feature-store*,**/model-serving*,**/pytorch*,**/tensorflow*"
 ---
 
 # ML Engineering

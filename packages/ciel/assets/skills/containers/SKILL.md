@@ -1,8 +1,6 @@
 ---
 name: containers
 description: "Containers — Docker multi-stage builds, distroless, K8s pods/deployments/services, Helm, security. A charger quand on travaille avec Docker ou Kubernetes."
-triggers:
-  path: "**/Dockerfile*,**/docker-compose*,**/*.k8s*,**/*.yaml"
 ---
 
 # Containers

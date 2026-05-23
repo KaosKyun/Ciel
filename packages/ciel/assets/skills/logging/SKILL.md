@@ -1,8 +1,6 @@
 ---
 name: logging
 description: "Logging — logs structures, niveaux de log, centralisation, retention, correlation ID, detection d'anomalies. A charger quand on configure les logs."
-triggers:
-  path: "**/log*,**/winston*,**/pino*,**/bunyan*,**/log4j*,**/fluentd*,**/loki*"
 ---
 
 # Logging

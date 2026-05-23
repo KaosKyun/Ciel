@@ -1,8 +1,6 @@
 ---
 name: resilience
 description: "Resilience — circuit breaker, retry, timeout, bulkhead, fallback, graceful degradation. A charger quand on rend un systeme resilient."
-triggers:
-  path: "**/resilience*,**/retry*,**/circuit-breaker*,**/fault-tolerance*"
 ---
 
 # Resilience

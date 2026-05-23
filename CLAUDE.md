@@ -131,10 +131,10 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 ## Skills reference
 
-- **Domain catalogue**: 48 skills in `.claude/skills/` (api-design, database-design, appsec, monitoring, etc.). Review available skills at DOCS step and load relevant ones via `Skill`.
+- **Domain skills**: in `.claude/skills/` (api-design, database-design, appsec, monitoring, etc.). Review available skills at DOCS step and load relevant ones via `Skill`.
 - **Workflow**: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `diverge`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `memoire`, `memoire-consolidator`, `meta-critiquer`
 - **Security**: `stride-analyzer`, `security-hardening`, `security-regression-check` (Critical only)
-- **Domain (legacy)**: `frontend-mastery`, `backend-mastery`, `database-mastery`, `api-architecture`, `performance-engineering`
+- **Rules**: auto-inject via `.claude/rules/` when matching files are read (api, testing, security, database, frontend, backend, cicd, iac, containers, monitoring)
 - **Utility**: `pr-opener`, `commit-writer`, `branch-setup`, `issue-creator`, `issue-closer`
 
 ## Hooks (automatic — configured in .claude/settings.json)

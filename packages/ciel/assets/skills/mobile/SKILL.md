@@ -1,8 +1,6 @@
 ---
 name: mobile
 description: "Mobile — iOS/Android/React Native/Flutter, offline-first, batterie, store review, push notifications. A charger quand on travaille sur une app mobile."
-triggers:
-  path: "**/*.{swift,kt,java}"
 ---
 
 # Mobile

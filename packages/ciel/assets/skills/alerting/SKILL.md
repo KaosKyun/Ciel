@@ -1,8 +1,6 @@
 ---
 name: alerting
 description: "Alerting — alertes, PagerDuty/Opsgenie, escalation, on-call, runbooks, silence, fatigue d'alerte. A charger quand on configure les alertes."
-triggers:
-  path: "**/alert*,**/pagerduty*,**/opsgenie*,**/oncall*,**/runbook*"
 ---
 
 # Alerting

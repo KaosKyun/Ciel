@@ -1,8 +1,6 @@
 ---
 name: data-engineering
 description: "Data Engineering — ETL/ELT, pipelines (Spark/Airflow/dbt), data warehouses, streaming vs batch. A charger quand on construit des pipelines de donnees."
-triggers:
-  path: "**/airflow*,**/dbt*,**/*.spark*"
 ---
 
 # Data Engineering

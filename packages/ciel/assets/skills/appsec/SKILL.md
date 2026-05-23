@@ -1,8 +1,6 @@
 ---
 name: appsec
 description: "Application Security — OWASP Top 10, injection, XSS, CSRF, auth, session, input validation, rate limiting. A charger quand on securise une application."
-triggers:
-  path: "**/security*,**/auth*,**/session*,**/csrf*,**/sanitize*,**/helmet*"
 ---
 
 # Application Security

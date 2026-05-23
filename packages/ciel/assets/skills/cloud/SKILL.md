@@ -1,8 +1,6 @@
 ---
 name: cloud
 description: "Cloud Architecture — AWS/GCP/Azure, compute (EC2/Lambda), stockage (S3/RDS), IAM least privilege, networking (VPC), cost optimization. A charger quand on conçoit une architecture cloud."
-triggers:
-  path: "**/*.tf,**/*.pulumi*"
 ---
 
 # Cloud Architecture

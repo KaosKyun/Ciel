@@ -1,8 +1,6 @@
 ---
 name: serverless
 description: "Serverless — Lambda/Cloud Functions, API Gateway, Step Functions, cold starts, concurrency, cost traps. A charger quand on utilise des fonctions serverless."
-triggers:
-  path: "**/lambda*,**/serverless*,**/cloudfunction*"
 ---
 
 # Serverless

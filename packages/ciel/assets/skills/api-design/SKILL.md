@@ -1,8 +1,6 @@
 ---
 name: api-design
 description: "API Design — REST, GraphQL, gRPC, versioning, pagination, idempotency, structured errors, rate limiting, schema evolution. A charger des qu'on cree ou modifie des endpoints."
-triggers:
-  path: "**/routes/**,**/controllers/**,**/api/**,**/*.proto,**/*.graphql"
 ---
 
 # API Design

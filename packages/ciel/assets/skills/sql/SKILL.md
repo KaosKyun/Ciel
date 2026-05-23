@@ -1,8 +1,6 @@
 ---
 name: sql
 description: "SQL — CTE, window functions, EXPLAIN ANALYZE, locking, connection pooling. A charger des qu'on ecrit ou optimise des requetes SQL."
-triggers:
-  path: "**/*.sql"
 ---
 
 # SQL

@@ -1,8 +1,6 @@
 ---
 name: backend
 description: "Backend — middleware, auth guards, background jobs, graceful shutdown, error handling. A charger quand on cree ou modifie des services backend."
-triggers:
-  path: "**/services/**,**/controllers/**,**/middleware/**"
 ---
 
 # Backend

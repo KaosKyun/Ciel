@@ -1,8 +1,6 @@
 ---
 name: supply-chain
 description: "Supply Chain Security — dependances, SBOM, signature, provenance, attestation, deprecation. A charger quand on securise la chaine d'approvisionnement logicielle."
-triggers:
-  path: "**/package.json,**/requirements.txt,**/go.mod,**/Cargo.toml,**/pom.xml,**/SBOM*"
 ---
 
 # Supply Chain Security

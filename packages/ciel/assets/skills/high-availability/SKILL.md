@@ -1,8 +1,6 @@
 ---
 name: high-availability
 description: "Haute Disponibilite — clustering, failover, multi-region, load balancing, replication, SLA. A charger quand on conçoit un systeme haute disponibilite."
-triggers:
-  path: "**/ha*,**/high-availability*,**/failover*,**/multi-region*,**/replication*,**/sla*"
 ---
 
 # Haute Disponibilite

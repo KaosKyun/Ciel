@@ -1,8 +1,6 @@
 ---
 name: nosql
 description: "NoSQL — MongoDB/DynamoDB/Redis, document vs KV vs graph vs time-series, single-table design. A charger quand on choisit ou utilise du NoSQL."
-triggers:
-  path: "**/dynamo*,**/mongo*,**/redis*"
 ---
 
 # NoSQL

@@ -1,8 +1,6 @@
 ---
 name: frontend
 description: "Frontend — React/Vue/Svelte, state management, routing, SSR/CSR, bundle size, lighthouse, accessibilite. A charger des qu'on touche a du code frontend."
-triggers:
-  path: "**/*.{tsx,jsx,vue,svelte}"
 ---
 
 # Frontend

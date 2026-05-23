@@ -1,8 +1,6 @@
 ---
 name: iac
 description: "Infrastructure as Code — Terraform/Pulumi/Ansible, state management, drift detection, modules. A charger quand on definit ou modifie l'infrastructure par code."
-triggers:
-  path: "**/*.tf,**/*.pulumi*,**/ansible*"
 ---
 
 # Infrastructure as Code

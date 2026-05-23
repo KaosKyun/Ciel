@@ -1,8 +1,6 @@
 ---
 name: tech-leadership
 description: "Tech Leadership — architecture decision, mentoring, code review, technical debt, roadmap, estimation, spike. A charger quand on fait du leadership technique."
-triggers:
-  path: "**/ADR*,**/adr*,**/tech-lead*,**/architecture*,**/technical-debt*"
 ---
 
 # Tech Leadership

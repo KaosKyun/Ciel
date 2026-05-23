@@ -1,8 +1,6 @@
 ---
 name: cicd-pipeline
 description: "CI/CD Pipeline — GitHub Actions/GitLab CI, matrix builds, caching, OIDC, SLSA, ephemeral runners. A charger quand on configure des pipelines de build/deploy."
-triggers:
-  path: "**/.github/workflows/**"
 ---
 
 # CI/CD Pipeline
