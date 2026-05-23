@@ -18,8 +18,7 @@ Checks GitHub for a newer release and re-installs if available.
    - Non-destructive merge on `opencode.json`
 
 3. **npm update**: `npm update -g @neikyun/ciel`
-   - Updates the Ciel CLI tool from npm
-   - Skip if npm is not available or the package isn't installed globally
+   - Updates the Ciel CLI tool from npm (mandatory step)
 
 ## Flags
 

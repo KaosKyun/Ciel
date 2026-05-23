@@ -76,16 +76,14 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/ciel
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry-run }}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "=== Dry run mode ==="
             npm publish --dry-run
           else
             echo "=== Publishing @neikyun/ciel v${{ steps.version.outputs.version }} ==="
-            # Auth via NPM_TOKEN (granular access token with bypass-2fa)
-            # Provenance via GitHub OIDC (id-token:write)
+            # Auth via Trusted Publisher OIDC (id-token:write)
+            # npm CLI exchanges GitHub OIDC token for short-lived npm token automatically
             npm publish --provenance --access public
           fi
 
