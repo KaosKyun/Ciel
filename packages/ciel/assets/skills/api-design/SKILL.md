@@ -1,50 +1,46 @@
 ---
 name: api-design
-description: "API Design — REST, GraphQL, gRPC, versioning, pagination, idempotency, structured errors, rate limiting, schema evolution. A charger des qu'on cree ou modifie des endpoints."
+description: "API Design — l'API comme contrat, REST/GraphQL/gRPC, pagination cursor-based, idempotency, structured errors, rate limiting. À charger quand on crée ou modifie des endpoints."
 ---
 
 # API Design
 
+**Principe premier :** Une API est un contrat entre un client et un serveur qui évoluent à des rythmes différents. Le client peut être une app mobile qui se met à jour une fois par mois, le serveur peut être déployé 10× par jour. Le design d'API est l'art de faire évoluer le contrat sans le casser. Chaque champ que tu ajoutes est un engagement, chaque champ que tu changes est une rupture. La question n'est pas "est-ce que c'est RESTful ?" mais "est-ce que le client peut survivre à 6 mois de changements serveur sans mise à jour ?"
+
 ## Checklist
-- [ ] Le endpoint est versionne (/v1/ ou header `Accept-Version`)
-- [ ] La pagination est cursor-based (pas offset)
-- [ ] Les erreurs sont structurees : `{code, message, details}`
-- [ ] Les mutations (POST/PUT/DELETE) supportent l'idempotency key
-- [ ] Le rate limiting est defini et documente
-- [ ] La reponse est documentee (OpenAPI / GraphQL schema / proto comment)
-- [ ] Les noms de champs sont en snake_case (API publique) ou camelCase selon convention etablie
-- [ ] Pas de breaking change sans nouvelle version
+- [ ] L'API est versionnée — dans l'URL (/v1/) ou le header (Accept-Version)
+- [ ] Pagination cursor-based — stable, index-friendly, pas de doublon entre pages
+- [ ] Les erreurs sont structurées : `{error: {code, message, details}}` — pas de `200 OK {success: false}`
+- [ ] Les mutations POST/PUT/DELETE supportent l'idempotency key
+- [ ] Rate limiting en place avec headers standards : `Retry-After`, `X-RateLimit-*`
+- [ ] Le schéma est documenté (OpenAPI/GraphQL schema/gRPC proto) et la doc est le contrat, pas une suggestion
+- [ ] Pas de breaking change sans nouvelle version ou deprecation window explicite
 
 ## Anti-patterns
 ### Breaking change silencieux
-**Ce qu'on voit :** `{price: 10}` devient `{price: {amount: 10, currency: "EUR"}}` sans changer de version.
-**Pourquoi c'est dangereux :** tous les clients cassent en production. Aucun avertissement.
-**Faire plutot :** nouvelle version d'API (/v2/). L'ancienne version (/v1/) reste 6-12 mois avec deprecation notice.
+**Ce qu'on voit :** `{price: 10}` devient `{price: {amount: 10, currency: "EUR"}}` sur la même version d'API. Les clients mobiles qui n'ont pas été mis à jour crashent.
+**Pourquoi c'est dangereux :** le client n'a aucun moyen de savoir que le contrat a changé. Il parse ce qu'il reçoit, ça casse. Le pire : ça peut arriver à 20% des utilisateurs seulement (ceux qui n'ont pas la dernière version de l'app). Le bug est invisible côté serveur.
+**Faire plutôt :** nouvelle version (/v2/) avec le nouveau format. L'ancienne version (/v1/) est maintenue pendant une deprecation window (6-12 mois) avec un header `Deprecation: true` et `Sunset: <date>`. Les clients ont le temps de migrer.
+
+### `200 OK` avec erreur dedans
+**Ce qu'on voit :** toutes les réponses sont HTTP 200. Le corps contient `{success: false, error: "quelque chose"}`. Même pour une erreur 500.
+**Pourquoi c'est dangereux :** HTTP a un système de codes d'erreur pour une raison. Les CDN cachent les 200. Les load balancers comptent les 5xx. Les outils de monitoring alertent sur les taux d'erreur HTTP. En faisant tout en 200, tu rends ton API invisible à toute la chaîne d'infrastructure.
+**Faire plutôt :** utiliser les codes HTTP comme prévu. 201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict, 422 Unprocessable, 429 Too Many Requests, 500 Internal. Le code HTTP est un signal machine-readable.
 
 ### Offset pagination
-**Ce qu'on voit :** `GET /orders?page=1&limit=50` → `LIMIT 50 OFFSET 0`.
-**Pourquoi c'est dangereux :** a la page 100, la DB scanne 5000 rows pour en retourner 50. Et les rows inserees entre-temps decalent tout.
-**Faire plutot :** cursor-based : `GET /orders?cursor=abc123&limit=50` → `WHERE id > 'abc123' ORDER BY id LIMIT 50`. Index-friendly et stable.
-
-### Pas d'idempotency sur les paiements
-**Ce qu'on voit :** `POST /charges` sans idempotency key. Le client timeout → retry → double charge.
-**Pourquoi c'est dangereux :** l'utilisateur est debite 2×. Chargeback, confiance perdue.
-**Faire plutot :** header `Idempotency-Key` obligatoire. Stripe-style : meme cle = meme reponse, l'operation n'est executee qu'une fois.
-
-### `200 OK {error: "..."}` 
-**Ce qu'on voit :** toutes les reponses sont HTTP 200. Le corps contient `{success: false, error: "..."}`.
-**Pourquoi c'est dangereux :** les outils de monitoring, CDN, load balancer ne voient pas les erreurs. Le cache peut stocker des erreurs.
-**Faire plutot :** utiliser les codes HTTP corrects. 201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict, 422 Unprocessable, 429 Too Many Requests, 500 Internal.
+**Ce qu'on voit :** `GET /orders?page=3&limit=50` → `LIMIT 50 OFFSET 100`. À la page 100, la DB scanne 5000 rows pour en retourner 50.
+**Pourquoi c'est dangereux :** deux problèmes. Performance : OFFSET N oblige la DB à scanner N rows. Cohérence : si une row est insérée entre deux pages, toutes les rows suivantes sont décalées et l'utilisateur voit des doublons ou manque des entrées.
+**Faire plutôt :** cursor-based : `GET /orders?cursor=xyz&limit=50` → `WHERE id > 'xyz' ORDER BY id LIMIT 50`. Index-friendly. Stable. Pas de doublon. Le cursor est opaque pour le client.
 
 ## Patterns
-### Cursor-based pagination
-**Quand :** liste ordonnee avec potentiellement beaucoup de donnees.
-**Comment :** `GET /orders?cursor=abc&limit=50` → `{items: [...], nextCursor: "def", hasMore: true}`. Stable, index-friendly.
-
 ### Structured errors
-**Quand :** toute erreur API.
-**Comment :** `{error: {code: "INSUFFICIENT_FUNDS", message: "Solde insuffisant", details: [{field: "amount", reason: "minimum 10 EUR"}]}}`. Machine-readable (`code`), human-readable (`message`), actionable (`details`).
+**Quand :** toute API.
+**Comment :** `{error: {code: "INSUFFICIENT_FUNDS", message: "Solde insuffisant", details: [{field: "amount", reason: "minimum 10 EUR"}]}}`. `code` : machine-readable (switch côté client). `message` : human-readable (debug). `details` : actionable (form validation).
 
-### Rate limiting with headers
+### Idempotency key
+**Quand :** toute mutation où le double-submit est dangereux (paiements, créations).
+**Comment :** header `Idempotency-Key: <uuid>`. Le serveur stocke la clé + le résultat. Même clé = même réponse, l'opération n'est exécutée qu'une fois. Stripe utilise ce pattern pour 100% de leurs mutations.
+
+### Rate limiting avec headers
 **Quand :** tout endpoint public.
-**Comment :** `429 Too Many Requests` + `Retry-After: 30` + `X-RateLimit-Limit: 100` + `X-RateLimit-Remaining: 0` + `X-RateLimit-Reset: 1716000000`.
+**Comment :** `429 Too Many Requests` + `Retry-After: 30` + `X-RateLimit-Limit: 100` + `X-RateLimit-Remaining: 0` + `X-RateLimit-Reset: 1716000000`. Le client sait exactement quand réessayer. Pas de backoff deviné.

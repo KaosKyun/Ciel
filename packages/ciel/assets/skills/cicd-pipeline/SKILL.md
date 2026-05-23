@@ -1,45 +1,56 @@
 ---
 name: cicd-pipeline
-description: "CI/CD Pipeline — GitHub Actions/GitLab CI, matrix builds, caching, OIDC, SLSA, ephemeral runners. A charger quand on configure des pipelines de build/deploy."
+description: "CI/CD — feedback loops, DORA metrics, trunk-based dev, pipeline as constraint theory, matrix builds, OIDC, ephemeral runners. À charger quand on conçoit ou optimise un pipeline CI/CD."
 ---
 
 # CI/CD Pipeline
 
+**Principe premier :** La CI/CD n'est pas "automatiser les builds". C'est réduire le temps entre un commit et le feedback de production. Chaque minute perdue entre "j'écris" et "je sais si ça marche" est du gaspillage. Les 4 métriques DORA (Lead Time, Deploy Frequency, MTTR, Change Failure Rate) mesurent cette performance. Tout le reste — caching, parallel builds, OIDC — est un moyen, pas une fin.
+
 ## Checklist
-- [ ] Chaque etape du pipeline est rapide (< 5 minutes par etape)
-- [ ] Le cache est configure (node_modules, pip, etc. — pas de telechargement a chaque build)
-- [ ] Les secrets sont injectes via OIDC ou secrets stores (pas de tokens long-lived dans les variables)
-- [ ] Les runners sont ephemeres (pas de runners persistants partages)
-- [ ] Le pipeline est versionne avec le code (dans le meme repo)
-- [ ] Les tests sont parallellises (matrix strategy, test splitting)
-- [ ] Une etape de securite est presente (lint, SAST, dependency scan)
-- [ ] Le build produit un artefact immutable (Docker image taggee, version pin)
+- [ ] La pipeline donne du feedback en < 5 min (sinon les devs arrêtent de l'attendre)
+- [ ] Le trunk-based development est la norme — branches ≤ 1 jour, pas de long-lived branches
+- [ ] Les 4 DORA metrics sont mesurées et visibles (dashboard, pas dans un coin)
+- [ ] Les secrets utilisent OIDC — zéro credential long-lived
+- [ ] Les runners sont éphémères — rien ne survit entre deux builds
+- [ ] Concurrency groups — pas deux pipelines en parallèle sur la même branche
+- [ ] Le pipeline bloque sur flaky test detection (> 2% de flaky rate = quarantaine automatique)
+- [ ] L'artefact de build est immutable et signé (hash + signature vérifiés au déploiement)
 
 ## Anti-patterns
-### Pipeline lent
-**Ce qu'on voit :** `npm install`, `npm run build`, `npm test` en sequentiel. 15 minutes par build.
-**Pourquoi c'est dangereux :** feedback trop lent. Les devs ne lancent pas les tests localement non plus. Le pipeline devient un bottleneck.
-**Faire plutot :** paralleliser les etapes independantes. Cacher les dependances. Test splitting. CI < 5 min ou c'est trop long.
+### Branches longue durée
+**Ce qu'on voit :** un dev travaille 2 semaines sur `feature/big-refactor`. Merge conflict de 200 fichiers. Tests jamais lancés ensemble.
+**Pourquoi c'est dangereux :** le "I" de CI, c'est l'intégration. Si le code n'est pas intégré au trunk au moins 1×/jour, ce n'est pas de la CI. Le merge final est un événement traumatique — les bugs apparaissent tous en même temps, impossible de bisecter proprement.
+**Faire plutôt :** trunk-based development. Branches ≤ 1 jour. Feature flags pour cacher le code incomplet. Petits commits fréquents — le diff est la meilleure défense contre les bugs.
 
-### Secrets dans le pipeline
-**Ce qu'on voit :** AWS_ACCESS_KEY_ID et SECRET_ACCESS_KEY stockes dans les secrets GitHub. Rotation jamais faite.
-**Pourquoi c'est dangereux :** si le runner est compromis, les secrets fuient. Si une PR malveillante ajoute `echo $AWS_SECRET` dans le log, le secret est vole.
-**Faire plutot :** OIDC (OpenID Connect). GitHub Actions s'authentifie directement aupres d'AWS/GCP sans secret long-lived. Token temporaire (< 1h).
+### Pipeline vu comme un checklist et non une contrainte
+**Ce qu'on voit :** lint → test → build → deploy, séquentiel. Le pipeline met 20 min et personne ne se demande pourquoi c'est lent.
+**Pourquoi c'est dangereux :** un pipeline lent n'est pas juste chiant — il tue la boucle de feedback. Les devs ne poussent plus, ils accumulent, les PRs grossissent, la CI devient un bottleneck systémique. C'est la théorie des contraintes : le pipeline EST la contrainte.
+**Faire plutôt :** traiter le pipeline comme un système à optimiser. Paralléliser tout ce qui peut l'être. Investir dans le cache. Splitter les tests lents. CI < 5 min — si c'est pas possible, c'est que l'architecture de test a un problème.
 
-### Runners persistants
-**Ce qu'on voit :** un serveur avec un runner GitLab qui tourne 24/7, avec acces a tout le reseau interne.
-**Pourquoi c'est dangereux :** une PR peut executer du code arbitraire sur ce runner. Le runner a acces au VPC, aux secrets, aux autres jobs.
-**Faire plutot :** runners ephemeres (GitHub Actions hosted, ou auto-scaling avec ephemeral mode). Chaque build a son environnement isole. Rien ne persiste entre les builds.
+### Pipeline non versionné
+**Ce qu'on voit :** le pipeline est configuré dans l'UI GitHub Actions, pas dans `.github/workflows/`. Ou pire : un Jenkins configuré à la main.
+**Pourquoi c'est dangereux :** le pipeline n'est pas reproductible. Si le runner crashe, personne ne sait le reconstruire. Pas de code review sur les changements de pipeline. Le pipeline devient un snowflake.
+**Faire plutôt :** pipeline as code — dans le repo, revu comme du code. Tout changement de pipeline passe par une PR. Le pipeline se teste lui-même (les changements de CI s'exécutent sur la PR qui les propose).
+
+### Flaky tests ignorés
+**Ce qu'on voit :** "ah ce test faille parfois, relance le job". Le pipeline a un taux de succès de 70% et tout le monde rerun jusqu'à ce que ça passe.
+**Pourquoi c'est dangereux :** un test flaky tue la confiance dans le pipeline. Quand le rouge ne veut plus dire "bug", les vrais bugs passent au travers. Les devs développent une tolérance à l'échec — c'est la mort lente de la CI.
+**Faire plutôt :** quarantaine automatique. Un test qui faille > 2% du temps est isolé dans une suite "quarantaine". Le pipeline principal bloque sur vrai rouge. La quarantaine est traitée comme dette technique prioritaire.
 
 ## Patterns
 ### OIDC
-**Quand :** tout pipeline qui doit acceder a un cloud provider.
-**Comment :** GitHub Actions OIDC -> AWS IAM role. Le workflow demande un token OIDC -> AWS echange contre des credentials temporaires. Pas de secret a stocker ni a faire tourner.
+**Quand :** tout pipeline qui parle à un cloud provider.
+**Comment :** GitHub Actions → OIDC token → AWS IAM / GCP WIF → credentials temporaires (< 1h). Zéro secret stocké. Rotation automatique. Si le token fuit, il expire avant d'être utilisable.
 
 ### Matrix build
-**Quand :** plusieurs versions de langage, OS, ou configuration a tester.
-**Comment :** `matrix: { node: [18, 20, 22], os: [ubuntu, macos] }`. 6 builds en parallele. Chacun independant.
+**Quand :** bibliothèque ou outil utilisé sur plusieurs versions/OS.
+**Comment :** `matrix: { node: [18, 20, 22], os: [ubuntu, macos] }`. Chaque combinaison est un job indépendant. Pas de "ça marche sur ma machine" quand la CI couvre 3 OS.
 
-### Build cache
-**Quand :** les dependances sont lentes a installer.
-**Comment :** `actions/cache` avec key basee sur le lockfile hash. Cache restore au debut, save a la fin. Evite le telechargement des dependances a chaque build.
+### Concurrency groups
+**Quand :** éviter les interférences entre runs.
+**Comment :** `concurrency: { group: deploy-${{ github.ref }}, cancel-in-progress: true }`. Un seul déploiement à la fois par branche. Le nouveau run annule le précédent. Évite les race conditions de déploiement.
+
+### Flaky test quarantine
+**Quand :** suite de tests avec > 100 tests.
+**Comment :** chaque test a un compteur de flaky (fail suivi de pass sans changement de code). Si > 2% sur 100 runs → déplacé en `quarantine/`. Le pipeline principal ignore cette suite. La quarantaine est revue chaque sprint — chaque test est soit fixé, soit réécrit, soit supprimé.

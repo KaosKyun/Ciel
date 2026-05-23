@@ -1,45 +1,41 @@
 ---
 name: backend
-description: "Backend — middleware, auth guards, background jobs, graceful shutdown, error handling. A charger quand on cree ou modifie des services backend."
+description: "Backend — graceful degradation, connection pooling, idempotency, error handling as contract, health checks. À charger quand on crée ou modifie des services backend."
 ---
 
 # Backend
 
+**Principe premier :** Le backend n'est pas "la partie qui parle à la base de données" — c'est un composant dans un système distribué qui doit survivre à la défaillance de tout ce qui l'entoure. La DB tombe, le réseau coupe, le client timeout. Un backend bien conçu ne crash pas — il dégrade, il retry, il informe. La métrique n'est pas "uptime" mais "MTTR" — chaque seconde entre la panne et la récupération est du temps utilisateur perdu.
+
 ## Checklist
-- [ ] Chaque endpoint a un timeout explicite (pas d'attente infinie)
-- [ ] Les erreurs sont structurees : `{code, message, details}`
-- [ ] Graceful shutdown : SIGTERM → drain des requetes en cours → close DB → exit
-- [ ] Health check : `GET /health` → `{status: "ok", db: "connected", uptime: 3600}`
-- [ ] Connection pooling est configure (DB, Redis, HTTP clients)
-- [ ] Les background jobs sont idempotents et monitorables
-- [ ] Rate limiting est en place sur les endpoints publics
-- [ ] Les inputs sont valides a la frontiere (jamais dans la logique metier)
+- [ ] Chaque endpoint a un timeout explicite — pas de requête pendante infinie
+- [ ] Graceful shutdown : SIGTERM → stop accepter → drainer les requêtes (max 30s) → close connexions → exit
+- [ ] Health check exposé : liveness (suis-je vivant ?) ≠ readiness (puis-je servir ?)
+- [ ] Connection pooling sur DB, Redis, et clients HTTP — pas de connexion unique
+- [ ] Les erreurs sont structurées : `{code, message, details}` — jamais de stack trace en prod
+- [ ] Rate limiting en place sur les endpoints publics — pas de "on verra plus tard"
 
 ## Anti-patterns
 ### Avaler les erreurs
-**Ce qu'on voit :** `try { await db.query(...) } catch (e) { console.log(e) }` sans rethrow ni gestion.
-**Pourquoi c'est dangereux :** l'erreur disparait. L'utilisateur voit "success" alors que rien n'a ete fait. La DB est inconsistante.
-**Faire plutot :** soit gerer l'erreur explicitement (retry, fallback, rollback), soit la laisser remonter avec un error handler global.
+**Ce qu'on voit :** `try { await db.query() } catch (e) { console.log(e) }`. Pas de rethrow, pas de fallback. L'erreur est loguée et oubliée.
+**Pourquoi c'est dangereux :** l'appelant reçoit "success" mais rien n'a été fait. Le système continue dans un état incohérent. Les erreurs avalées sont impossibles à debugger — tu ne sais jamais quelles opérations ont réellement échoué.
+**Faire plutôt :** soit gérer l'erreur (retry, fallback, compensation), soit la laisser remonter à un error handler global qui la transforme en réponse structurée. Ne jamais avaler silencieusement.
 
-### Pas de graceful shutdown
-**Ce qu'on voit :** `process.on('SIGTERM', () => process.exit(0))` — les requetes en cours sont coupees.
-**Pourquoi c'est dangereux :** perte de donnees. Le load balancer continue d'envoyer du trafic vers une instance qui ne repond plus.
-**Faire plutot :** SIGTERM → arreter d'accepter les nouvelles requetes → attendre que les requetes en cours finissent (max 30s) → fermer les connexions → exit.
+### Graceful shutdown = process.exit(0)
+**Ce qu'on voit :** `process.on('SIGTERM', () => process.exit(0))` — les 50 requêtes en cours sont coupées net. Le load balancer envoie encore du trafic vers une instance zombie.
+**Pourquoi c'est dangereux :** perte de données, transactions incomplètes, expérience utilisateur dégradée. Le load balancer détecte la panne 30 secondes plus tard — pendant ce temps, toutes les requêtes échouent.
+**Faire plutôt :** SIGTERM → le load balancer retire l'instance (health check fail) → l'instance arrête d'accepter les nouvelles requêtes → attend la fin des requêtes en cours (timeout 30s max) → close les connexions DB/Redis → exit. Kubernetes donne 30s par défaut (terminationGracePeriodSeconds).
 
-### Une seule DB connection
-**Ce qu'on voit :** `const db = new Database(process.env.DATABASE_URL)` — une connexion pour toute l'app.
-**Pourquoi c'est dangereux :** 100 requetes simultanees = 99 en attente. La connexion sature.
-**Faire plutot :** connection pool avec min/max. Ex: `pg.Pool({min: 2, max: 20})`. Monitorer le pool (waiting, idle, active).
+### Une connexion DB pour tout le monde
+**Ce qu'on voit :** `const db = new Database(DATABASE_URL)` — un singleton connexion pour toute l'application. 100 requêtes simultanées = 99 en file d'attente.
+**Pourquoi c'est dangereux :** la connexion unique est le bottleneck. Les requêtes s'empilent, la latence explose. Sous charge, l'app devient non-réactive. Une seule requête lente bloque tout le monde.
+**Faire plutôt :** connection pool. min/max configurés selon la charge attendue (min: 2, max: 20). Monitorer les métriques du pool : waiting, idle, active. Si `waiting > 0` régulièrement, augmenter le max ou optimiser les requêtes.
 
 ## Patterns
 ### Middleware chain
 **Quand :** logique transversale (auth, logging, rate limiting, CORS).
-**Comment :** chaque middleware fait une chose. Ordre : CORS → rate limit → auth → validation → handler → error handler.
+**Comment :** chaque middleware fait UNE chose. Ordre canonique : CORS → rate limit → auth → validation → handler → error handler. La requête traverse la chaîne dans l'ordre, l'erreur remonte dans l'ordre inverse.
 
-### Idempotency
-**Quand :** operations mutantes (POST/PUT/DELETE) qui ne doivent pas etre executees 2×.
-**Comment :** client envoie `Idempotency-Key: <uuid>`. Serveur stocke cle + resultat. Si cle deja vue → retourner resultat stocke.
-
-### Background job
-**Quand :** operation lourde qui n'a pas besoin d'etre synchrone (email, export, resizing).
-**Comment :** file d'attente (BullMQ, SQS). Job = {type, payload, maxRetries}. Worker = process job + ACK/NACK.
+### Idempotency token
+**Quand :** opérations mutantes (paiement, création de ressource) où le double-submit est dangereux.
+**Comment :** le client génère un `Idempotency-Key: uuid`. Le serveur stocke la clé + le résultat de l'opération dans une transaction. Si la clé est déjà vue → retourner le résultat stocké sans ré-exécuter.

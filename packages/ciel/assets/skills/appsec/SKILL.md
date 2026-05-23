@@ -1,41 +1,43 @@
 ---
 name: appsec
-description: "Application Security — OWASP Top 10, injection, XSS, CSRF, auth, session, input validation, rate limiting. A charger quand on securise une application."
+description: "Application Security — OWASP Top 10, defense in depth, auth (OAuth2/OIDC), input validation, session security. À charger quand on sécurise une application."
 ---
 
 # Application Security
 
+**Principe premier :** La sécurité applicative n'est pas une feature — c'est une propriété émergente d'un système où chaque couche suppose que celle d'avant a échoué. Si ton input validation compte sur le WAF, et que ton WAF compte sur le framework, personne ne valide vraiment. La défense en profondeur n'est pas "plusieurs couches" — c'est "chaque couche traite l'input comme hostile, même si une autre couche est censée l'avoir déjà nettoyé". Assume breach à chaque étage.
+
 ## Checklist
-- [ ] Toutes les entrees utilisateur sont validees et assainies (input validation)
-- [ ] Les requetes SQL/NoSQL sont parametrees (pas de concatenation)
-- [ ] L'authentification utilise des mecanismes eprouves (OAuth2, OpenID Connect, SAML)
-- [ ] Les sessions sont protegees (HttpOnly, Secure, SameSite, rotation d'ID)
-- [ ] CSRF protege sur toutes les mutations (token, SameSite=Strict, double submit)
-- [ ] Rate limiting configure sur les endpoints critiques (login, API, upload)
-- [ ] Les headers de securite sont presents (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
-- [ ] Les mots de passe sont haches avec un algorithme lent (bcrypt, argon2)
+- [ ] Toutes les entrées utilisateur sont validées à la frontière — type, longueur, charset, range
+- [ ] Requêtes SQL/NoSQL paramétrées — jamais de concaténation (injection)
+- [ ] Authentification via OAuth2/OIDC avec providers éprouvés — pas d'auth maison
+- [ ] Sessions : HttpOnly, Secure, SameSite=Lax, rotation d'ID après login
+- [ ] CSRF protégé sur toutes les mutations (SameSite + token si nécessaire)
+- [ ] Rate limiting sur TOUS les endpoints sensibles (login, API, upload, reset password)
+- [ ] Headers de sécurité : CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+- [ ] Mots de passe hashés avec argon2id (pas de SHA, pas de MD5)
 
 ## Anti-patterns
-### Input jamais valide
-**Ce qu'on voit :** `const query = "SELECT * FROM users WHERE id = " + req.params.id` — injection SQL directe.
-**Pourquoi c'est dangereux :** un attaquant peut passer `1; DROP TABLE users` et detruire la base. L'injection est l'attaque #1 du Top 10 OWASP.
-**Faire plutot :** requetes parametrees (`WHERE id = $1`), ORM, ou query builder. Jamais de concatenation. Valider le type (`parseInt`, `z.string()`).
-
 ### Auth maison
-**Ce qu'on voit :** `const token = jwt.sign({userId: user.id}, process.env.SECRET)` — JWT custom sans refresh, sans blacklist.
-**Pourquoi c'est dangereux :** le JWT ne peut pas etre revoque. Si vole, l'attaquant a un acces permanent. Pas de rotation, pas de detection.
-**Faire plutot :** OAuth2 ou OpenID Connect avec des providers eprouves (Auth0, Clerk, NextAuth). Access token court (15 min) + refresh token long (7 jours). Blacklist cote serveur.
+**Ce qu'on voit :** `const token = jwt.sign({userId}, SECRET)` — JWT sans expiration, sans refresh, sans blacklist. Le token volé = accès permanent.
+**Pourquoi c'est dangereux :** l'authentification est le problème de sécurité le plus résolu — et le plus mal implémenté. Un JWT mal configuré n'a pas de révocation possible. Si l'attaquant vole un token, il a un accès permanent. Construire son propre système d'auth est la cause #1 des failles critiques.
+**Faire plutôt :** OAuth2/OIDC via un provider éprouvé (Auth0, Clerk, NextAuth, Keycloak). Access token courte durée (15 min), refresh token longue durée (7j) avec rotation. Blacklist côté serveur pour les tokens révoqués.
+
+### Validation "plus tard"
+**Ce qu'on voit :** les données arrivent dans le controller, passent dans le service, arrivent dans la DB sans validation. "Le frontend valide". "L'ORM échappe".
+**Pourquoi c'est dangereux :** le frontend est sous le contrôle de l'attaquant. Un simple `curl` contourne toute validation frontend. L'ORM échappe le SQL mais ne valide pas le type, la longueur, le charset, le business logic. Sans validation à la frontière, la DB reçoit n'importe quoi.
+**Faire plutôt :** validation à l'entrée de l'API (middleware/guard). Schéma (Zod, JSON Schema, Pydantic). Rejeter tout ce qui ne matche PAS le schéma — ne pas essayer de "corriger". Whitelist, pas blacklist.
 
 ### Rate limiting absent
-**Ce qu'on voit :** `POST /login` peut etre appele 10 000 fois par seconde sans limitation.
-**Pourquoi c'est dangereux :** brute-force du mot de passe, DDoS sur l'API, epuisement des ressources. L'application tombe.
-**Faire plutot :** rate limiting sur toutes les routes : 5 req/s pour login, 100 req/s pour API, 1 req/s pour upload. Retourner 429 Too Many Requests.
+**Ce qu'on voit :** `POST /login` sans rate limiting. Un attaquant brute-force 10 000 mots de passe par seconde.
+**Pourquoi c'est dangereux :** le brute-force est l'attaque la plus simple et la plus efficace. Sans rate limiting, un mot de passe faible tombe en minutes. Le rate limiting n'est pas une feature — c'est la seule défense contre l'énumération.
+**Faire plutôt :** rate limiting sur /login (5 tentatives/min/IP + compte), /api (100 req/s par clé), /reset-password (1 tentative/min/email). Retourner 429 avec `Retry-After`. Bloquer (pas juste ralentir) après N échecs.
 
 ## Patterns
-### OWASP Top 10
-**Quand :** toute application web.
-**Comment :** passer en revue le Top 10 OWASP a chaque release. Les plus critiques : injection, broken auth, XSS, insecure deserialization, SSRF. Automatiser avec un scanner.
-
 ### Defense in depth
-**Quand :** toute application manipulant des donnees sensibles.
-**Comment :** plusieurs couches : WAF (filtre les attaques connues) → Input validation → Auth → SQL parametre → CSP (empeche XSS) → Encryption au repos. Chaque couche protege si la precedente echoue.
+**Quand :** toute application manipulant des données sensibles.
+**Comment :** WAF → Input validation → Auth → Authorization → SQL paramétré → Output encoding → CSP → Encryption at rest. Chaque couche suppose que les précédentes ont failli. Exemple : même avec du SQL paramétré, valider le type de l'input avant. Même avec HTTPS, marquer les cookies Secure.
+
+### Structured security review (OWASP Top 10)
+**Quand :** à chaque release ou changement majeur.
+**Comment :** passer en revue le Top 10 OWASP pour CHAQUE endpoint critique. Injection, Broken Auth, Sensitive Data Exposure, XXE, Broken Access Control, Security Misconfiguration, XSS, Insecure Deserialization, Vulnerable Components, Insufficient Logging. Pas un audit annuel — une habitude de release.

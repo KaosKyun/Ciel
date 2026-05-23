@@ -1,41 +1,32 @@
 ---
 name: alerting
-description: "Alerting — alertes, PagerDuty/Opsgenie, escalation, on-call, runbooks, silence, fatigue d'alerte. A charger quand on configure les alertes."
+description: "Alerting — SLO-based alerting, alert fatigue prevention, on-call, post-mortems, runbooks. À charger quand on configure des alertes."
 ---
 
 # Alerting
 
+**Principe premier :** Une alerte qui ne déclenche pas d'action n'est pas une alerte — c'est du bruit qui tue les vraies alertes. Chaque alerte doit être : actionable (tu sais quoi faire), symptôme-based (pas cause-based), et avoir un runbook. Si tu ne peux pas écrire le runbook en < 5 étapes, ne crée pas l'alerte. Le but n'est pas d'être notifié de tout — c'est d'être notifié assez tôt pour agir avant que les utilisateurs ne remarquent.
+
 ## Checklist
-- [ ] Chaque alerte a un runbook (quoi faire, qui contacter, lien dashboard)
-- [ ] Les seuils d'alerte sont definis avec des valeurs mesurables PAS (ok → warning → critical)
-- [ ] Les alertes sont classees par severite (P0 = site down, P1 = feature degradee, P2 = warning)
-- [ ] L'escalation est automatique (si P0 non acquitte apres 5 min → manager → directeur)
-- [ ] Les alertes de bruit sont silenciees (pas de fatigue, pas d'alerte ignoree)
-- [ ] Le calendrier on-call est gere (rotation equitable, backup)
-- [ ] Une post-mortem est faite pour chaque P0 (sans blame, avec actions)
-- [ ] Les alertes sont testees (simulation, pas de "c'etait la premiere fois")
+- [ ] Les alertes sont sur les symptômes (P95 > 1s, error rate > 1%), pas sur les causes (CPU > 70%)
+- [ ] Chaque alerte a un runbook — pas "on verra quand ça sonnera"
+- [ ] SLA de réponse défini : critical (page, < 5 min), high (page jour, < 30 min), medium (ticket, < 4h)
+- [ ] Alertes groupées et dé-dupliquées — pas 50 pages pour la même cause racine
+- [ ] On-call rotation documentée avec escalation — personne n'est on-call seul sans backup
+- [ ] Post-mortem blameless après chaque incident majeur
 
 ## Anti-patterns
-### Trop d'alertes
-**Ce qu'on voit :** 200 alertes par nuit. CPU > 50%, RAM > 60%, 1 erreur 4xx, etc.
-**Pourquoi c'est dangereux :** l'on-call ignore toutes les alertes. La vraie urgence est noyee. L'alerte qui reveille a 3h du mat pour un warning est ignoree a 4h pour un vrai P0.
-**Faire plutot :** alerter sur des symptomes, pas sur des causes. P0 = utilisateur impacte (error rate > 5%, P95 > 2s). P1 = risque imminent. Regle : si l'alerte ne necessite pas d'action immediate, ce n'est pas une alerte.
+### Alerter sur tout
+**Ce qu'on voit :** "CPU > 70%", "mémoire > 60%", "disque > 70%" — 200 alertes configurées. 15 pages par nuit. L'équipe a muté le canal.
+**Pourquoi c'est dangereux :** alert fatigue. Chaque fausse alerte entraîne la suivante vers l'ignore. Quand la vraie alerte critique arrive, personne ne la voit. Le canal d'alerte est devenu un flux de bruit ignoré.
+**Faire plutôt :** alerter sur les symptômes utilisateur. "P95 latency > 1s pendant 5 min" (l'utilisateur ressent la lenteur). "Error rate > 1% pendant 5 min" (l'utilisateur voit des erreurs). Le CPU est une cause possible parmi 10, pas un symptôme.
 
-### Pas de runbook
-**Ce qu'on voit :** l'alerte sonne a 3h du mat. L'on-call se reveille, cherche quoi faire, panique, appelle un collegue.
-**Pourquoi c'est dangereux :** le temps de remediation est x10. L'erreur humaine est probable. L'on-call est stresse et fatigue.
-**Faire plutot :** chaque alerte a un runbook. 1. Verifier le dashboard X. 2. Si Y → restart. 3. Si Z → escalader a equipe A. Le runbook est teste et mis a jour.
+### Alerte sans runbook
+**Ce qu'on voit :** alerte "PaymentService is down". Pas de runbook. L'on-call Googlise "comment restart payment service" à 3h du matin.
+**Pourquoi c'est dangereux :** MTTR explose. L'on-call stressé fait des erreurs. Le runbook est la différence entre "redémarrer en 2 minutes" et "aggraver l'incident en 30 minutes de debugging paniqué".
+**Faire plutôt :** runbook attaché à chaque alerte. Étapes concrètes. "1. Vérifier les logs dans Loki avec {service=payment, level=error}. 2. Si OOM → restart le pod. 3. Si DB timeout → vérifier les connexions pool. 4. Si rien → escalader à l'équipe backend."
 
-### Pas de post-mortem
-**Ce qu'on voit :** incident resolu. L'equipe passe a la suite. Pas d'analyse post-incident.
-**Pourquoi c'est dangereux :** la cause racine n'est pas traitee. Le meme incident se reproduit. L'equipe traite les symptomes pas la maladie.
-**Faire plutot :** post-mortem pour tout P0. Sans blame. 5 Why. Actions correctives avec deadline. Suivi dans le backlog.
-
-## Patterns
-### Alert fatigue prevention
-**Quand :** toute equipe avec on-call.
-**Comment :** une alerte = un symptome utilisateur. Pas d'alerte sur des causes internes (CPU, RAM) sauf si critique. Taux de "false positive" < 10%. Revue mensuelle des alertes.
-
-### Post-mortem without blame
-**Quand :** apres chaque incident P0 ou P1.
-**Comment :** chronologie des evenements. Cause racine. 5 Why. Actions correctives. Blame = poison. Le systeme a echoue, pas la personne.
+### Aucun post-mortem
+**Ce qu'on voit :** incident résolu → "ouf, on passe à autre chose". Pas d'analyse. Le même incident se reproduit 3 mois plus tard.
+**Pourquoi c'est dangereux :** sans post-mortem, l'organisation n'apprend pas. Les mêmes erreurs se répètent. Le but du post-mortem n'est pas de trouver un coupable — c'est d'identifier les failles du SYSTÈME qui ont permis l'incident.
+**Faire plutôt :** post-mortem blameless dans les 48h. Format : timeline, impact, root cause, what went well, what went wrong, action items. Les action items ont des owners et des deadlines.

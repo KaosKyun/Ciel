@@ -1,45 +1,45 @@
 ---
 name: architecture
-description: "Architecture Logicielle — monolithe modulaire, microservices, hexagonale (ports/adapters), clean architecture. A charger quand on definit la structure d'un projet ou qu'on refactorise."
+description: "Architecture Logicielle — monolithe modulaire, microservices, ports/adapters, architecture decisions (ADR), Strangler Fig. À charger quand on définit la structure d'un projet ou qu'on refactorise."
 ---
 
 # Architecture Logicielle
 
+**Principe premier :** L'architecture n'est pas une collection de patterns — c'est la gestion explicite des dépendances. La qualité d'une architecture se mesure à une chose : combien de modules dois-je toucher pour faire un changement métier ? Si la réponse est > 3, l'architecture est cassée, peu importe le pattern utilisé. Le bon pattern dépend du contexte (taille d'équipe, fréquence de changement, exigences de scale), pas de la mode.
+
 ## Checklist
-- [ ] Le choix d'architecture est justifie par le contexte, pas par la mode
-- [ ] Les dependances pointent vers le domaine (pas l'inverse)
-- [ ] Les couches sont separees : domaine → application → infrastructure → presentation
-- [ ] Chaque composant a une responsabilite unique et claire
-- [ ] Les interfaces entre modules sont explicites (contrats, pas couplage implicite)
-- [ ] Le diagramme C4 (Context → Containers → Components) existe
-- [ ] Demarrer simple (monolithe modulaire) — migrer vers microservices seulement si besoin prouve
+- [ ] Le choix d'architecture est justifié par le contexte et documenté (ADR)
+- [ ] Les dépendances pointent vers le domaine — jamais l'inverse (Domain <> Infrastructure)
+- [ ] Les modules sont nommés par capacité métier (billing, shipping), pas par couche technique (controllers, services, utils)
+- [ ] Chaque module a une interface explicite (contrat) — pas de couplage par import direct interne
+- [ ] Démarrer simple (monolithe modulaire) — extraire en service UNIQUEMENT quand le besoin est prouvé
+- [ ] Le diagramme de contexte (C4 niveau 1-2) existe et est visible des nouveaux
 
 ## Anti-patterns
-### Microservices premature
-**Ce qu'on voit :** 12 services pour une app avec 3 utilisateurs. Un changement simple touche 4 repos.
-**Pourquoi c'est dangereux :** cout de coordination enorme, complexite reseau, debugging impossible. Amazon Prime Video est revenu de microservices a monolithe en 2023.
-**Faire plutot :** monolithe modulaire avec domaines bien separes. Extraire un service UNIQUEMENT quand le besoin est prouve (scale independant, equipe dediee, release cycle different).
+### Microservices comme défaut
+**Ce qu'on voit :** 12 services, 12 repos, 12 pipelines de CI — pour 3 développeurs et 100 utilisateurs. Un changement simple touche 4 repos.
+**Pourquoi c'est dangereux :** les microservices ne réduisent pas la complexité — ils la déplacent du code vers le réseau. Chaque service ajoute latence, serialisation, gestion d'erreur réseau, déploiement coordonné. Le seuil n'est pas technologique, il est organisationnel : une équipe par service.
+**Faire plutôt :** monolithe modulaire. Domaines séparés en modules, interfaces explicites, même codebase. Un commit = un changement. Extraire un service quand l'équipe grandit ou qu'un module a besoin de scale indépendant.
 
-### Architecture en couches sans discipline
-**Ce qu'on voit :** le controller appelle directement la DB. La couche service est vide. Les regles metier sont dans les models.
-**Pourquoi c'est dangereux :** le domaine est dilue partout. Changer la DB oblige a toucher 50 fichiers.
-**Faire plutot :** ports/adapters (hexagonale). Le domaine definit les interfaces (ports). L'infra les implemente (adapters).
+### Architecture en couches vidée
+**Ce qu'on voit :** Controller → Service → Repository. Le Service fait 3 lignes : `return this.repository.findById(id)`. Le domaine n'existe pas — c'est un tuyau HTTP→DB.
+**Pourquoi c'est dangereux :** les règles métier sont éparpillées dans les controllers, les validateurs, les middlewares. Changer une règle métier oblige à traquer la logique dans 6 fichiers. Le code ne protège pas les invariants.
+**Faire plutôt :** le domaine contient les règles. `order.approve()` vérifie le statut, le crédit, la disponibilité. Le service orchestre, le repository persiste, le controller traduit HTTP. Chaque couche a une VRAIE responsabilité.
 
-### Big Ball of Mud sous un joli nom
-**Ce qu'on voit :** un dossier `utils/` de 40 fichiers, des imports circulaires, des `SharedStuff` partout.
-
-**Pourquoi c'est dangereux :** aucune frontiere reelle. Tout depend de tout. Impossible de tester isolement.
-**Faire plutot :** nommer les modules par capacite metier (billing, shipping, auth), pas par couche technique (controllers, services, utils).
+### Architecture décidée puis figée
+**Ce qu'on voit :** un diagramme d'archi dessiné il y a 3 ans sur un tableau blanc. L'archi réelle a divergé, personne ne l'a documenté.
+**Pourquoi c'est dangereux :** l'architecture documentée est un mensonge. Les nouveaux développeurs se fient au diagramme et prennent des décisions sur une base fausse. La dérive architecturale s'accélère.
+**Faire plutôt :** ADR (Architecture Decision Records) pour les décisions importantes. Diagrammes régénérés (C4 via structurizr ou PlantUML). L'architecture est vivante — elle change avec le système.
 
 ## Patterns
 ### Ports & Adapters (Hexagonale)
-**Quand :** le domaine metier doit survivre aux changements d'infrastructure.
-**Comment :** le domaine definit des interfaces (ports). Les adapters (DB, HTTP, message queue) implementent ces interfaces. Le domaine ne depend de rien d'externe.
+**Quand :** le domaine métier doit survivre aux changements d'infrastructure.
+**Comment :** le domaine définit des interfaces (ports : `OrderRepository`, `PaymentGateway`). Les adapters implémentent ces interfaces (PostgresAdapter, StripeAdapter). Le domaine ne dépend de rien d'externe — pas de `import { Prisma }`, pas de `import { Stripe }`.
 
 ### Monolithe modulaire
-**Quand :** debut de projet, equipe < 20, pas de besoin de scale independant.
-**Comment :** modules par domaine (billing/, shipping/, auth/). Chaque module a son propre schema DB. Communication inter-module par interfaces explicites, pas par import direct.
+**Quand :** début de projet, équipe < 20, pas de besoin de scale indépendant.
+**Comment :** modules par domaine (billing/, shipping/, auth/). Chaque module a son propre schéma DB logique. Communication inter-module par interfaces explicites ou événements. Si un module devient trop gros → extraction en service.
 
 ### Strangler Fig
 **Quand :** migration progressive d'un legacy vers une nouvelle architecture.
-**Comment :** nouvelle fonctionnalite → nouveau systeme. Ancienne fonctionnalite → progressivement reecrite et basculee. L'ancien systeme est "etrangle" morceau par morceau.
+**Comment :** router le trafic. Nouvelle fonctionnalité → nouveau système. Ancienne fonctionnalité migrée → proxy vers le nouveau, puis suppression. Le legacy se réduit jusqu'à disparaître. Chaque étape est déployable et rollbackable.

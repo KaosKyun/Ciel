@@ -1,45 +1,42 @@
 ---
 name: containers
-description: "Containers — Docker multi-stage builds, distroless, K8s pods/deployments/services, Helm, security. A charger quand on travaille avec Docker ou Kubernetes."
+description: "Containers — multi-stage builds, distroless, non-root, K8s health checks, resource limits, image immutability. À charger quand on travaille avec Docker ou Kubernetes."
 ---
 
 # Containers
 
+**Principe premier :** Un container n'est pas une VM légère — c'est un process isolé. L'image Docker est un artefact immutable, pas un serveur maintenu à coup de `docker exec`. Chaque couche ajoutée est une surface d'attaque. Le but : l'image la plus petite possible. Et ne jamais tourner en root — non-root est la baseline, pas un bonus.
+
 ## Checklist
-- [ ] Le Dockerfile utilise multi-stage build (builder + runtime separate)
-- [ ] L'image de base est minimale (Alpine, distroless, chainguard)
-- [ ] Le container ne tourne pas en root (`USER 1001` ou equivalent)
-- [ ] Les secrets sont injectes au runtime (pas dans l'image Docker)
-- [ ] Les images sont scannees (CVE, Trivy, Docker Scout)
-- [ ] Les resources sont limitees (CPU/memory limits en K8s ou Docker)
-- [ ] Les healthchecks sont definis (Docker HEALTHCHECK, K8s liveness/readiness)
-- [ ] Les couches Docker sont optimisees (ordre stable → volatile, .dockerignore)
+- [ ] Multi-stage build : builder (outils) → runtime (artefacts uniquement, minimal)
+- [ ] Image de base minimale : distroless ou Chainguard — pas de shell, pas de package manager
+- [ ] Container non-root (`USER 1001`) — `runAsNonRoot: true` dans K8s
+- [ ] Secrets injectés au runtime (K8s secrets, Vault) — pas dans l'image, pas en ARG
+- [ ] Ressources limitées (CPU/memory limits AND requests) — pas de "illimité"
+- [ ] Health checks : liveness, readiness, startup — les trois
+- [ ] Images taguées par version ET hash de commit — jamais `:latest`
 
 ## Anti-patterns
 ### Container en root
-**Ce qu'on voit :** Dockerfile sans instruction `USER`. Le process tourne avec les droits root dans le container.
-**Pourquoi c'est dangereux :** si le container est compromis, l'attaquant a les droits root. Escalade possible vers l'hote.
-**Faire plutôt :** `RUN addgroup -S app && adduser -S app -G app` puis `USER app:app`. Distroless si possible (pas de shell).
+**Ce qu'on voit :** Dockerfile sans `USER`. Le process tourne en root.
+**Pourquoi c'est dangereux :** container compromis = root inside → escalade possible vers l'hôte. La plupart des applications n'ont jamais besoin de root. C'est un défaut historique, pas une nécessité.
+**Faire plutôt :** `USER 1001:1001`. Distroless (pas de shell). `runAsNonRoot: true`, `readOnlyRootFilesystem: true` dans K8s.
 
-### Image geante
-**Ce qu'on voit :** Dockerfile en une etape : `FROM node:22-slim` + `COPY node_modules` (1.2 Go).
-**Pourquoi c'est dangereux :** image volumineuse → telechargement lent, deploiement lent, plus de surface d'attaque.
-**Faire plutôt :** multi-stage : `FROM node:22 AS builder` (node_modules, build) → `FROM node:22-slim` (copie uniquement les artefacts). Distroless pour le runtime. Image finale < 100 Mo.
+### Image obèse
+**Ce qu'on voit :** `FROM node:22` → image de 1.5 Go avec git, curl, npm, code source complet.
+**Pourquoi c'est dangereux :** pull lent = déploiement lent = rollback lent. Surface d'attaque maximale. Coût de stockage.
+**Faire plutôt :** multi-stage : builder compile → runtime minimal. `COPY --from=builder`. Distroless. Image < 100 Mo.
 
-### Tout dans un seul manifeste K8s
-**Ce qu'on voit :** un fichier YAML de 500 lignes avec Deployment + Service + ConfigMap + Ingress.
-**Pourquoi c'est dangereux :** difficile a lire, impossible a tester separement, pas de reutilisabilite.
-**Faire plutôt :** un fichier par ressource OU un chart Helm. Helm permet de parametrer, versionner, et deployer avec `helm upgrade --install`.
+### `:latest` partout
+**Ce qu'on voit :** `image: myapp:latest`. Impossible de savoir quelle version tourne.
+**Pourquoi c'est dangereux :** non-reproductible. Si `latest` change sur le registry, le prochain pod restart aura une version différente. Rollback impossible.
+**Faire plutôt :** tag sémantique + hash de commit. `myapp:v1.2.3`, `myapp:abc1234`. Immutable.
 
 ## Patterns
 ### Multi-stage build
-**Quand :** toute image Docker qui compile du code.
-**Comment :** etape 1 (builder) : outils de build, dependances de dev. Etape 2 (runtime) : minimal, seulement les binaires. `COPY --from=builder /app/dist /app/dist`.
+**Quand :** toute image qui compile du code.
+**Comment :** builder (`FROM golang:1.22 AS builder`) → compile → runtime (`FROM gcr.io/distroless/static`) → `COPY --from=builder /app/binary`. Résultat : un binaire et rien d'autre.
 
 ### K8s health checks
-**Quand :** toute application dans Kubernetes.
-**Comment :** liveness probe (le container est-il vivant ?), readiness probe (le container accepte-t-il du trafic ?), startup probe (le container a-t-il fini de demarrer ?).
-
-### .dockerignore
-**Quand :** tout projet Docker.
-**Comment :** ignorer node_modules, .git, *.md, logs, .env. Reduce le contexte envoye au daemon Docker, accelere les builds.
+**Quand :** tout pod Kubernetes.
+**Comment :** liveness (process vivant ?), readiness (trafic OK ?), startup (init fini ?). Sans readiness, K8s envoie du trafic avant que l'app soit prête → erreurs en boucle.

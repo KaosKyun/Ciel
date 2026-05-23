@@ -9,13 +9,17 @@ paths:
 
 ## CI/CD Pipeline
 
-- Matrix builds pour tester plusieurs versions (Node 18/20/22)
-- Cache les dependances entre les runs (node_modules, pip, maven)
-- Utiliser OIDC pour l'auth cloud — pas de secrets longue duree dans les pipelines
-- Verifier les signatures des artifacts (SLSA, provenance)
-- Secrets injectes depuis le secret manager, pas hardcodes
-- Scanner les dependances (npm audit, pip audit, trivy)
-- Tests + lint + build dans le pipeline, pas de bypass
-- Timeout explicite sur chaque job
+**Principe :** le pipeline est une machine à feedback, pas une checklist. Objectif : réduire le temps entre commit et signal de production. Mesure les 4 DORA metrics.
 
-Pour anti-patterns et patterns detailles, charger `cicd-pipeline` ou `devsecops`.
+- Pipeline < 5 min — sinon les devs ne l'attendent plus
+- Trunk-based development : branches ≤ 1 jour, merge fréquent, petits diffs
+- OIDC pour l'auth cloud — pas de secrets long-lived dans les variables
+- Runners éphémères : rien ne survit entre deux builds
+- Concurrency groups : un seul pipeline par branche
+- Artefacts immutables et signés (hash + Cosign/Sigstore)
+- Flaky test detection : quarantaine automatique si > 2% de flaky
+- Tests + lint + SAST + build dans le pipeline, pas de bypass
+- Secrets injectés depuis OIDC/secrets manager, pas hardcodés
+- Dependency scan blocant sur critique et haute
+
+Pour patterns détaillés, charger `cicd-pipeline` ou `devsecops`.

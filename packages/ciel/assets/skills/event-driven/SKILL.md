@@ -1,44 +1,46 @@
 ---
 name: event-driven
-description: "Event-Driven Architecture — pub/sub, event bus (Kafka/RabbitMQ), idempotence, dead letter queues. A charger des qu'on a ≥ 3 services qui communiquent."
+description: "Event-Driven Architecture — pub/sub, idempotence, dead letter queues, ordering, outbox pattern. À charger quand on a des services qui doivent communiquer sans couplage direct."
 ---
 
 # Event-Driven Architecture
 
+**Principe premier :** L'event-driven architecture n'est pas un pattern d'intégration — c'est une stratégie de découplage temporel. Le producer n'attend pas le consumer. Le consumer n'a pas besoin que le producer soit vivant. Cette indépendance temporelle est la vraie valeur, pas le "pub/sub". Mais elle a un prix : tu perds la consistence immédiate. Tu ne sais pas QUAND le consumer traitera l'événement. Assumer ce trade-off explicitement, c'est ça faire de l'event-driven.
+
 ## Checklist
-- [ ] Les evenements sont des faits passes (past tense : `PaymentReceived`, pas `ReceivePayment`)
-- [ ] Chaque consumer est idempotent (meme evenement recu 2× = meme resultat)
-- [ ] Dead letter queue configuree pour les messages qui echouent
-- [ ] Le schema des evenements est versionne
-- [ ] L'ordre des evenements est gere (ordering key / partition key)
-- [ ] Les timeouts de traitement sont explicites (pas de consumer bloque a l'infini)
-- [ ] Le monitoring des files est en place (lag, retry rate, DLQ size)
+- [ ] Chaque événement est un fait passé (past tense : `PaymentReceived`, pas `ReceivePayment`)
+- [ ] Chaque consumer est idempotent — même événement reçu 2× = même résultat (pas de double charge)
+- [ ] Dead Letter Queue configurée avec alerte — un message qui échoue > N fois ne bloque pas les autres
+- [ ] L'ordre est géré explicitement quand il est nécessaire (partition key, ordering key)
+- [ ] Les timeouts sont explicites — pas de consumer bloqué à l'infini sur un appel externe
+- [ ] Outbox pattern pour les opérations DB + événement atomiques
+- [ ] Métriques sur chaque file : lag, retry rate, DLQ size, processing time
 
 ## Anti-patterns
-### HTTP synchrone en chaine
-**Ce qu'on voit :** `POST /orders` → `POST /payments` → `POST /notifications`. Chaque appel attend le suivant.
-**Pourquoi c'est dangereux :** si `notifications` est lent, toute la chaine est lente. Si `notifications` echoue, la commande est perdue.
-**Faire plutot :** `POST /orders` publie `OrderCreated`. PaymentService s'abonne. NotificationService s'abonne. Chacun a son rythme.
+### Chaîne HTTP synchrone déguisée en événementielle
+**Ce qu'on voit :** Service A publie un événement, attend la réponse de B via un autre événement. B attend C, qui attend D. Timeout à 30s.
+**Pourquoi c'est dangereux :** c'est du HTTP synchrone avec plus d'étapes et de points de défaillance. Si D est lent, toute la chaîne timeout. Tu as ajouté la complexité de l'event-driven sans le bénéfice (découplage temporel).
+**Faire plutôt :** si tu as besoin d'une réponse synchrone, fais du HTTP. L'event-driven est pour le "fire and forget" — le producer émet et continue sa vie, le consommateur traite quand il peut.
 
 ### Consumer non-idempotent
-**Ce qu'on voit :** le consumer insere en DB sans verifier si l'evenement a deja ete traite.
-**Pourquoi c'est dangereux :** retry = double insertion. Un client est debite 2×.
-**Faire plutot :** stocker l'event_id traite. Verifier avant de traiter. Ou utiliser INSERT ON CONFLICT DO NOTHING.
+**Ce qu'on voit :** le consumer insère en DB sans vérifier si l'événement a déjà été traité. Un retry → double insertion.
+**Pourquoi c'est dangereux :** en event-driven, at-least-once est la règle, pas l'exception. Les retries arrivent. Si ton consumer n'est pas idempotent, chaque retry corrompt les données. Un client débité 2×, un email envoyé 3×.
+**Faire plutôt :** stocker l'event_id traité (dans la même transaction que le traitement). `INSERT ON CONFLICT (event_id) DO NOTHING`. Si l'event_id existe déjà, ACK sans traiter.
 
 ### Pas de DLQ
-**Ce qu'on voit :** un message invalide bloque le consumer indefiniment (retry infini).
-**Pourquoi c'est dangereux :** tous les messages suivants sont bloques. Le consumer est paralyse par un seul message pourri.
-**Faire plutot :** DLQ apres N retries. Alerte sur DLQ non vide. Re-traiter les messages de la DLQ apres correction.
+**Ce qu'on voit :** un message mal formé bloque le consumer. Retry infini. Tous les messages suivants sont bloqués derrière le message poison.
+**Pourquoi c'est dangereux :** un seul message invalide paralyse tout le pipeline d'événements. Le lag s'accumule. Quand le consumer est débloqué, il a 100 000 messages de retard — et certains sont périmés.
+**Faire plutôt :** DLQ après N retries (3-5). Alerte immédiate sur DLQ non vide. Mécanisme de replay depuis la DLQ après correction. Ne jamais ignorer silencieusement la DLQ.
 
 ## Patterns
-### Event Bus
-**Quand :** plusieurs services doivent reagir au meme evenement sans couplage direct.
-**Comment :** producer publie sur un topic. Chaque consumer a sa propre queue ou son consumer group. Pas de dependance directe entre producer et consumer.
-
 ### Outbox Pattern
-**Quand :** une operation doit ecrire en DB ET publier un evenement de maniere atomique.
-**Comment :** ecrire l'evenement dans une table outbox dans la meme transaction DB. Un worker lit l'outbox et publie les evenements. Garantit at-least-once delivery.
+**Quand :** une opération doit écrire en DB ET publier un événement de manière atomique.
+**Comment :** écrire l'événement dans une table `outbox` dans la MÊME transaction DB que l'écriture métier. Un worker lit l'outbox et publie. Si le publish échoue, il retry. Si le worker crashe, l'événement est dans l'outbox. Garantit at-least-once sans 2PC.
 
 ### Idempotency Key
-**Quand :** une operation ne doit etre executee qu'une seule fois meme si l'appel est repete.
-**Comment :** le producer envoie un idempotency-key unique. Le consumer stocke la cle. Si la cle est deja connue → repondre avec le resultat deja calcule, ne pas re-executer.
+**Quand :** une opération doit être exécutée exactement une fois.
+**Comment :** le producer génère une clé unique (`idempotency-key`). Le consumer stocke la clé + le résultat. Si la clé est déjà connue → retourner le résultat stocké, ne pas ré-exécuter. Stripe utilise ce pattern pour les paiements.
+
+### Schema evolution
+**Quand :** le format des événements change avec le temps.
+**Comment :** chaque événement a un champ `version` et un `type`. Les upcasters transforment les anciens événements vers le nouveau format au replay. Ne jamais modifier un type d'événement existant — en créer un nouveau (ex: `OrderPlacedV2`).

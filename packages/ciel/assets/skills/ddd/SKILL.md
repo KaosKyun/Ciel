@@ -1,44 +1,45 @@
 ---
 name: ddd
-description: "Domain-Driven Design — Bounded Contexts, Entities, Value Objects, Aggregates, Ubiquitous Language. A charger quand on modelise un domaine metier complexe."
+description: "Domain-Driven Design — Bounded Contexts, Ubiquitous Language, Aggregates, Domain Events, Strategic Design. À charger quand on modélise un domaine métier complexe."
 ---
 
 # Domain-Driven Design
 
+**Principe premier :** DDD n'est pas un pattern technique — c'est une discipline de modélisation. Le but n'est pas d'utiliser Entities, Value Objects et Aggregates. Le but est de faire en sorte que le code parle le même langage que le métier. Si un expert métier lit ton code et ne reconnaît pas son domaine, tu as échoué, peu importe la qualité technique des patterns. Le Ubiquitous Language est le livrable principal — tout le reste en découle.
+
 ## Checklist
-- [ ] Le ubiquitous language est partage avec le metier (pas de jargon technique dans le domaine)
-- [ ] Les bounded contexts sont identifies (frontieres explicites entre domaines)
-- [ ] Chaque aggregate a une racine (aggregate root) et des invariants
-- [ ] Les value objects sont immutables (pas de setters)
-- [ ] Les entities ont une identite (ID unique) — les value objects non
-- [ ] Les regles metier sont DANS le domaine, pas dans les services ou controllers
-- [ ] Les repositories sont des interfaces dans le domaine, implementees dans l'infra
+- [ ] Le Ubiquitous Language est le même dans le code ET dans les conversations avec le métier
+- [ ] Les Bounded Contexts sont identifiés et leurs frontières sont explicites
+- [ ] Chaque Aggregate a une racine qui protège ses invariants
+- [ ] Les Value Objects sont immutables et validés à la construction
+- [ ] La logique métier est dans le domaine — pas dans les services, pas dans les controllers
+- [ ] Les Repositories sont des interfaces dans le domaine, implémentées dans l'infrastructure
 
 ## Anti-patterns
-### Anemic domain model
-**Ce qu'on voit :** des classes `User`, `Order`, `Product` avec seulement des getters/setters. Toute la logique est dans `UserService`, `OrderService`.
-**Pourquoi c'est dangereux :** le domaine est anemique. Les regles metier sont eparpillees dans des services sans cohesion. Le modele ne protege rien.
-**Faire plutot :** le domaine contient le comportement. `order.approve()` verifie les invariants. Le service orchestre, il ne contient pas la logique metier.
+### Anemic Domain Model
+**Ce qu'on voit :** `class Order { id, status, total, getters, setters }` — le domaine est un sac de données. Toute la logique est dans `OrderService.process()`, `OrderService.approve()`, etc.
+**Pourquoi c'est dangereux :** le modèle ne protège rien. N'importe quel code peut faire `order.status = "shipped"` sans vérifier le paiement. Les règles métier sont dupliquées. Le code ment sur ce qui est possible.
+**Faire plutôt :** le domaine est le gardien. `order.approve()` vérifie le statut, le stock, le crédit. `order.ship()` vérifie que la commande est approuvée. Les setters publics n'existent pas sur les propriétés qui ont des règles.
 
-### Un seul bounded context pour tout
-**Ce qu'on voit :** une table `orders` avec des colonnes pour le shipping, la facturation, le marketing. Un `User` unique utilise par tous les modules.
-**Pourquoi c'est dangereux :** chaque changement metier impacte tout le monde. Le shipping ne peut pas evoluer sans la facturation.
-**Faire plutot :** `Order` dans `SalesContext` (commande), `Shipment` dans `ShippingContext` (expedition). Chaque contexte a sa propre representation.
+### Bounded Context unique
+**Ce qu'on voit :** une table `users` partagée par l'auth, le billing, le shipping, le marketing. Une entité `Order` unique pour tout le système.
+**Pourquoi c'est dangereux :** "Client" ne veut pas dire la même chose pour le support (historique de tickets) et pour la facturation (adresse, TVA). Forcer un modèle unique crée des compromis qui ne satisfont personne et couplent tous les modules ensemble.
+**Faire plutôt :** chaque contexte a sa propre représentation. `SalesContext.Order` a les items et le prix. `ShippingContext.Shipment` a l'adresse et le tracking. Ils communiquent par événements (`OrderPlaced` → le shipping crée son Shipment).
 
-### Violation d'aggregate
-**Ce qu'on voit :** modification d'un `OrderItem` directement depuis l'exterieur sans passer par la racine `Order`.
-**Pourquoi c'est dangereux :** les invariants de l'aggregate sont violes. `Order.total` n'est plus coherent avec les `OrderItems`.
-**Faire plutot :** `order.addItem()` modifie l'aggregate et recalcule le total. Les objets internes ne sont jamais modifies directement.
+### Tactical sans strategic
+**Ce qu'on voit :** l'équipe utilise Entities, Value Objects, Aggregates, Repositories — mais n'a jamais défini les Bounded Contexts ni le Ubiquitous Language.
+**Pourquoi c'est dangereux :** les patterns tactiques sans design stratégique, c'est comme des murs sans plan d'architecte. Tu construis proprement, mais peut-être au mauvais endroit. Les Bounded Contexts définissent CE QUI va ensemble — sans ça, les Aggregates sont arbitraires.
+**Faire plutôt :** commencer par le strategic design : Event Storming, Context Mapping, Ubiquitous Language. Les patterns tactiques viennent APRÈS, pour implémenter ce qui a été modélisé.
 
 ## Patterns
 ### Bounded Context
-**Quand :** le domaine est assez large pour avoir des significations differentes du meme terme. "Client" pour le support ≠ "Client" pour la facturation.
-**Comment :** definir des frontieres explicites. Chaque contexte a son propre modele, son propre ubiquitous language. Communication inter-contexte par domain events ou API.
+**Quand :** le domaine a des significations différentes pour le même terme. "Client" pour le support ≠ "Client" pour la facturation.
+**Comment :** frontière explicite. Chaque contexte a son propre modèle, son propre langage, sa propre persistence. Communication inter-contexte par Domain Events ou API bien définies. Pas de jointure SQL entre contextes.
 
 ### Aggregate Root
-**Quand :** un groupe d'objets doit etre coherent (invariants). Ex: Order + OrderItems.
-**Comment :** une entite racine protege l'acces. Toute modification passe par la racine. Les objets internes ne sont jamais references de l'exterieur.
+**Quand :** un groupe d'objets doit rester cohérent (invariants). Ex: Order + OrderItems. Le total doit toujours = somme des items.
+**Comment :** une entité racine protège l'accès. Toute modification passe par la racine : `order.addItem()`, jamais `orderItem.setPrice()`. Les objets externes ne référencent jamais l'intérieur d'un aggregate — ils passent par la racine.
 
-### Value Object
-**Quand :** une valeur n'a pas d'identite propre, elle est definie par ses attributs. Ex: Money, Email, Address.
-**Comment :** immutable. Pas d'ID. Egalite par valeur. `new Money(10, "EUR").equals(new Money(10, "EUR"))` → true.
+### Domain Events
+**Quand :** un changement dans un contexte doit être connu d'un autre.
+**Comment :** l'aggregate émet un événement : `OrderPlaced { orderId, customerId, total }`. Les autres contextes s'abonnent. L'événement est un fait passé (past tense), immuable, et contient tout ce dont le consommateur a besoin (pas de référence à l'aggregate).

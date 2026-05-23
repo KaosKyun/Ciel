@@ -1,39 +1,51 @@
 ---
 name: release-management
-description: "Release Management — semantic versioning, CHANGELOG, signed tags, release notes. A loader quand on prepare une release."
+description: "Release Management — releases as contracts, semver as communication, pre-release channels (alpha/beta/rc), signed provenance, changelog as consumer signal. À charger quand on prépare une release."
 ---
 
 # Release Management
 
+**Principe premier :** Une release est un contrat avec les consommateurs. Le numéro de version n'est pas un compteur — c'est un signal. MAJOR veut dire "tu dois migrer, voici comment". MINOR veut dire "nouveau, sans risque, upgrade". PATCH veut dire "sécurité ou bug, fais-le maintenant". Si tes numéros de version ne communiquent pas ça, ils ne servent à rien. Le changelog est la partie visible de ce contrat — sans lui, les consommateurs ne savent pas ce qui a changé et n'upgraderont pas.
+
 ## Checklist
-- [ ] La version suit le semantic versioning (MAJOR.MINOR.PATCH)
-- [ ] Le CHANGELOG est a jour (Keep a Changelog format)
-- [ ] Les tags Git sont signes (git tag -s)
-- [ ] La release note est comprehensible par les consommateurs du projet
-- [ ] Les breaking changes sont documentes explicitement
-- [ ] L'artefact de release est immutable (version pin, checksum)
+- [ ] La version suit semver strict : MAJOR (breaking API), MINOR (nouveau compatible), PATCH (bug/security)
+- [ ] Chaque breaking change a un guide de migration (pas juste "changed X" — quoi changer, ligne par ligne)
+- [ ] Des pre-release channels existent : alpha (instable, dev), beta (feature-complete, testable), rc (release candidate, plus de bugs connus)
+- [ ] Le changelog est lisible par un humain — pas un dump de commits, pas de jargon interne
+- [ ] Les artefacts sont signés ET vérifiables (Cosign/Sigstore, checksums SHA256, SBOM)
+- [ ] Le tag Git est signé ET correspond exactement au commit du build (pas de tag après coup)
+- [ ] Les releases sont immutables — jamais de repush d'un tag, jamais de republish d'un package
 
 ## Anti-patterns
-### Pas de version
-**Ce qu'on voit :** `"version": "1.0.0"` dans package.json depuis 2 ans. 47 commits depuis la derniere release.
-**Pourquoi c'est dangereux :** impossible de savoir quelle version est en production. Les consommateurs ne peuvent pas piner une version stable.
-**Faire plutot :** version bump a chaque release. Semver strict. `git tag` correspond a la version.
+### Version bloquée
+**Ce qu'on voit :** `"version": "1.0.0"` dans package.json depuis 2 ans. 47 commits, des breaking changes, des nouvelles features — la version n'a jamais bougé.
+**Pourquoi c'est dangereux :** la version ne communique plus rien. Les consommateurs ne savent pas s'ils peuvent upgrade. Certains pinent au commit, d'autres prennent `latest` et cassent. Le projet perd la confiance de son écosystème.
+**Faire plutôt :** version bump à chaque release. Automatiser via conventional commits + semantic-release. Chaque merge sur main → version calculée → changelog mis à jour → release. Zéro intervention humaine.
 
-### CHANGELOG vide ou manuel
-**Ce qu'on voit :** CHANGELOG.md avec "Initial release" depuis 6 mois.
-**Pourquoi c'est dangereux :** personne ne sait ce qui a change entre les versions. Les consommateurs hesitent a upgrade.
-**Faire plutot :** CHANGELOG genere depuis les conventional commits. Chaque PR ajoute automatiquement une entree. Categories : Added, Changed, Deprecated, Removed, Fixed, Security.
+### Changelog = dump de commits
+**Ce qu'on voit :** CHANGELOG.md copié-collé depuis `git log --oneline`. "fix: bug", "wip", "cleanup", "fix test" — l'utilisateur ne comprend rien.
+**Pourquoi c'est dangereux :** un changelog illisible est pire qu'inexistant. Il donne l'illusion d'information. Le consommateur doit lire le diff pour comprendre ce qui a changé — exactement ce que le changelog devait éviter.
+**Faire plutôt :** changelog structuré : Added, Changed, Deprecated, Removed, Fixed, Security. Chaque entrée est une phrase compréhensible par un utilisateur du projet. Le changelog répond à : "Qu'est-ce que je dois faire pour upgrade ?"
 
-### Breaking change non documente
-**Ce qu'on voit :** passage de MAJOR.MINOR.PATCH 1.2.3 a 1.3.0 avec un breaking change (MAJOR aurait du etre incremente).
-**Pourquoi c'est dangereux :** les consommateurs font `npm update` et leur app casse. Ils ne savent pas ce qui a change.
-**Faire plutot :** tout breaking change = MAJOR bump. Chaque breaking change est documente dans le CHANGELOG avec migration guide.
+### Pre-release sauté
+**Ce qu'on voit :** `1.0.0-alpha.1` existe, puis directement `1.0.0`. Pas de beta, pas de RC. 6 mois entre alpha et stable.
+**Pourquoi c'est dangereux :** les early adopters sont punis. Ils testent l'alpha, trouvent des bugs, mais n'ont jamais de version stable de leurs retours. Ils arrêtent de tester les pre-releases. La release stable sort sans validation réelle.
+**Faire plutôt :** pipeline de maturité : alpha (semaine 1, cassant) → beta (semaine 2-3, testable, feedback) → rc (semaine 4, gel, uniquement bugfixes) → stable. Chaque étape a des consommateurs différents : devs internes → early adopters → tout le monde.
+
+### Artefact mutable
+**Ce qu'on voit :** `npm publish` puis `npm publish` à nouveau sur la même version parce que "j'ai oublié un fichier". Ou `git tag -d v1.2.3 && git tag v1.2.3`.
+**Pourquoi c'est dangereux :** un artefact mutable détruit la reproductibilité. Le hash que tu as vérifié hier n'est plus valide aujourd'hui. Impossible de faire un audit. Les mirrors de registre ont des versions différentes. C'est un cauchemar de debugging.
+**Faire plutôt :** une version = un artefact = un hash, pour toujours. Si bug → nouvelle version (1.2.4, pas 1.2.3 repush). La plupart des registres permettent de "deprecate" sans "unpublish".
 
 ## Patterns
-### Conventional Commits
-**Quand :** tout projet.
-**Comment :** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `perf:`, `BREAKING CHANGE:`. Le CHANGELOG et le version bump sont automatises depuis les messages de commit.
+### Conventional Commits → release automatisée
+**Quand :** tout projet avec plus d'un mainteneur.
+**Comment :** `feat:` → MINOR bump, `fix:` → PATCH bump, `feat!:` ou `BREAKING CHANGE:` → MAJOR bump. `semantic-release` lit l'historique de commits depuis la dernière release, calcule la version, génère le changelog, publie. Configuré une fois, oublié.
 
-### Release avec artefacts signes
-**Quand :** bibliotheque open source, package critique.
-**Comment :** `git tag -s v1.2.3` (signe avec GPG). `npm publish` ou `gh release create`. Checksum SHA256. SBOM genere.
+### Pre-release channels
+**Quand :** projet avec breaking changes fréquents ou base d'utilisateurs qui teste les versions beta.
+**Comment :** `1.0.0-alpha.1` → tags `alpha` instables. `1.0.0-beta.1` → tag `beta`, feature-complete. `1.0.0-rc.1` → tag `rc`, plus de bugs connus. `1.0.0` → tag `latest`. Les consommateurs choisissent leur niveau de risque : `npm install pkg@beta` ou `npm install pkg@latest`.
+
+### Migration guide
+**Quand :** tout MAJOR bump.
+**Comment :** un fichier `MIGRATION.md` ou section dans le changelog. Format : "Avant → Après" pour chaque breaking change. Exemple de code avant, exemple après. Pourquoi le changement a été fait (pas juste "changed"). Liste des choses à vérifier après migration.

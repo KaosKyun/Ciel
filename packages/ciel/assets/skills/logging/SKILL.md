@@ -1,41 +1,42 @@
 ---
 name: logging
-description: "Logging — logs structures, niveaux de log, centralisation, retention, correlation ID, detection d'anomalies. A charger quand on configure les logs."
+description: "Logging — structured JSON, correlation ID, PII scrubbing, centralized aggregation, log levels as signal. À charger quand on configure les logs."
 ---
 
 # Logging
 
+**Principe premier :** Les logs ne sont pas pour toi — ils sont pour le "toi du futur" qui debug une erreur à 3h du matin sans contexte. Un log qui dit "Error occurred" est pire que pas de log — il donne l'illusion d'information. Chaque log doit répondre à : quoi, quand, où, qui, et pourquoi c'est arrivé. Le format est JSON structuré, pas du texte libre — parce que les logs seront parsés par des machines (Loki, ELK, Datadog) bien avant d'être lus par des humains.
+
 ## Checklist
-- [ ] Les logs sont structures (JSON) — pas de `console.log("texte")` libre
-- [ ] Un correlation ID (trace ID) traverse tous les services pour chaque requete
-- [ ] Les niveaux de log sont utilises correctement (ERROR, WARN, INFO, DEBUG)
-- [ ] Les erreurs contiennent le stack trace et le contexte (payload, params, userId)
-- [ ] Les donnees sensibles ne sont jamais logguees (password, token, carte bancaire)
-- [ ] Les logs sont centralises (Loki, ELK, Datadog, CloudWatch) — pas de `tail -f`
-- [ ] La retention est definie et appliquee (hot 7j, warm 30j, cold 1 an)
-- [ ] Pas de log dans les boucles critiques (perforation, volume, cout)
+- [ ] Logs structurés JSON — pas de `console.log("texte libre " + variable)`
+- [ ] Correlation ID (trace ID) injecté et transmis à travers tous les services
+- [ ] Niveaux de log respectés : ERROR (action requise), WARN (attention), INFO (normal), DEBUG (détail)
+- [ ] Stack trace + contexte (userId, orderId, params) dans chaque ERROR
+- [ ] PII/secret scrubbing : jamais de password, token, carte bancaire, email dans les logs
+- [ ] Centralisation : tous les logs vers un endpoint unique (Loki/ELK/CloudWatch)
+- [ ] Rétention configurée : hot 7j, warm 30j, cold 1 an
 
 ## Anti-patterns
-### Log texte
-**Ce qu'on voit :** `console.log("User logged in: " + userId + " at " + Date.now())`.
-**Pourquoi c'est dangereux :** impossible de parser automatiquement. Pas de champ structure. Recherche et filtrage impossibles sans regex fragiles.
-**Faire plutot :** `logger.info({ event: "user_login", userId, timestamp }, "User logged in")` — logs structures JSON. Parsables, filtrables, indexables.
+### Log texte libre
+**Ce qu'on voit :** `console.log("User " + userId + " logged in at " + Date.now())`. Concaténation de strings.
+**Pourquoi c'est dangereux :** impossible à parser automatiquement. Pas de champ structuré. Recherche et filtrage impossibles sans regex fragiles. Si le format change légèrement, tous les dashboards cassent.
+**Faire plutôt :** `logger.info({ event: "user_login", userId, timestamp }, "User logged in")`. JSON structuré. Champs typés. Requêtable.
 
 ### Pas de correlation ID
-**Ce qu'on voit :** chaque service loggue avec son propre identifiant. Impossible de suivre une requete a travers 3 services.
-**Pourquoi c'est dangereux :** debug d'un incident = ouvrir 3 terminaux, chercher manuellement des timestamps qui coincident. Impossible en microservices.
-**Faire plutot :** correlation ID genere a l'entree (API Gateway ou ingress). Transmis dans chaque appel (header HTTP, message queue). Loggue dans chaque service.
+**Ce qu'on voit :** chaque service logue avec son propre ID. Impossible de suivre une requête à travers 3 microservices.
+**Pourquoi c'est dangereux :** debug en microservices = ouvrir 3 terminaux, chercher manuellement des timestamps qui coïncident. Une requête lente = mystère complet.
+**Faire plutôt :** correlation ID généré à l'entrée (API Gateway). Transmis dans chaque header HTTP. Logué dans chaque service. Une recherche = une requête = tous les logs.
 
-### Logs sensibles
+### Données sensibles dans les logs
 **Ce qu'on voit :** `logger.error("Payment failed", { cardNumber, cvv, userId })`.
-**Pourquoi c'est dangereux :** PCI-DSS viole. Les donnees bancaires sont stockees dans les logs. En cas de fuite des logs, les cartes sont compromisees.
-**Faire plutot :** `logger.error("Payment failed", { paymentId, errorCode, userId })`. Jamais de donnees sensibles (password, token, carte, secret). Masquage automatique si necessaire.
+**Pourquoi c'est dangereux :** PCI-DSS violé. Données bancaires dans les logs. En cas de fuite des logs, toutes les cartes compromises. Les logs sont souvent moins protégés que la DB.
+**Faire plutôt :** `logger.error("Payment failed", { paymentId, errorCode, userId })`. Jamais de PII ou secret. Scrub automatisé en cas de doute.
 
 ## Patterns
-### Logs structures (JSON)
+### Structured JSON logging
 **Quand :** toute application.
-**Comment :** chaque log est un objet JSON avec timestamp, level, message, service, correlationId, et les donnees contextuelles. Parse, filtre, et indexe par Loki/ELK. Requetable.
+**Comment :** chaque log = `{timestamp, level, message, service, correlationId, ...context}`. Parse, filtre, indexe par Loki/ELK. Requêtable : `{.level = "ERROR"} | json | ...`
 
-### Log centralise
-**Quand :** application distribuee (microservices, K8s).
-**Comment :** tous les logs convergent vers un endpoint central (Loki, ELK, Datadog, CloudWatch). Un seul endroit pour chercher. Requetes cross-service possibles.
+### Centralized aggregation
+**Quand :** plus d'un service.
+**Comment :** tous les logs → stdout (K8s/Docker) → agent (Promtail, Filebeat, Datadog Agent) → store central (Loki, Elasticsearch). Un seul endroit pour chercher.

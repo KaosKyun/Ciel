@@ -1,40 +1,41 @@
 ---
 name: resilience
-description: "Resilience — circuit breaker, retry, timeout, bulkhead, fallback, graceful degradation. A charger quand on rend un systeme resilient."
+description: "Resilience — circuit breakers, retry with backoff, timeouts, bulkheads, graceful degradation. À charger quand on rend un système tolérant aux pannes."
 ---
 
 # Resilience
 
+**Principe premier :** La résilience n'est pas "gérer les erreurs" — c'est concevoir le système pour qu'il continue à fonctionner (même en mode dégradé) quand ses dépendances tombent. Chaque dépendance externe va tomber un jour. La question n'est pas "est-ce que Redis est fiable ?" mais "que fait mon application quand Redis est down ?". Le circuit breaker n'est pas un pattern — c'est un réflexe : ne pas continuer à appeler un service qui ne répond pas.
+
 ## Checklist
-- [ ] Les timeouts sont definis sur toutes les appels externes (connect, read, write)
-- [ ] Circuit breaker configure pour chaque dependance externe (DB, API, Redis)
-- [ ] Retry avec backoff exponentiel + jitter (pas de retry immediat)
-- [ ] Bulkhead isole les ressources critiques (pool de connexions separe par client)
-- [ ] Fallback defini pour chaque point de defaillance (cache, defaults, degrade)
-- [ ] Graceful degradation : le service marche meme si une dependance est down
-- [ ] Test de resilience automatise (chaos engineering)
+- [ ] Timeouts explicites sur tout appel externe : connect < 2s, read < 5s, request < 10s
+- [ ] Circuit breaker sur chaque dépendance : échecs > N → circuit OPEN → fast fail
+- [ ] Retry avec backoff exponentiel + jitter — pas de retry immédiat, max 3-5 tentatives
+- [ ] Bulkhead : pools de connexions séparés par client/type de requête
+- [ ] Fallback défini pour chaque point de défaillance : cache, defaults, degraded mode
+- [ ] Chaos engineering : tester la résilience en production, pas en théorie
 
 ## Anti-patterns
-### Retry infini sans backoff
-**Ce qu'on voit :** `while (!success) { try { await call(); success = true; } catch {} }`.
-**Pourquoi c'est dangereux :** le retry immediat sature le service deja en difficulte. L'incident empire. C'est l'effet "thundering herd".
-**Faire plutot :** retry avec backoff exponentiel (1s, 2s, 4s, 8s, max 3-5 tentatives). Jitter pour eviter la synchronisation. Circuit breaker apres N echecs.
+### Retry sans backoff
+**Ce qu'on voit :** `while (!ok) { try { call(); ok = true; } catch {} }` — retry immédiat en boucle.
+**Pourquoi c'est dangereux :** thundering herd. Le service en difficulté reçoit 1000× plus de requêtes à cause des retries. L'incident s'aggrave. Un retry immédiat est une attaque DDoS contre soi-même.
+**Faire plutôt :** backoff exponentiel avec jitter. 1s → 2s → 4s → 8s, max 5 tentatives. Le jitter (aléatoire ±25%) empêche la synchronisation des retries de tous les clients.
 
 ### Pas de fallback
-**Ce qu'on voit :** si Redis est down, l'application plante avec une erreur 500.
-**Pourquoi c'est dangereux :** un cache down rend toute l'application indisponible. Un point de defaillance unique.
-**Faire plutot :** si le cache est down, servir les donnees depuis la DB (plus lent mais fonctionnel). Fallback vers des valeurs par defaut. Afficher une version degradee.
+**Ce qu'on voit :** si Redis est down → 500 Internal Server Error. Le cache est devenu un point de défaillance unique.
+**Pourquoi c'est dangereux :** une dépendance non-critique (cache, analytics, recommandations) fait tomber tout le service. Le client voit une erreur pour une fonctionnalité qui aurait pu fonctionner sans cette dépendance.
+**Faire plutôt :** si cache down → servir depuis la DB (plus lent mais fonctionnel). Si analytics down → logger localement et réessayer plus tard. Chaque dépendance a un fallback explicite.
 
-### Timeout trop long
-**Ce qu'on voit :** `http.get(url, { timeout: 60000 })` pour une API utilisateur.
-**Pourquoi c'est dangereux :** l'utilisateur attend 60s. Le thread est bloque. Les connexions s'accumulent. L'application tombe en panne de ressources.
-**Faire plutot :** timeout court : connect < 2s, read < 5s, request < 10s. L'utilisateur prefere un echec rapide qu'une attente interminable.
+### Timeout = 60 secondes
+**Ce qu'on voit :** `http.get(url, { timeout: 60000 })`. L'utilisateur attend 60s.
+**Pourquoi c'est dangereux :** les threads/workers sont bloqués. Le pool s'épuise. L'app devient non-réactive. Un timeout trop long transforme une défaillance partielle en outage total.
+**Faire plutôt :** timeouts agressifs. Connect < 2s, read < 5s. L'utilisateur préfère un échec rapide qu'une attente infinie. Fast fail > slow timeout.
 
 ## Patterns
 ### Circuit Breaker
-**Quand :** toute communication avec une dependance externe.
-**Comment :** etat CLOSED (normal) → OPEN (apres N echecs) → HALF_OPEN (apres timeout) → CLOSED si succes. Les appels sont coupe net pendant OPEN. Pas de requete inutile.
+**Quand :** toute communication avec une dépendance externe.
+**Comment :** CLOSED (normal) → OPEN après N échecs consécutifs → HALF_OPEN après timeout → CLOSED si succes. En OPEN, les appels sont rejetés immédiatement (pas de tentative inutile).
 
 ### Bulkhead
-**Quand :** plusieurs clients partagent les memes ressources.
-**Comment :** pool de connexions separe par client ou par type de requete. Si un client sature son pool, les autres clients ne sont pas affectes.
+**Quand :** ressources partagées entre différents appels/clients.
+**Comment :** pool de connexions séparé par client. Si un client sature son pool, les autres ne sont pas affectés. Comme les cloisons étanches d'un navire — une voie d'eau ne coule pas le bateau.

@@ -1,41 +1,42 @@
 ---
 name: communication
-description: "Communication Technique — documentation, diagrammes, RFC, post-mortem, presentation, vulgarisation. A charger quand on communique sur un sujet technique."
+description: "Communication Technique — documentation, diagrammes C4, RFC, post-mortem, presentation, spec writing. A charger quand on communique sur un sujet technique."
 ---
 
 # Communication Technique
 
+**Principe premier :** La communication technique n'est pas "ecrire ce qu'on sait" — c'est faire comprendre ce que l'autre a besoin de savoir. Le plus grand piege de la communication d'expert : la malediction du savoir. Tu sais tellement bien ton sujet que tu ne peux plus imaginer ce que c'est de ne pas le savoir. Resultat : tu sautes des etapes, utilises du jargon, assumes des prerequis — et ton interlocuteur est perdu. La regle d'or : si tu ne peux pas expliquer ton design a un dev qui vient d'arriver, ton design n'est pas pret. Pas parce que le dev est novice — parce que la clarte est un test de comprehension. Si c'est flou dans ta tete, c'est flou sur le papier.
+
 ## Checklist
-- [ ] La documentation est a jour et versionnee (dans le repo, pas sur Confluence perdu)
-- [ ] Les decisions techniques sont communiquees avec le "why" (contexte, pas juste solution)
-- [ ] Les diagrammes sont dans le code (Mermaid, PlantUML, Diagrams as Code)
-- [ ] Les RFC sont utilisees pour les changements significatifs avant implementation
-- [ ] Les post-mortems sont sans blame et avec actions concretes
-- [ ] Le public-cible est identifie avant d'ecrire (dev, manager, client, junior)
-- [ ] La vulgarisation est utilisee pour les concepts complexes (analogie, exemple)
-- [ ] Les presentations techniques sont repetees et chronometrees avant le jour J
+- [ ] La documentation est dans le repo, versionnee avec le code — pas dans Confluence/Notion qui se perime
+- [ ] Les decisions techniques sont communiquees avec le POURQUOI (contexte, alternatives) — pas juste la solution
+- [ ] Les diagrammes utilisent un standard reconnu (C4, UML sequence, Mermaid) — pas un outil proprietaire
+- [ ] Les specs sont ecrites avant le code, lues par l'equipe, et amendees — pas "le code est la spec"
+- [ ] Les post-mortems sont blameless : ce qui s'est passe, pourquoi, comment eviter que ca se reproduise
+- [ ] La communication est adaptee au public : C4 level 1 pour stakeholders, level 3 pour devs
+- [ ] Les PR descriptions expliquent le contexte et les trade-offs — pas juste "fixes bug"
 
 ## Anti-patterns
-### Documentation dans un outil ferme
-**Ce qu'on voit :** toute la doc est dans Confluence/Notion. Personne ne peut modifier sans acces. Pas de versionning.
-**Pourquoi c'est dangereux :** la doc n'est jamais a jour. Les nouveaux arrivants ne savent pas ou chercher. La doc n'est pas accessible dans le workflow (IDE, CI).
-**Faire plutot :** documentation as code. README.md, ADR, wiki dans le repo. Versionnee. Accessible depuis l'IDE. Mise a jour dans la PR. `mkdocs` ou `docusaurus` pour le rendu.
+### Documentation dans un outil separe
+**Ce qu'on voit :** specs dans Confluence, designs dans Notion, decisions dans Trello, code dans GitHub. Rien n'est a jour. Personne ne trouve rien.
+**Pourquoi c'est dangereux :** la documentation eloignee du code est de la documentation morte. Elle n'est pas versionnee avec le code qu'elle decrit. Elle n'est pas revue en PR. Elle pourrit independamment. Le nouveau dev lit la spec Confluence de 2023 et code un feature deja deprecie.
+**Faire plutot :** documentation dans le repo, en markdown, a cote du code qu'elle documente. `docs/architecture.md`, `docs/adrs/`, `services/orders/README.md`. La doc se review en PR comme le code. Si le code change, la doc change dans le meme commit.
 
-### Pas de RFC pour les gros changements
-**Ce qu'on voit :** le tech lead decide de migrer de MySQL a PostgreSQL. L'equipe le decouvre lors du sprint planning.
-**Pourquoi c'est dangereux :** les impacts ne sont pas anticipes. L'equipe n'est pas alignee. Le changement prend 3x plus de temps que prevu.
-**Faire plutot :** RFC (Request For Comments) pour les changements significatifs. Contexte, proposition, alternatives, impacts. Revue par l'equipe. Decision documentee.
+### Diagramme = oeuvre d'art
+**Ce qu'on voit :** 3 jours passes a faire un diagramme UML parfait dans un outil proprietaire. Le diagramme est beau. Le code change 2 semaines plus tard. Le diagramme n'est plus a jour et ne peut pas etre modifie (outil perdu, licence expiree).
+**Pourquoi c'est dangereux :** un diagramme est un outil de communication, pas un livrable. Passer 3 jours sur un diagramme qui sera obsolet dans 2 semaines est du gaspillage. L'outil proprietaire cree un barrier a la modification → le diagramme pourrit.
+**Faire plutot :** diagrammes en texte (Mermaid, PlantUML, Graphviz). Versionnes dans le repo. Render automatiquement dans la CI. Assez bons pour communiquer, pas parfaits. Si le diagramme prend plus d'1h, c'est qu'il est trop detaille.
 
-### Diagrammes en image
-**Ce qu'on voit :** l'architecture est documentee dans un fichier `architecture.png` dans le wiki.
-**Pourquoi c'est dangereux :** l'image n'est pas modifiable facilement. Des que l'architecture change, le diagramme est obsolet. Personne ne veut refaire le dessin.
-**Faire plutot :** diagrams as code : Mermaid, PlantUML, Draw.io dans le repo. Le diagramme est genere a partir du texte. Facile a modifier. Versionne.
+### Post-mortem = blame game
+**Ce qu'on voit :** incident → "qui a deploye ca ?" → recherche de coupable → le dev qui a deploye est blame. Prochaine fois, personne n'osera deployer.
+**Pourquoi c'est dangereux :** chercher un coupable garantit que les incidents futurs seront caches, pas corriges. Les gens ne signalent pas les quasi-incidents. La peur remplace l'apprentissage. L'organisation devient fragile parce qu'elle ne corrige pas ses processus.
+**Faire plutot :** post-mortem blameless. L'incident est cause par le SYSTEME, pas par l'individu. "Qu'est-ce qui dans notre processus a permis cette erreur ?" Action concrete sur le processus pour que ca ne se reproduise pas. L'auteur du deploiement participe au post-mortem sans crainte.
 
 ## Patterns
-### Documentation as Code
-**Quand :** toute documentation technique.
-**Comment :** docs dans le repo (Markdown, Asciidoc). ADR dans `docs/adrs/`. Architecture dans `/docs/diagrams/` (Mermaid/PlantUML). CI genere le rendu. La PR met a jour la doc.
-
 ### C4 Model
-**Quand :** documentation d'architecture.
-**Comment :** 4 niveaux : Context (vision systeme), Container (services), Component (composants internes), Code (classes/DB). Chaque niveau s'adresse a un public different. Diagrams as Code.
+**Quand :** expliquer l'architecture a differents publics.
+**Comment :** 4 niveaux. Level 1 (Context) : le systeme dans son environnement — pour les stakeholders. Level 2 (Containers) : les briques majeures (app, DB, file system) — pour l'equipe tech elargie. Level 3 (Components) : l'interieur de chaque container — pour les devs. Level 4 (Code) : diagramme de classes — seulement si necessaire. Toujours commencer par le niveau 1, toujours avoir un titre et une legende.
+
+### Spec writing
+**Quand :** feature de > 1 semaine.
+**Comment :** ecrire la spec AVANT de coder. Sections : Problema (quoi et pourquoi), Solution proposee (comment), Alternatives considerees, Impact (migration, cout, risques), Plan de test. Review d'equipe avant implementation. La spec peut etre courte (1-2 pages) — le but est l'alignement, pas la perfection.

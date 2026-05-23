@@ -1,40 +1,46 @@
 ---
 name: crypto
-description: "Cryptographie — hash, chiffrement, signature, certificats, TLS, PKI, gestion de cles. A charger quand on manipule de la crypto."
+description: "Cryptographie — principes premiers (confidentialité/intégrité/authenticité), AES-GCM, bcrypt/argon2, TLS, PKI, rotation de clés, non-invention. À charger quand on manipule de la cryptographie."
 ---
 
 # Cryptographie
 
+**Principe premier :** La cryptographie n'est pas une boîte à outils — c'est la science de transformer des problèmes de confiance en problèmes de gestion de clés. Chaque opération crypto répond à une des trois propriétés fondamentales : confidentialité (chiffrement), intégrité (hash, MAC), ou authenticité (signature). Si tu ne sais pas laquelle des trois tu cherches, tu ne devrais pas écrire de code crypto. Règle d'or : ne jamais inventer un algorithme, ne jamais implémenter un algorithme standard soi-même — utiliser une bibliothèque éprouvée (libsodium, Tink, WebCrypto).
+
 ## Checklist
-- [ ] Les hash de mots de passe utilisent un algorithme lent (bcrypt, argon2, scrypt)
-- [ ] Le chiffrement utilise AES-256-GCM (ou ChaCha20-Poly1305) — pas d'AES-ECB
-- [ ] Les cles sont stockees dans un secret manager (pas dans le code, pas dans les env vars du repo)
-- [ ] TLS >= 1.2 partout, TLS 1.3 si possible
-- [ ] Les certificats sont auto-renouveles (LetsEncrypt, cert-manager)
-- [ ] La rotation des cles est automatisee (pas de cle statique depuis 3 ans)
-- [ ] Les algorithmes obsoletes sont interdits (MD5, SHA1, DES, 3DES, RC4)
+- [ ] Les mots de passe sont hashés avec argon2id (ou bcrypt cost ≥ 12) — pas de SHA, pas de MD5
+- [ ] Le chiffrement utilise un algorithme authentifié (AES-256-GCM ou ChaCha20-Poly1305) — pas d'AES-ECB, pas de CBC sans HMAC
+- [ ] Les IV/nonces sont générés aléatoirement à chaque chiffrement — jamais réutilisés
+- [ ] Les clés sont stockées dans un KMS/HSM — pas dans le code, pas dans les variables d'environnement
+- [ ] TLS ≥ 1.2 partout, 1.3 si possible — certificats auto-renouvelés
+- [ ] La rotation des clés est automatisée (max 90 jours) et testée
+- [ ] Les algorithmes obsolètes sont bloqués (MD5, SHA1, DES, 3DES, RC4, RSA < 2048)
 
 ## Anti-patterns
-### Chiffrement maison
-**Ce qu'on voit :** `function encrypt(text) { return Buffer.from(text).toString('base64') }` — appeler ca du chiffrement.
-**Pourquoi c'est dangereux :** le base64 n'est PAS du chiffrement. C'est de l'encodage. N'importe qui peut le decoder. Les algorithmes maison sont presque toujours casses.
-**Faire plutot :** utiliser des librairies eprouvees : `crypto` (Node), `libsodium` (tous langages), `Tink` (Google). AES-256-GCM ou ChaCha20-Poly1305 avec IV aleatoire.
+### Chiffrement "maison"
+**Ce qu'on voit :** `function encrypt(text) { return Buffer.from(text).toString('base64'); }`. Ou pire : un algorithme inventé "parce que c'est plus simple".
+**Pourquoi c'est dangereux :** la cryptographie est le seul domaine où "ça marche" ne veut rien dire. Un algorithme cassé produit un output valide. La sécurité ne se teste pas — elle se prouve mathématiquement. Même les experts se font casser — ta solution maison n'a aucune chance.
+**Faire plutôt :** libsodium (recommandé pour toute nouvelle application), Tink (Google), ou le module `crypto` natif avec AES-256-GCM. Ces bibliothèques ont été auditées, attaquées, et corrigées par des cryptographes.
 
-### MD5 ou SHA1 pour les mots de passe
-**Ce qu'on voit :** `hash = md5(password + salt)` stocke en DB.
-**Pourquoi c'est dangereux :** MD5 se casse en < 1 seconde avec un GPU. SHA1 est tout aussi rapide. Les tables arc-en-ciel existent.
-**Faire plutot :** bcrypt (cost >= 12), argon2id (recommande), scrypt. Algorithmes lents : 1 hash = 100ms+.
+### Clé statique éternelle
+**Ce qu'on voit :** la même clé AES utilisée depuis 3 ans pour chiffrer toutes les données. Pas de rotation, pas de plan de compromission.
+**Pourquoi c'est dangereux :** la rotation limite le rayon de l'explosion. Si une clé fuit et qu'elle chiffre 3 ans de données, TOUT est compromis. Avec une rotation à 90 jours, seules 90 journées sont exposées. La rotation n'est pas pour le cas où la clé est volée — c'est pour QUAND elle est volée.
+**Faire plutôt :** rotation automatique (AWS KMS, Vault, Google Cloud KMS). Les anciennes clés déchiffrent uniquement, ne chiffrent plus. La rotation est un exercice de routine, pas une urgence.
 
-### Cle statique jamais rotatee
-**Ce qu'on voit :** la meme cle AES utilisee depuis 5 ans pour chiffrer toutes les donnees.
-**Pourquoi c'est dangereux :** si la cle fuit, TOUTES les donnees sont compromisees. Pas de rotation = pas de limitation de l'impact.
-**Faire plutot :** rotation automatique tous les 90 jours (AWS KMS, Vault). Chiffrement avec rotation des cles. Les anciennes cles servent seulement au dechiffrement.
+### MD5/SHA1 pour les mots de passe
+**Ce qu'on voit :** `hashed_password = md5(password)` ou `sha1(password + salt)`.
+**Pourquoi c'est dangereux :** MD5 et SHA1 sont conçus pour être RAPIDES — c'est exactement l'inverse de ce qu'on veut pour des mots de passe. Un GPU peut tester des milliards de hashs par seconde. Avec un mot de passe faible, le compte est compromis en secondes.
+**Faire plutôt :** argon2id (vainqueur du Password Hashing Competition, recommandé par l'OWASP). Sinon bcrypt (cost ≥ 12) ou scrypt. Ces algorithmes sont lents ET résistants aux GPU/ASIC. 100ms par hash, c'est imperceptible pour l'utilisateur, dévastateur pour l'attaquant.
 
 ## Patterns
-### AES-256-GCM
-**Quand :** chiffrement de donnees au repos ou en transit.
-**Comment :** AES-256 en mode GCM (authenticated encryption). Fournit confidentialite + integrite + authenticite. IV aleatoire (12 bytes). Tag d'authentification (16 bytes). Pas besoin de se soucier du padding.
+### AES-256-GCM (chiffrement authentifié)
+**Quand :** chiffrement de données au repos ou en transit.
+**Comment :** GCM fournit confidentialité + intégrité + authenticité en un seul mode. IV aléatoire de 12 bytes (jamais réutilisé avec la même clé). Tag d'authentification de 16 bytes vérifié AVANT de déchiffrer. Pas de padding (contrairement à CBC). L'échec de vérification du tag = données corrompues ou attaquées.
 
-### Argon2id
-**Quand :** hash de mots de passe.
-**Comment :** algorithme recommande par l'OWASP et le OWASP Password Hashing Competition. Resistant aux attaques GPU et ASIC. Parametres : memory 64MB, time 3, parallelism 4.
+### Argon2id (hash de mot de passe)
+**Quand :** stockage de mots de passe utilisateur.
+**Comment :** mémoire 64MB, itérations 3, parallélisme 4. Résistant aux GPU (mémoire), aux side-channel (data-dependent), et aux ASIC. Le sel est généré aléatoirement et stocké avec le hash. Augmenter les paramètres tous les 2 ans avec la puissance du matériel.
+
+### Rotation de clés automatisée
+**Quand :** toute clé qui chiffre des données en production.
+**Comment :** le KMS génère une nouvelle clé tous les 90 jours. L'ancienne clé passe en "decrypt only". Les nouvelles données sont chiffrées avec la nouvelle clé. Le déchiffrement essaie la clé courante, puis la liste des anciennes. La rotation est non-destructive et réversible.

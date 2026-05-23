@@ -1,39 +1,42 @@
 ---
 name: data-engineering
-description: "Data Engineering — ETL/ELT, pipelines (Spark/Airflow/dbt), data warehouses, streaming vs batch. A charger quand on construit des pipelines de donnees."
+description: "Data Engineering — pipelines ETL/ELT, Spark/Airflow/dbt, data warehouses, streaming vs batch, qualite des donnees. A charger quand on construit des pipelines de donnees."
 ---
 
 # Data Engineering
 
+**Principe premier :** Le data engineering n'est pas "deplacer des donnees de A a B" — c'est garantir que les bonnes donnees arrivent au bon moment avec la bonne qualite. La donnee est un passif jusqu'a ce qu'elle soit utilisable — un pipeline qui livre des donnees corrompues ou tardives est pire que pas de pipeline du tout (les decisions sont prises sur des donnees fausses). Le vrai defi n'est pas le volume (tout le monde peut scaler) — c'est la qualite, la fraicheur, et la gouvernance. Un pipeline doit etre idempotent (re-run = meme resultat), observable (chaque etape logue ce qu'elle a fait), et testable (tu peux verifier la sortie sans la comparer a elle-meme).
+
 ## Checklist
-- [ ] Le pipeline est idempotent (re-run = meme resultat)
-- [ ] Les donnees sont anonymisees avant d'entrer dans le warehouse (PII scrub)
-- [ ] Le monitoring est en place (duree du job, rows traitees, erreurs)
-- [ ] Les jobs sont parametres (date, batch size) — pas de valeurs hardcodees
-- [ ] Les donnees sources ne sont jamais modifiees (read-only, le pipeline lit une copie ou un replica)
-- [ ] Le schema est versionne (schema evolution = nouvelle colonne, pas modification)
+- [ ] Le pipeline est idempotent : re-run = meme resultat, pas de doublons, pas d'effet cumulatif
+- [ ] Les donnees sont validees a l'ingestion (schema, types, contraintes) — pas de "on verifiera plus tard"
+- [ ] Le lineage est documente (d'ou viennent ces donnees ? quelles transformations ?) — pas de mystere
+- [ ] Les PII sont anonymisees/scrubbees avant d'entrer dans le warehouse (pas dans les requetes)
+- [ ] Les incremental loads utilisent des watermarks fiables (pas `MAX(updated_at)` sur une table sans index)
+- [ ] Le monitoring couvre : fraicheur (age des donnees), volume (trop/pas assez), qualite (% de nulls)
+- [ ] Les backfills sont testees et reversibles — un backfill qui casse la production est un incident
 
 ## Anti-patterns
-### Pipeline non-idempotent
-**Ce qu'on voit :** `INSERT INTO warehouse.orders SELECT * FROM prod.orders WHERE created_at > last_run`. Si le job est relance, les rows de la fenetre precedente sont dupliquees.
-**Pourquoi c'est dangereux :** doublons. Les rapports sont faux. Le CEO prend des decisions sur des chiffres en double.
-**Faire plutot :** utiliser `MERGE` ou `INSERT ON CONFLICT` avec une cle de deduplication. Ou partitionner par date et overwrite la partition.
+### Pipeline fragile aux changements de schema
+**Ce qu'on voit :** le pipeline fait `SELECT *` et insere dans une table cible. La source ajoute une colonne → le pipeline casse. La source supprime une colonne → le pipeline casse.
+**Pourquoi c'est dangereux :** les schemas evoluent, c'est normal. Un pipeline qui casse a chaque changement de schema est un pipeline qui passe plus de temps en panne qu'en production. Chaque panne = donnees manquantes = decisions sur des donnees incompletes.
+**Faire plutot :** definir un contrat de schema (schema registry, Avro, Protobuf). Evolution compatible : ajouter des colonnes optionnelles, jamais supprimer sans migration. Le pipeline lit les colonnes explicitement, pas `SELECT *`. Tests d'evolution de schema dans la CI.
 
-### PII dans le warehouse
-**Ce qu'on voit :** copie brute de la table users (email, phone, adresse) dans le data warehouse sans anonymisation.
-**Pourquoi c'est dangereux :** le data warehouse est accessible par les analystes. Violation RGPD. En cas de leak, fuite massive.
-**Faire plutot :** hash/hash-salt pour les champs identifiants. Supprimer les champs non necessaires. Tokenization pour les besoins de jointure.
+### "On nettoiera les donnees plus tard"
+**Ce qu'on voit :** ingestion brute de tout. "On fera la qualite dans le data warehouse." 6 mois plus tard : 500 To de donnees, 40% de valeurs nulles, colonnes inutilisables.
+**Pourquoi c'est dangereux :** la qualite des donnees se degrade avec le temps — chaque transformation ajoute une couche d'interpretation. Plus tu attends pour nettoyer, plus c'est dur et cher. Le data warehouse devient un data swamp.
+**Faire plutot :** validation a l'ingestion (schema, types, contraintes metier). Rejeter les donnees invalides dans une dead letter queue, pas dans le warehouse. Les donnees propres sont plus petites, plus rapides, plus utiles.
 
-### Script cron sans monitoring
-**Ce qu'on voit :** un script bash lance par cron. Pas d'alerte s'il echoue. Silence pendant 3 semaines.
-**Pourquoi c'est dangereux :** le rapport est vide. Personne ne le sait. Decision business sur des donnees perimees.
-**Faire plutot :** orchestrateur (Airflow, Prefect, Dagster). Chaque job a un SLA. Alerte si le job ne termine pas dans le delai.
+### Pipeline = boite noire
+**Ce qu'on voit :** le pipeline tourne dans Airflow/Dagster. Pas de logs structures. "Le DAG a echoue" — aucun diagnostic possible sans regarder le code.
+**Pourquoi c'est dangereux :** sans observabilite, chaque echec est une enquete policiere. Les pipelines sont des programmes distribues — ils echouent pour 50 raisons differentes. Sans logs structures (combien de rows traitees, combien de temps par etape, quelles valeurs aberrantes), le MTTR est de l'ordre de l'heure.
+**Faire plutot :** chaque etape logue : nombre de records traites, duree, nombre d'erreurs/valides, watermark utilise. Dashboards de sante par pipeline. Alertes sur deviation (moins de donnees que d'habitude = probleme upstream).
 
 ## Patterns
-### ELT (Extract, Load, Transform)
-**Quand :** le volume est assez gros pour que la transformation soit couteuse.
-**Comment :** extraire les donnees brutes → les charger dans le warehouse → transformer avec dbt ou SQL. La transformation est versionnee et testable.
+### Medaillon architecture (Bronze/Silver/Gold)
+**Quand :** data lake ou data warehouse avec plusieurs consommateurs.
+**Comment :** Bronze = donnees brutes (ingestion, append-only, schema preserve). Silver = donnees nettoyees, deduplicatees, jointes. Gold = donnees metier agreggees, pretes pour la consommation. Chaque couche a un proprietaire et un SLA de fraicheur.
 
-### Partitionnement par date
-**Quand :** les requetes filtrent toujours par date.
-**Comment :** `PARTITION BY RANGE (created_at)`. Chaque partition = un jour. Les vieilles partitions peuvent etre compressees ou archivees.
+### Watermark incremental
+**Quand :** pipeline qui traite des donnees par lots incrementaux.
+**Comment :** utiliser une colonne de watermark monotone (`updated_at`, `event_time`, `sequence_id`). Stocker le watermark precedent. Charger `WHERE updated_at > last_watermark`. Gerer les late arrivals avec une fenetre de tolerance (ex: recharger les 2 dernieres heures en plus du delta).

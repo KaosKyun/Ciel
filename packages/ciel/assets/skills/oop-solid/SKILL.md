@@ -1,40 +1,42 @@
 ---
 name: oop-solid
-description: "OOP et SOLID — programmation orientee objet, principes SOLID, heritage, composition, polymorphisme. A charger quand on travaille avec des classes ou de l'OOP."
+description: "OOP & SOLID — classes, objets, heritage, composition, encapsulation, principes SOLID comme garde-fous. A charger quand on travaille avec des classes."
 ---
 
 # OOP & SOLID
 
+**Principe premier :** SOLID n'est pas un dogme — c'est un systeme d'alerte precoce. Chaque principe ne te dit pas quoi faire, il te dit QUAND le design est en train de pourrir. Single Responsibility = ta classe a plus d'une raison de changer. Open/Closed = tu modifies du code existant au lieu d'etendre. Liskov = ta sous-classe ne peut pas remplacer la classe mere. Interface Segregation = tes clients dependent d'interfaces qu'ils n'utilisent pas. Dependency Inversion = tes modules de haut niveau dependent des bas niveau. Le but n'est pas un score SOLID parfait — c'est un code qui accepte le changement sans se briser. La composition est par defaut, l'heritage est l'exception.
+
 ## Checklist
-- [ ] Chaque classe a une responsabilite unique (SRP) — pas de "classe fourre-tout"
-- [ ] Les classes sont fermees a la modification, ouvertes a l'extension (OCP)
-- [ ] Les sous-classes sont substituables a leurs classes parentes (LSP)
-- [ ] Les interfaces sont segregees (ISP) — pas d'interface avec 20 methodes inutiles
-- [ ] Les dependances sont injectees (DIP) — pas de `new` dans le constructeur
-- [ ] La composition est preferee a l'heritage (favor composition over inheritance)
-- [ ] Pas de getters/setters systeme (Tell, Don't Ask)
+- [ ] Chaque classe a une responsabilite unique (SRP) — decrire son job en une phrase sans "et"
+- [ ] Les classes sont ouvertes a l'extension, fermees a la modification (OCP) — nouveau comportement = nouveau code, pas modification
+- [ ] Les sous-classes sont substituables a leur classe mere (LSP) — pas de `if (obj instanceof SpecialCase)`
+- [ ] Les interfaces sont minimales (ISP) — pas d'interface de 15 methodes dont 10 jettent `NotImplementedException`
+- [ ] Les modules haut niveau ne dependent pas des bas niveau (DIP) — les deux dependent d'abstractions
+- [ ] L'heritage est utilise pour "est-un", pas pour reutiliser du code — composition > heritage
+- [ ] Le couplage est reduit : un changement dans une classe ne force pas une cascade de changements
 
 ## Anti-patterns
-### Dieu du systeme (God Object)
-**Ce qu'on voit :** une classe `UserManager` de 2000 lignes qui gere tout (validation, persistence, email, auth, billing).
-**Pourquoi c'est dangereux :** impossible a tester, impossible a maintenir, impossible a etendre. Un bug dans une methode impacte tout le systeme.
-**Faire plutot :** SRP : `UserValidator`, `UserRepository`, `EmailService`, `AuthService`, `BillingService`. Chaque classe fait UNE chose.
+### SOLID comme religion
+**Ce qu'on voit :** chaque classe est precedee de `interface IFoo`. Chaque `new` est remplace par une factory + DI container. 50 classes pour afficher "Hello World".
+**Pourquoi c'est dangereux :** SOLID utilise en dogme produit l'inverse de son intention : code rigide, difficile a changer, difficile a comprendre. Une interface pour chaque classe = explosion du nombre de fichiers. DI partout = perdu dans les couches d'indirection.
+**Faire plutot :** appliquer SOLID la ou le changement est PROBABLE. Un composant stable peut violer SOLID — c'est acceptable. Introduire une abstraction quand un deuxieme cas concret apparait (pas avant). SOLID est un outil de diagnostic, pas un objectif de design.
 
-### Heritage abusif
-**Ce qu'on voit :** `class Admin extends User` → `class SuperAdmin extends Admin` → `class GuestUser extends User` — 6 niveaux d'heritage.
-**Pourquoi c'est dangereux :** le couplage est fort. Changer la classe parente peut casser toutes les sous-classes. Le "diamond problem" guette.
-**Faire plutot :** composition : `class Admin { constructor(user, permissions) {} }`. OU interfaces. L'heritage est pour le partage de comportement, pas de code.
+### Heritage deep chain
+**Ce qu'on voit :** `Animal → Mammal → Canine → Dog → Labrador → GoldenLabrador`. Chaque classe ajoute un comportement. Pour comprendre `GoldenLabrador`, il faut lire 6 classes.
+**Pourquoi c'est dangereux :** l'heritage profond cree un couplage vertical. Changer `Animal` affecte toutes les 200 sous-classes. Impossible de comprendre une classe isolement. Le YAGNI frappe fort : la plupart des classes intermediaires ne sont jamais utilisees directement.
+**Faire plutot :** limiter a 1-2 niveaux d'heritage maximum. Composer les comportements (Strategy, Decorator) plutot qu'heriter. Si une classe a plus de 2 ancetres concrets, repenser le design.
 
-### Setter partout
-**Ce qu'on voit :** `user.setName("John"); user.setEmail("john@example.com"); user.setStatus("active")` — setters pour chaque champ.
-**Pourquoi c'est dangereux :** l'objet peut etre dans un etat invalide. Pas d'encapsulation. Le compilateur ne peut pas garantir l'integrite.
-**Faire plutot :** immutabilite. Les champs sont `readonly`/`final`. Construction via constructeur. Methodes qui retournent une nouvelle instance (pas de mutation).
+### Classe "Manager" / "Utils" / "Helper"
+**Ce qu'on voit :** `UserManager` (3000 lignes), `DateUtils` (150 fonctions statiques), `StringHelper` (tout le monde ajoute des trucs).
+**Pourquoi c'est dangereux :** les noms en -Manager, -Utils, -Helper sont des aveux d'echec de design. Ils ne disent rien sur ce que fait la classe. Ils attirent le code non relie comme un aimant. Une classe qui s'appelle `Manager` n'a pas de responsabilite — elle en a 50.
+**Faire plutot :** nommer les classes par leur responsabilite reelle. `UserRepository`, `UserAuthenticator`, `UserNotificationSender`. Si une classe a plus de 10 methodes publiques, la splitter par responsabilite. Les "utils" sont un signe qu'un concept manque dans le domaine.
 
 ## Patterns
-### Dependency Injection
-**Quand :** une classe a besoin de services externes (DB, API, logger).
-**Comment :** les dependances sont passeees dans le constructeur (constructor injection). Le container DI (NestJS, Spring, Guice) cree les instances. La classe ne cree pas ses dependances.
+### Composition over inheritance
+**Quand :** quasi tout le temps.
+**Comment :** au lieu de `class Duck extends Bird extends Animal`, injecter les comportements : `class Duck { constructor(flyBehavior, quackBehavior, swimBehavior) }`. Chaque comportement est interchangeable. Testable independamment. Le duck peut changer de FlyBehavior au runtime.
 
-### Value Object
-**Quand :** un type primitif ne suffit pas (Email, Money, Address, PhoneNumber).
-**Comment :** `class Email { constructor(readonly value: string) { this.validate(value); } private validate(email) { ... } }`. L'objet encapsule la validation et le comportement.
+### Dependency injection par constructeur
+**Quand :** toute classe qui depend d'un service externe (DB, API, file system).
+**Comment :** `constructor(db: Database, logger: Logger)` — les dependances sont explicites. Pas de `new Database()` dans la classe. Pas de singleton global (`Database.getInstance()`). Le test peut injecter un mock/adaptateur. La classe ne sait pas CREER ses dependances, elle les RECOIT.

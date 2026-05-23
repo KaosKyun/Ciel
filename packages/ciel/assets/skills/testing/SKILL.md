@@ -1,40 +1,41 @@
 ---
 name: testing
-description: "Testing — tests unitaires, integration, E2E, snapshot, mutation, TDD, couverture. A charger quand on ecrit ou planifie des tests."
+description: "Testing — RED-GREEN-REFACTOR, test pyramid, testing behavior not implementation, FIRST principles, flaky test quarantine. À charger quand on écrit ou planifie des tests."
 ---
 
 # Testing
 
+**Principe premier :** Les tests ne sont pas là pour prouver que le code marche — ils sont là pour te permettre de changer le code sans peur. Un test qui ne survit pas à un refactoring n'est pas un test, c'est un otage. Le but ultime n'est pas 100% de couverture — c'est la confiance : si les tests passent, je peux déployer. Si tu ne peux pas déployer après un test vert, les tests ont échoué, pas le code.
+
 ## Checklist
-- [ ] Le test echoue d'abord (RED) avant de coder la solution (GREEN)
-- [ ] Les tests unitaires couvrent les cas limites (edge cases, erreurs, valeurs nulles)
-- [ ] Les tests d'integration verifient les vrais appels DB/API (pas de mocks systeme)
-- [ ] Les tests E2E couvrent les parcours critiques (login, paiement, inscription)
-- [ ] Les tests sont isoles : pas de state partage, pas d'ordre d'execution假设
-- [ ] La couverture est mesuree (minimum 80% lignes, 100% sur les cas critiques)
-- [ ] Les tests sont rapides (< 1s par test unitaire, < 10s pour toute la suite)
+- [ ] RED (test échoue) → GREEN (passe) → REFACTOR — dans cet ordre, toujours
+- [ ] Les tests testent le comportement observable, pas l'implémentation interne
+- [ ] Test pyramid : 70% unitaires, 20% intégration, 10% E2E — pas de pyramide inversée
+- [ ] Chaque test est isolé — pas d'ordre d'exécution, pas de state partagé, pas de dépendance
+- [ ] Les tests sont FIRST : Fast, Isolated, Repeatable, Self-validating, Timely
+- [ ] Flaky test detection : > 2% de flaky → quarantaine automatique → fix ou delete dans le sprint
 
 ## Anti-patterns
-### Tester l'implementation pas le comportement
-**Ce qu'on voit :** le test verifie des methodes privees, des etats internes, ou l'ordre d'appel.
-**Pourquoi c'est dangereux :** le refactoring casse les tests meme si le comportement est correct. Tests fragiles, maintenance couteuse.
-**Faire plutot :** tester le comportement observable. Entree → sortie. Ce que l'utilisateur ou le systeme voit, pas comment c'est implemente.
+### Tester l'implémentation
+**Ce qu'on voit :** test qui mock `repository.findById()` et vérifie qu'il est appelé avec les bons arguments. Le test sait QUELLES méthodes le code appelle, pas ce que le code produit.
+**Pourquoi c'est dangereux :** le test est couplé à l'implémentation. Tu refactores en inline le `findById()` → le test casse alors que le comportement est identique. Ces tests ne donnent PAS la confiance pour refactorer — ils empêchent le refactoring.
+**Faire plutôt :** tester le comportement observable. Input → output. "Given un utilisateur avec id 123, when GET /users/123, then retourne {name, email}". Peu importe si le handler appelle un service ou un repository.
 
-### Mock systematique
-**Ce qu'on voit :** tout est mocke — DB, API, filesystem, horloge. Le test ne teste rien de reel.
-**Pourquoi c'est dangereux :** les mocks mentent. Le test passe, la production casse. Le faux positif cree une fausse confiance.
-**Faire plutot :** mocker les frontieres systeme (IO, reseau). Tester avec de vraies DB en integration. Mock API uniquement en unitaire.
+### Mock absolument tout
+**Ce qu'on voit :** DB mockée, Redis mocké, filesystem mocké, horloge mockée. Le test unitaire passe, le test d'intégration n'existe pas. Premier déploiement → explosion.
+**Pourquoi c'est dangereux :** les mocks mentent. Un mock Redis ne vérifie pas le format de la clé. Un mock DB ne vérifie pas la contrainte UNIQUE. Le test passe mais le code est cassé en condition réelle. C'est la fausse confiance — pire que pas de confiance.
+**Faire plutôt :** mocker les frontières lentes/non-déterministes (appels HTTP externes, emails). Tester avec une vraie DB en intégration (testcontainers, pg_tmp). La DB est le composant le plus important à tester réellement.
 
-### Test qui depend d'un autre
-**Ce qu'on voit :** le test B a besoin que le test A ait deja tourne pour avoir des donnees.
-**Pourquoi c'est dangereux :** l'ordre d'execution devient un contrat implicite. Un test seul echoue. CI flaky.
-**Faire plutot :** chaque test cree ses propres donnees (setup/teardown). Ordre aleatoire = les tests passent toujours.
+### Test flaky toléré
+**Ce qu'on voit :** "ce test faille parfois, relance le job". Le pipeline passe au 3ème rerun. Le flaky rate est de 5% mais personne ne le mesure.
+**Pourquoi c'est dangereux :** chaque test flaky érode la confiance dans le pipeline. Quand le rouge ne veut plus dire "bug", les vrais bugs passent. L'équipe développe un réflexe "rerun" au lieu de "investigate". C'est la mort lente de la CI.
+**Faire plutôt :** quarantaine automatique. Flaky > 2% → test déplacé dans une suite séparée. Le pipeline principal reste strict (vert = ok, rouge = bug). La quarantaine est prioritaire — chaque test est fixé, réécrit, ou supprimé.
 
 ## Patterns
 ### Test pyramid
 **Quand :** toute suite de tests.
-**Comment :** 70% tests unitaires (rapides, isoles), 20% tests integration (API/DB reelles), 10% tests E2E (parcours critiques). Base large et stable, sommet etroit et lent.
+**Comment :** base large de tests unitaires (rapides, isolés, nombreux). Milieu de tests d'intégration (DB réelle, API réelle). Sommet étroit de tests E2E (parcours critiques). Si la pyramide s'inverse (beaucoup d'E2E, peu d'unitaires), le feedback est lent et le debugging est coûteux.
 
-### FIRST principle
-**Quand :** ecrire un test.
-**Comment :** Fast (rapide), Isolated (isole), Repeatable (reproductible), Self-validating (auto-valide), Timely (ecrit au bon moment — avant le code).
+### FIRST principles
+**Quand :** écrire chaque test.
+**Comment :** Fast (< 5ms unitaire, < 100ms intégration), Isolated (pas d'ordre), Repeatable (même résultat à chaque run), Self-validating (assertion, pas de log à vérifier manuellement), Timely (écrit AVANT le code — RED first).

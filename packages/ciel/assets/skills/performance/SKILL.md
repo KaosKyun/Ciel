@@ -1,40 +1,41 @@
 ---
 name: performance
-description: "Performance — profiling, benchmarking, optimisation, latence, throughput, bottleneck, caching. A charger quand on optimise les performances."
+description: "Performance — mesurer avant d'optimiser, P95 > moyenne, performance budgets, profiling, N+1, slow queries. À charger quand on parle d'optimisation."
 ---
 
 # Performance
 
+**Principe premier :** "Make it work, make it right, make it fast" — dans cet ordre. La performance est une feature, pas une propriété magique. Comme toute feature, elle a un coût et doit être mesurée. Le piège classique est l'optimisation prématurée : du code complexe et illisible pour gagner 5ms sur un endpoint appelé 10×/jour. La règle d'or : ne jamais optimiser sans avoir mesuré. Le bottleneck réel n'est presque jamais là où on pense. Et la métrique qui compte n'est pas la moyenne — c'est le P95 (ou P99). La moyenne ment parce qu'elle cache les outliers, et ce sont les outliers qui pourrissent l'expérience utilisateur.
+
 ## Checklist
-- [ ] Les metriques RED (Rate, Errors, Duration) sont mesurees pour chaque endpoint
-- [ ] Un benchmark existe pour les parcours critiques (perf-test dans la CI)
-- [ ] Le cache est utilise avec TTL explicite et strategie d'invalidation
-- [ ] Les requetes N+1 sont identifiees et resolues (eager loading, batch)
-- [ ] Les assets sont optimises (minification, compression, lazy loading)
-- [ ] Les indexes DB sont verifies (EXPLAIN ANALYZE sur les requetes lentes)
-- [ ] Le temps de reponse P95 est connu et suivi (pas seulement la moyenne)
+- [ ] Profiling AVANT optimisation — jamais d'optimisation sur une intuition
+- [ ] Métriques RED par endpoint : Rate, Errors, Duration (P50, P95, P99)
+- [ ] Les requêtes N+1 sont identifiées et résolues (eager loading, batch, JOIN)
+- [ ] Performance budget dans la CI : JS < 200KB, LCP < 2.5s, P95 < 500ms
+- [ ] Les requêtes lentes sont loguées (> 100ms) avec EXPLAIN automatique
+- [ ] Cache en place avec TTL explicite — pas de calcul redondant sur la hot path
 
 ## Anti-patterns
-### Optimisation prematuree
-**Ce qu'on voit :** du code complexe "pour la perf" alors que le parcours fait 10 req/s.
-**Pourquoi c'est dangereux :** le code est illisible, difficile a maintenir, et l'optimisation cible peut-etre le mauvais endroit.
-**Faire plutot :** "Make it work, make it right, make it fast" — dans cet ordre. Mesurer avant d'optimiser. Les vrais goulots sont rarement ceux qu'on imagine.
+### Optimisation prématurée
+**Ce qu'on voit :** micro-optimisations de boucles, bit-shifting, allocation pooling — sur un endpoint appelé 100×/jour. Le code est devenu illisible pour gagner 2ms.
+**Pourquoi c'est dangereux :** l'optimisation prématurée a un double coût : le code devient plus dur à maintenir, et le temps passé à optimiser n'est pas passé sur des vrais problèmes. Pire : l'optimisation cible souvent le mauvais endroit parce qu'elle est basée sur l'intuition, pas sur la mesure.
+**Faire plutôt :** "Make it work, make it right, make it fast." Mesurer. Profiler. Identifier le vrai bottleneck (souvent une requête DB, pas une boucle). Optimiser là où le profiling montre un gain. Si le gain est < 10%, se demander si la complexité ajoutée le justifie.
 
-### Optimiser la moyenne pas le percentile
-**Ce qu'on voit :** "le temps de reponse moyen est de 200ms, c'est bon". Mais le P95 est a 5s.
-**Pourquoi c'est dangereux :** la moyenne cache la queue. 1% des requetes a 10s pourrit l'experience utilisateur.
-**Faire plutot :** P95, P99, et P999. La moyenne est un mensonge. Les outliers sont les vrais problemes.
+### Optimiser la moyenne
+**Ce qu'on voit :** "la latence moyenne est de 200ms, c'est bon." Le P95 est à 8 secondes — 5% des utilisateurs attendent 8 secondes. Mais la moyenne est belle.
+**Pourquoi c'est dangereux :** la moyenne est insensible aux outliers. 95% des requêtes à 50ms + 5% à 10s = moyenne de ~550ms. Tu regardes 550ms et tu penses "acceptable". Mais 5% de tes utilisateurs ont une expérience exécrable. Les percentiles existent pour cette raison précise.
+**Faire plutôt :** P50 (médiane), P95, P99. Le P95 est l'expérience "normale dans le pire cas". Le P99 est l'expérience "vraiment mauvaise". Alerter et optimiser sur les percentiles, pas sur la moyenne.
 
-### Cache sans invalidation
-**Ce qu'on voit :** `cache.set('user_data', data)` sans TTL ni strategie d'eviction.
-**Pourquoi c'est dangereux :** les donnees stale sont servies indefiniment. L'utilisateur voit des informations obsoletes.
-**Faire plutot :** TTL explicite. Invalidation sur write (cache-aside). Cache court (60s) pour les donnees dynamiques, long (1h) pour les donnees statiques.
+### Cache sans stratégie
+**Ce qu'on voit :** `cache.set(key, data)` sans TTL. Le cache garde des données stales indéfiniment. Ou pire : le cache est invalidé à chaque écriture mais jamais rechargé (cache toujours vide).
+**Pourquoi c'est dangereux :** un cache mal conçu est pire que pas de cache — il ajoute de la latence (aller-retour Redis) pour servir des données périmées ou pour ne jamais avoir de hit. Le hit rate est la métrique qui dit si ton cache sert à quelque chose.
+**Faire plutôt :** TTL explicite basé sur la fraîcheur acceptable. Surveiller le hit rate — si < 50%, le cache est probablement mal configuré. Cache-aside pour les lectures, write-through pour les lectures après écriture.
 
 ## Patterns
 ### Performance budget
 **Quand :** application web ou mobile.
-**Comment :** budget defini : JS < 200KB, page < 1MB, LCP < 2.5s, TTI < 3s. Mesure dans la CI. Si le budget est depasse, la PR est bloquee.
+**Comment :** définir des seuils dans la CI. JS bundle < 200KB, page weight < 1MB, LCP < 2.5s, TTI < 3s, P95 API < 500ms. Si la PR dépasse, bloquer. Le budget force la discipline — comme un budget financier, tu ne peux pas ajouter sans enlever ailleurs.
 
 ### Slow query monitoring
-**Quand :** application avec base de donnees.
-**Comment :** loguer toutes les requetes > 100ms. `EXPLAIN ANALYZE` automatique. Alerte si une nouvelle query lente apparait. Index manquant = ticket prioritaire.
+**Quand :** toute application avec une base de données.
+**Comment :** loguer toute requête > 100ms avec son EXPLAIN ANALYZE. Dashboard des slow queries. Alerte si une nouvelle slow query apparaît (requête qui était rapide avant, lente maintenant = probablement un index ou un volume de données). Chaque slow query est un ticket.
