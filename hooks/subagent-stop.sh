@@ -30,10 +30,20 @@ except:
 TOKENS=$((RESULT * 133 / 100))
 
 # Log to evals/results (if CIEL_TRACE_ID set)
+# Uses mkdir-based locking for atomic JSONL appends (portable, no flock dependency)
 if [[ -n "${CIEL_TRACE_ID:-}" ]]; then
   LOG_DIR="$HOME/.claude/plugins/ciel/evals/results"
   mkdir -p "$LOG_DIR" 2>/dev/null || true
-  echo "{\"trace_id\":\"$CIEL_TRACE_ID\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"agent\":\"$AGENT\",\"tokens\":$TOKENS}" >> "$LOG_DIR/subagent-stops.jsonl" 2>/dev/null || true
+  LOCK_DIR="$LOG_DIR/.write.lock"
+  # Spin-wait with 1s timeout to avoid infinite block
+  for _ in $(seq 1 10); do
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+      echo "{\"trace_id\":\"$CIEL_TRACE_ID\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"agent\":\"$AGENT\",\"tokens\":$TOKENS}" >> "$LOG_DIR/subagent-stops.jsonl" 2>/dev/null || true
+      rmdir "$LOCK_DIR" 2>/dev/null || true
+      break
+    fi
+    sleep 0.1
+  done
 fi
 
 # Warn if truncation suspected

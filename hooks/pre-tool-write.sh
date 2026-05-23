@@ -6,7 +6,7 @@
 # Always exits 0 (never blocks), outputs reminders via stderr (reliable channel)
 # Dispatch counter: /tmp/ciel_dispatched set by SubagentStart hooks (ciel-researcher/explorer)
 
-INPUT=$(cat)
+INPUT=$(cat 2>/dev/null || echo "{}")
 
 FILE_PATH=$(echo "$INPUT" | python3 -c "
 import sys, json
@@ -23,10 +23,10 @@ except:
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
 
 # === DISPATCH GATE CHECK ===
-# /tmp/ciel_dispatched is created by SubagentStart hooks when ciel-researcher/explorer dispatch
+# /tmp/ciel_dispatched.* files are created by SubagentStart hooks when any Ciel agent dispatches
+# PID-based naming prevents false positives/negatives across concurrent sessions
 DISPATCHED=0
-DISPATCH_FLAG="/tmp/ciel_dispatched"
-if [ -f "$DISPATCH_FLAG" ]; then
+if ls /tmp/ciel_dispatched.* >/dev/null 2>&1; then
   DISPATCHED=1
 fi
 

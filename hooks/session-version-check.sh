@@ -5,7 +5,7 @@
 set -euo pipefail
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-LOCAL_VERSION=$(cat "$PROJECT_DIR/VERSION" 2>/dev/null || echo "0.0.0")
+LOCAL_VERSION=$(cat "$PROJECT_DIR/VERSION" 2>/dev/null || echo "0.0.0" || true)
 
 REMOTE_VERSION=$(curl -fsSL --connect-timeout 3 "https://raw.githubusercontent.com/KaosKyun/Ciel/main/VERSION" 2>/dev/null || true)
 

@@ -5,8 +5,8 @@
 # Remove or disable this hook if you find it intrusive:
 #   jq 'del(.hooks.PreToolUse[0])' .claude/settings.json > tmp && mv tmp .claude/settings.json
 
-INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""')
+INPUT=$(cat 2>/dev/null || echo "{}")
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""' 2>/dev/null || echo "")
 
 [ -z "$FILE_PATH" ] && exit 0
 

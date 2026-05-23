@@ -2,8 +2,8 @@
 # CIEL FILE TRACKING: log modified files for RELIRE trigger
 # exit 0 = allow (always)
 
-INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""')
+INPUT=$(cat 2>/dev/null || echo "{}")
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""' 2>/dev/null || echo "")
 TRACK_FILE="$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json"
 
 if [ -z "$FILE_PATH" ] || [ -z "$CLAUDE_PROJECT_DIR" ]; then
