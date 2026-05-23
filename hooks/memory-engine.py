@@ -594,6 +594,19 @@ def cmd_rebuild_index(args):
         print(f"No memory directory at {base}", file=sys.stderr)
         sys.exit(1)
 
+    # Preserve trigger counts from existing index. cmd_query updates counts
+    # in the index but does not write back to episode frontmatter; rebuilding
+    # from scratch would lose all accumulated trigger history.
+    old_index = base / 'index.json'
+    old_mems = {}
+    if old_index.exists():
+        try:
+            with open(old_index) as f:
+                old_data = json.load(f)
+            old_mems = old_data.get('memories') or {}
+        except (json.JSONDecodeError, OSError):
+            pass
+
     idx = {
         "version": 2,
         "memories": {},
@@ -616,6 +629,15 @@ def cmd_rebuild_index(args):
             mid = fm.get('id')
             if not mid:
                 continue
+            # Merge: keep the higher trigger_count between old index and file frontmatter
+            old = old_mems.get(mid) if old_mems else None
+            if old:
+                old_tc = old.get('trigger_count') or 0
+                file_tc = fm.get('trigger_count') or 0
+                fm['trigger_count'] = max(old_tc, file_tc)
+                old_lt = old.get('last_triggered')
+                if old_lt and not fm.get('last_triggered'):
+                    fm['last_triggered'] = old_lt
             fm['file'] = str(mdfile.relative_to(base))
             idx['memories'][mid] = fm
             for path in fm.get('path_patterns') or []:
