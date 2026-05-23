@@ -1,67 +1,50 @@
 ---
 name: relire-critic
-description: How to self-review code effectively — hostile critique methodology, risk taxonomy, and quality checklist. Generates exactly 3 targeted critiques (functional, import/API, data assumption) then resolves each. Applicable after any code change.
-allowed-tools: Read, Grep, Glob, Bash
+description: "Revue hostile post-écriture — 4 RISQUES (fonctionnel, import, data, conformité skills domaine), checklist qualité 8 items, verdict BLOCKING/IMPORTANT/MINOR. Usage interne par ciel-critic MODE=RELIRE."
+internal: true
 ---
 
-# Code Self-Review — Hostile Critique Methodology
+# Relire Critic — Revue hostile
 
-## What this covers
+**Principe premier :** Relire le code comme si quelqu'un d'autre l'avait écrit. Ton job est de trouver ce qui peut casser, pas de confirmer ce qui marche. L'isolation fait ta force — tu n'as pas vu l'implémentation, tu ne peux pas rationaliser les angles morts de l'auteur.
 
-How to review your own code as if someone else wrote it. Self-review fails because the author reinforces their own blind spots (degeneration of thought, CriticBench 2024). This methodology forces adversarial thinking.
+## Checklist
+- [ ] 4 RISQUES émis (fonctionnel, import/API, data assumption, conformité skills domaine)
+- [ ] Chaque RISQUE a file:line + résolution FIX/ACCEPT/DEFER
+- [ ] Checklist qualité 8 items complétée avec preuves
+- [ ] Verdict BLOCKING/IMPORTANT/MINOR émis
+- [ ] Au moins 1 des 4 risques est actionnable (FIX, pas ACCEPT/DEFER)
 
-## Core principle
+## Les 4 RISQUES (distribution obligatoire)
 
-Read changed files **as if someone else wrote them**. Your job is to find what could fail, not to confirm what works.
+1. **Fonctionnel** — Qu'est-ce qui casse pour l'utilisateur ? "This fails when..."
+2. **Import / API surface** — Cet import existe-t-il ? Le contrat API est-il correct ?
+3. **Data assumption** — Cette colonne DB / format / shape correspond-elle à la réalité ?
+4. **Conformité skills domaine** — Vérifier 1 item de la checklist du skill domaine chargé. Si `database-design` est chargé → vérifier que les FK ont un index. Si `api-design` → vérifier la pagination.
 
-## Methodology: 3 RISQUES
+## Résolution
 
-Generate EXACTLY 3 specific critiques of the changed code. Not 2, not 5 — 3 forces focus.
+Pour chaque RISQUE, choisir UNE :
+- **FIX** : correction exacte — nommer le changement de code
+- **ACCEPT** : pourquoi le risque est acceptable (TTL ? fenêtre < 1s ? cosmétique ?)
+- **DEFER** : référence du ticket + raison hors-scope
 
-### Mandatory distribution
+0 FIX → suspect. Réexaminer.
 
-Each set of 3 RISQUES must include:
+## Checklist qualité (8 items)
 
-1. **Functional risk** — what breaks for users? "This fails when..."
-2. **Import/API surface check** — does this import path actually exist? Is the API contract correct?
-3. **Data assumption check** — does this DB column / response shape / format actually match reality?
+| # | Item | Evidence |
+|---|------|----------|
+| 1 | Quality gates (complexité < 15, nesting < 4, fonctions < 50 lignes) | file:line |
+| 2 | Tous les imports existent aux chemins spécifiés | file:line |
+| 3 | Colonnes DB vérifiées dans le vrai schéma | file:line |
+| 4 | Mocks de test sur le bon host:port | file:line |
+| 5 | Tests indépendants de l'implémentation | file:line |
+| 6 | Pas de duplication non-extraite | grep output |
+| 7 | Linter clean (0 nouvelles violations) | command output |
+| 8 | Un staff engineer approuverait sans changement | rationale |
 
-### Specificity rules
-
-- Concrete, not abstract: "might have bugs" is invalid
-- Reference specific `file:line` where the risk lives
-- Can't generate 3 specific critiques → you don't understand the code → read more
-
-### Format
-
-```
-RISQUE: [what could fail] parce que [root cause] — IMPACT: [consequence]
-```
-
-## Resolution
-
-For each RISQUE, choose ONE:
-
-- **FIX**: exact correction needed — name the code change
-- **ACCEPT**: why the risk is acceptable (TTL? cosmetic? window < 1s?)
-- **DEFER**: issue reference + why out of scope
-
-If 0 fixes needed → suspicious. Re-examine for specificity.
-
-## Quality checklist (8 items)
-
-Apply after resolving RISQUES:
-
-1. Quality gates respected? (complexity < 15, nesting < 4, functions < 50 lines)
-2. All new imports exist in actual files at stated paths?
-3. All DB columns referenced exist in real schema?
-4. Test mocks on same host:port as actual requests?
-5. Tests could fail independently of implementation?
-6. Duplicated logic with existing code?
-7. Linter clean? (0 new violations vs base branch)
-8. Would a staff engineer approve this without changes?
-
-Each item: evidence (`file:line` or command output) or explicit "N/A because X".
+Chaque item : preuve (file:line ou output) ou "N/A because X".
 
 ## Output format
 
@@ -69,8 +52,12 @@ Each item: evidence (`file:line` or command output) or explicit "N/A because X".
 ## RISQUES
 1. RISQUE: <X> parce que <Y> — IMPACT: <Z>
    → FIX/ACCEPT/DEFER: <resolution>
-2. ...
-3. ...
+2. RISQUE: <X> parce que <Y> — IMPACT: <Z>
+   → FIX/ACCEPT/DEFER: <resolution>
+3. RISQUE: <X> parce que <Y> — IMPACT: <Z>
+   → FIX/ACCEPT/DEFER: <resolution>
+4. RISQUE: <X> parce que <Y> — IMPACT: <Z>
+   → FIX/ACCEPT/DEFER: <resolution>
 
 ## CHECKLIST
 - [✓/✗/N/A] <item> — <evidence>
@@ -81,19 +68,3 @@ BLOCKING: <list or "none">
 IMPORTANT: <list or "none">
 MINOR: <list or "none">
 ```
-
-## How to verify
-
-- [ ] Exactly 3 RISQUES (no more, no less)?
-- [ ] Distribution: 1 functional + 1 import + 1 data-assumption?
-- [ ] Each RISQUE has file:line evidence?
-- [ ] Each RISQUE has resolution (FIX/ACCEPT/DEFER)?
-- [ ] Quality checklist (8 items) completed?
-- [ ] VERDICT issued (BLOCKING/IMPORTANT/MINOR)?
-
-## Common mistakes
-
-- **Generic critiques**: "might not scale" → too vague. "Loads all users into memory at line 47, O(n)" → specific.
-- **Skipping distribution**: all 3 are functional risks, no import or data check → incomplete.
-- **Too many RISQUES**: 5 critiques dilute focus. Pick top 3 by severity.
-- **Not reading code**: reviewing the description instead of the actual file → always read code first.

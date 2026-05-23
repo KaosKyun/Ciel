@@ -1,135 +1,106 @@
 ---
 name: critiquer-auditor
-description: How to audit code comprehensively — 7-dimension review methodology covering expected behavior, assumptions, scope, code-vs-model comparison, STRIDE security, pattern consistency, and findings with severity. For PR reviews, retrospective audits, and "is this code correct?" questions.
-allowed-tools: Read, Grep, Glob, Bash, WebSearch
+description: "Audit complet 7 dimensions — Expected behavior, Assumptions, Scope, Code vs model + STRIDE 6 catégories, Consistency, Findings, Learnings. Usage interne par ciel-critic MODE=CRITIQUER."
+internal: true
 ---
 
-# Code Audit — 7-Dimension Review Methodology
+# Critiquer Auditor — Audit 7 dimensions
 
-## What this covers
+**Principe premier :** Un audit n'est pas une review rapide — c'est une vérification systématique que le code fait ce qu'il prétend faire, et rien d'autre. Les 7 dimensions garantissent qu'on ne rate pas une catégorie entière de problèmes. Lire le diff AVANT toute analyse — la description ment, le code non.
 
-How to do a thorough code audit. Distinct from quick self-review (relire-critic) — this is the comprehensive methodology for PR reviews, retrospective audits, and quality checks.
+## Checklist
+- [ ] Dimension 1 : Expected behavior model + bypass signals
+- [ ] Dimension 2 : 3 assumptions vérifiées (git blame / grep / read)
+- [ ] Dimension 3 : Nothing-counterfactual + scope proportionality
+- [ ] Dimension 4 : Code vs model + STRIDE 6 catégories (toutes explicites, même N/A)
+- [ ] Dimension 5 : Pattern consistency + layer boundaries + health thresholds
+- [ ] Dimension 6 : Findings avec sévérité + VALIDATED
+- [ ] Dimension 7 : Learnings capturées (nouveau Guard ? overlay update ?)
 
-## Core principle
+## Les 7 dimensions
 
-**Read the diff/changed files FIRST.** All dimensions operate on actual code, never on assumptions. Description lies; code doesn't.
+### 1. APPRENDRE — Expected behavior
+- Depuis la spec/issue/PR : qu'est-ce que ce code était CENSÉ faire ?
+- Construire une checklist de bypass signals AVANT de lire le code
+- Si lib externe : chercher `[lib] [version] anti-patterns common mistakes`
 
-## Dimension 1: Expected behavior model
+### 2. COMPRENDRE — Assumptions
+- Git blame : pourquoi le code original a été écrit comme ça ?
+- 3 assumptions, chacune vérifiée (grep / blame / read)
 
-From issue/spec/PR description: "what was this SUPPOSED to do?"
+### 3. QUESTIONNER — Scope
+- "What if we do nothing?" considéré ?
+- Scope du changement proportionnel au problème ?
 
-- Build a bypass signal checklist for this change type BEFORE scanning code
-- If external lib involved: search `[lib] [version] anti-patterns common mistakes`
+### 4. COMPARER — Code vs model + STRIDE + OPS
+- Le code match le behavior model ? (grep-backed)
+- Tous les bypass signals vérifiés ?
+- **STRIDE 6 catégories** :
 
-Output: 1-2 sentence behavior model + min 3 bypass signals to look for.
+| Catégorie | Question |
+|-----------|----------|
+| **S**poofing | Peut-on usurper une identité ? |
+| **T**ampering | Une donnée peut-elle être modifiée en transit ? |
+| **R**epudiation | L'action est-elle traçable ? |
+| **I**nfo Disclosure | Qu'est-ce qui fuit ? (logs, erreurs, réponses) |
+| **D**oS | Peut-on saturer cette ressource ? |
+| **E**levation | Peut-on accéder à ce qu'on ne devrait pas ? |
 
-## Dimension 2: Assumptions
+Chaque catégorie : RISQUE ou "N/A because X". **Jamais de skip silencieux.**
+- OPS lens : connexions non fermées, memory leaks, locks, comportement à 100x volume
 
-- Git blame: why was the original code written this way?
-- Surface 3 assumptions, verify each (grep / blame / read)
+### 5. COHÉRENCE — Consistency
+- Pattern utilisé de façon cohérente dans la codebase ? (grep)
+- Layer boundaries respectées (pas de logique métier dans les routes, pas de DB dans les controllers)
+- Health thresholds respectés (complexité, couverture)
 
-Output: 3 assumptions + verification status each.
+### 6. SIGNALER — Findings
+- **BLOCKING** : doit être corrigé avant merge (correctness, sécurité, perte de données)
+- **IMPORTANT** : devrait être corrigé (comportement dégradé, dette technique)
+- **MINOR** : nice to fix (style, naming)
+- **VALIDATED** : explicitement vérifié et correct
 
-## Dimension 3: Scope
-
-- "What if we do nothing?" considered?
-- Scope of change proportional to the problem?
-
-Output: counterfactual + proportionality judgment.
-
-## Dimension 4: Code vs model + STRIDE + OPS
-
-- Code matches expected behavior model? (grep-backed)
-- All bypass signals checked from dimension 1's list?
-- **STRIDE all 6 categories**: S / T / R / I / D / E — mark N/A explicitly, never skip silently
-- OPS lens: unclosed connections, memory leaks, locks, 100x volume
-
-### STRIDE reference
-
-| Category | What to check |
-|----------|--------------|
-| **S**poofing | Authentication bypass, identity assumption |
-| **T**ampering | Data integrity, unauthorized modification |
-| **R**epudiation | Audit trail, logging completeness |
-| **I**nformation disclosure | Data exposure, error messages, logs |
-| **D**enial of service | Resource exhaustion, infinite loops, missing limits |
-| **E**levation of privilege | Authorization bypass, role escalation |
-
-## Dimension 5: Consistency
-
-- Grep: pattern used consistently elsewhere in the codebase?
-- Layer boundaries respected (no business logic in routes, no DB in controllers)?
-- Health thresholds from overlay met (complexity, coverage)?
-
-## Dimension 6: Findings with severity
-
-Format: `RISQUE: X parce que Y — IMPACT: Z`
-
-Severity levels:
-- **BLOCKING** — must fix before merge (correctness, security, data loss). Requires specific FIX.
-- **IMPORTANT** — should fix (degraded behavior, tech debt with near-term risk)
-- **MINOR** — nice to fix (style, naming, low-risk improvement)
-- **VALIDATED** — explicitly checked and confirmed correct
-
-Every finding: RISQUE format. Every BLOCKING: specific FIX + NOT-X (what solution must NOT do).
-
-## Dimension 7: Close the loop
-
-- New anti-pattern found? → add to Guards or project overlay
-- New failure mode? → add Guard immediately
-- Capture learnings for future reference
+### 7. CAPITALISER — Learnings
+- Nouvel anti-pattern découvert ? → proposer un Guard ou overlay update
+- Nouveau mode de défaillance ? → proposer un Guard
+- Capture pour référence future
 
 ## Output format
 
 ```
 ## AUDIT
 
-### Expected behavior
-<1-2 sentences + bypass signals>
+### 1. Expected behavior
+<1-2 phrases + bypass signals>
 
-### Assumptions
+### 2. Assumptions
 1. <assumption> — verified: <yes/no, evidence>
 2. ...
 3. ...
 
-### Scope
-- Nothing-counterfactual: <consequence if no change>
-- Scope proportional: <yes/no, reason>
+### 3. Scope
+- Nothing-counterfactual: <conséquence si aucun changement>
+- Scope proportional: <yes/no, raison>
 
-### Code vs model + STRIDE
+### 4. Code vs model + STRIDE
 - Code vs model: <matches | deviates at file:line>
-- Bypass signals: <N/3 flagged>
+- Bypass signals: <N/M flagged>
 - STRIDE:
   - S: <N/A because X | RISQUE: ...>
   - T/R/I/D/E: ...
 
-### Consistency
+### 5. Consistency
 - Pattern: <grep evidence>
 - Layers: <clean | violation at file:line>
 - Thresholds: <met | violation>
 
-### Findings
+### 6. Findings
 BLOCKING: <RISQUE + FIX>
 IMPORTANT: <RISQUE + FIX/ACCEPT>
 MINOR: <note>
-VALIDATED: <what was verified>
+VALIDATED: <ce qui a été vérifié correct>
 
-### Learnings
+### 7. Learnings
 - New Guard: <yes/no>
 - Overlay update: <yes/no>
 ```
-
-## How to verify
-
-- [ ] All 7 dimensions completed (Expected behavior, Assumptions, Scope, Code vs model + STRIDE, Consistency, Findings, Learnings)?
-- [ ] All 6 STRIDE categories present (even if N/A)?
-- [ ] Findings have severity (BLOCKING/IMPORTANT/MINOR)?
-- [ ] VALIDATED section identifies what code got right?
-- [ ] Learnings captured?
-
-## Common mistakes
-
-- **Operating from PR description alone**: always read the actual code
-- **Skipping STRIDE categories**: all 6 must be explicit, even if N/A
-- **BLOCKING without FIX**: if you can't name the fix, it's not actionable enough for BLOCKING
-- **No VALIDATED section**: reviews that only report problems miss what the code got right

@@ -45,12 +45,12 @@ WARNINGS=""
 
 # Dispatch gate warning (no dispatched agents on non-trivial write)
 if [ "$DISPATCHED" -eq 0 ] && [ "$COUNT" -ge 1 ]; then
-  WARNINGS="${WARNINGS}[DISPATCH GATE] WARNING: Writing file ${FILE_PATH} without prior Task() dispatch (ciel-researcher + ciel-explorer). Was this classified as Trivial? If Standard+, dispatch subagents BEFORE writing code."
+  WARNINGS="${WARNINGS}[DISPATCH GATE] WARNING: Writing file ${FILE_PATH} without prior agent dispatch (ciel-researcher + ciel-explorer with domain skills). Was this classified as Trivial? If Standard+, dispatch both agents BEFORE writing code."
 fi
 
 # RELIRE gate warning
 if [ "${COUNT:-0}" -ge 2 ] 2>/dev/null; then
-  PIPELINE_WARN=" | CIEL PIPELINE: ${COUNT} file(s) edited. Have researcher+explorer been dispatched? If 3+ files: ciel-critic MODE=RELIRE required before merge."
+  PIPELINE_WARN=" | CIEL PIPELINE: ${COUNT} file(s) edited. Have researcher+explorer been dispatched with domain skills? If 3+ files: ciel-critic MODE=RELIRE required before merge."
   WARNINGS="${WARNINGS}${PIPELINE_WARN}"
 fi
 

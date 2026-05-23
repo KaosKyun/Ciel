@@ -1,35 +1,31 @@
 ---
 name: stride-analyzer
-description: How to threat model with STRIDE — 3-pass methodology: risk-rank by mechanical signals, STRIDE 6 categories (Spoofing/Tampering/Repudiation/Info Disclosure/DoS/Elevation) with grep evidence, and killer checklist. For auth, DB schema, payment, security changes.
-allowed-tools: Read, Grep, Glob, Bash
+description: "Threat modeling STRIDE 3 passes — Risk rank (mécanique), STRIDE 6 catégories (grep-backed), Killer checklist (validation/auth/SQL/PII). Anti-theater : chaque item a une preuve file:line. Usage interne par ciel-critic et critiquer-auditor."
+internal: true
 ---
 
-# STRIDE Threat Modeling — Security Analysis Methodology
+# STRIDE Analyzer — Threat Modeling
 
-## What this covers
+**Principe premier :** La sécurité n'est pas une checklist qu'on coche — c'est une analyse systématique de ce qu'un attaquant peut faire. Chaque finding a une preuve (file:line ou grep output). "Checked ✓" sans preuve = pas checked. Le but n'est pas de documenter qu'on a vérifié, c'est de trouver ce qu'on a raté.
 
-How to do a security threat model using STRIDE. STRIDE is the framework; grep is the evidence. No theater — every finding needs `file:line` proof.
+## Checklist
+- [ ] Pass 1 : Risk rank classifié (Critical/Important/Routine) avec signaux mécaniques
+- [ ] Pass 2 : STRIDE 6 catégories — chaque catégorie a un finding ou "N/A because X"
+- [ ] Pass 3 : Killer checklist 5 items complétés avec preuves
+- [ ] Verdict BLOCKING/IMPORTANT émis
 
-## Core principle
+## Pass 1 — Risk rank (signaux mécaniques)
 
-**Anti-theater rule**: every checklist item needs evidence (file:line or grep output). "Checked ✓" with no evidence = not checked.
+- **Critical** si : `auth/`, `security/`, tables DB (users, sessions, tokens), `.executeQuery`, `.executeUpdate`, `userId`, `password`, `token`, `secret`
+- **Important** si : diff > 5 fichiers, `validate`, `sanitize`, `rateLimit`, route handlers
+- **Routine** sinon
 
-## Pass 1: Risk rank (mechanical signals)
+→ Critical = 3 passes. Important = passes 2+3. Routine = pass 3 seulement.
 
-Classify the change:
+## Pass 2 — STRIDE 6 catégories (Critical/Important)
 
-- **Critical** if ANY: `auth/`, `security/`, DB tables (users, sessions, tokens), `.executeQuery`, `.executeUpdate`, `userId`, `password`, `token`, `secret`
-- **Important** if ANY: diff > 5 files, `validate`, `sanitize`, `rateLimit`, route handlers
-- **Routine** otherwise
-
-→ Critical = all 3 passes. Important = passes 2+3. Routine = pass 3 only.
-
-## Pass 2: STRIDE 6 categories (Critical/Important)
-
-For each category, answer with grep-backed evidence:
-
-| Category | Question | Evidence type |
-|----------|----------|--------------|
+| Catégorie | Question | Evidence type |
+|-----------|----------|--------------|
 | **S**poofing | Can I impersonate someone? | Auth checks, token validation |
 | **T**ampering | Can input be modified in transit? | Input validation, integrity checks |
 | **R**epudiation | Can a user deny this action? | Audit logging, timestamps |
@@ -37,19 +33,18 @@ For each category, answer with grep-backed evidence:
 | **D**oS | Can this be flooded/exhausted? | Rate limits, resource bounds |
 | **E**levation | Can I access what I shouldn't? | Authorization checks, role validation |
 
-Each answer: grep-backed or "N/A because X". **Mark N/A explicitly, never skip silently.**
+Chaque réponse : grep-backed ou "N/A because X". **Jamais skip silencieux.**
+**OPS lens** (superposé sur STRIDE) : connexions non fermées, memory leaks, locks, 100x volume.
 
-**OPS lens** (overlayed on STRIDE): unclosed connections, memory leaks, locks, behavior at 100x volume.
+## Pass 3 — Killer checklist (tous niveaux)
 
-## Pass 3: Killer checklist (all levels)
+- Même champ = même validation partout ? (grep pour vérifier)
+- Même domaine = même auth sur TOUS les transports (REST + WS + SSE) ?
+- Champs d'identité résolus serveur-side, jamais fournis par le client ?
+- SQL paramétré, jamais interpolé ?
+- PII touchée = anonymization couverte ?
 
-- Same field = same validation everywhere? (grep to verify)
-- Same domain = same auth on ALL transports (REST + WS + SSE)?
-- Identity fields resolved server-side, never client-supplied?
-- SQL parameterized, never interpolated?
-- PII touched = anonymization covered?
-
-Each item: evidence (`file:line` or grep output) or N/A.
+Chaque item : preuve (file:line ou grep) ou N/A.
 
 ## Output format
 
@@ -80,17 +75,3 @@ OPS: <connections | memory | locks | 100x volume>
 BLOCKING: <list or none>
 IMPORTANT: <list or none>
 ```
-
-## How to verify
-
-- [ ] Pass 1 (Risk rank) completed with mechanical signals?
-- [ ] Pass 2 (STRIDE 6 categories) — all categories have findings or explicit "N/A because X"?
-- [ ] Pass 3 (Killer checklist) completed?
-- [ ] VERDICT issued (PROCEED / BLOCK / INVESTIGATE)?
-- [ ] Evidence format: `file:line` or grep output?
-
-## Key rules
-
-- **Don't skip categories silently**: every STRIDE category gets a finding or explicit "N/A because X"
-- **Evidence format**: `path/to/file.ext:123` or `grep -n "pattern" src/` output
-- **Rotate stale items**: if a checklist item catches nothing in 10+ audits, consider replacing it

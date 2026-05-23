@@ -1,6 +1,6 @@
 #!/bin/bash
-# Ciel — Skills, Rules & Hooks sync
-# Single source of truth: .claude/skills/ + .claude/rules/ + hooks/
+# Ciel — Skills, Rules, Hooks & Agents sync
+# Single source of truth: .claude/skills/ + .claude/rules/ + hooks/ + .claude/agents/
 # Syncs to: .claude/hooks/ (Claude Code runtime) + packages/ciel/assets/ (distribution)
 set -euo pipefail
 
@@ -32,8 +32,16 @@ if [ -d "$PROJECT_DIR/.claude/rules" ]; then
   rsync -av --delete "$PROJECT_DIR/.claude/rules/" "$PROJECT_DIR/packages/ciel/assets/rules/" 2>&1 | tail -1
 fi
 
-# --- 4. Report ---
+# --- 4. Sync agents -> packages/ciel/assets/.claude/agents/ ---
+if [ -d "$PROJECT_DIR/.claude/agents" ]; then
+  echo "Syncing .claude/agents/ -> packages/ciel/assets/.claude/agents/"
+  mkdir -p "$PROJECT_DIR/packages/ciel/assets/.claude/agents"
+  rsync -av --delete "$PROJECT_DIR/.claude/agents/" "$PROJECT_DIR/packages/ciel/assets/.claude/agents/" 2>&1 | tail -1
+fi
+
+# --- 5. Report ---
 SKILL_COUNT=$(find "$PROJECT_DIR/.claude/skills" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 RULES_COUNT=$(find "$PROJECT_DIR/.claude/rules" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-echo "  Skills: $SKILL_COUNT, Rules: $RULES_COUNT"
+AGENT_COUNT=$(find "$PROJECT_DIR/.claude/agents" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+echo "  Skills: $SKILL_COUNT, Rules: $RULES_COUNT, Agents: $AGENT_COUNT"
 echo "=== Sync complete ==="
