@@ -7,12 +7,14 @@ paths:
   - "**/tests/**"
 ---
 
-## Testing rules
+## Testing
 
-- Follow the test pyramid: 70% unit, 20% integration, 10% E2E
-- Test behavior, not implementation
-- DAMP over DRY in tests (descriptive, self-contained tests)
-- One assertion concept per test
-- Name tests descriptively: "does X when Y"
-- Bug fixes MUST include a reproduction test that failed before the fix
-- Use Arrange-Act-Assert pattern
+- RED (test echoue) → GREEN (passe) → REFACTOR. Jamais de code sans test d'abord.
+- Test pyramid: 70% unitaires, 20% integration, 10% E2E
+- Tester le comportement observable, pas l'implementation
+- Chaque test cree ses propres donnees (setup/teardown) — pas d'ordre implicite
+- Bug fixes: reproduction test obligatoire avant le fix
+- Pas de mock systematique — vraie DB en integration
+- Arrange-Act-Assert, DAMP > DRY dans les tests
+
+Pour anti-patterns et patterns detailles, charger le skill `testing`.

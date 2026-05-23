@@ -7,12 +7,14 @@ paths:
   - "**/*Route*"
 ---
 
-## API design rules
+## API Design
 
-- Contract-first: define types/interfaces before implementation
-- Validate all inputs at boundary (never trust caller)
-- Return structured errors: `{error: {code, message, details}}`
-- Pagination on list endpoints (cursor preferred over page/offset)
-- Rate limiting on all public endpoints
-- All endpoints must be observable (logging, metrics, tracing)
-- Version API via header (Accept: application/vnd.api.v2+json) not URL
+- Endpoints versionnes (/v1/ ou header Accept-Version)
+- Pagination cursor-based (pas offset) — `?cursor=abc&limit=50`
+- Erreurs structurees : `{error: {code, message, details}}`
+- Mutations (POST/PUT/DELETE) requierent header `Idempotency-Key`
+- Rate limiting sur tous les endpoints publics
+- Pas de breaking change sans nouvelle version
+- OpenAPI / schema documente
+
+Pour anti-patterns et patterns detailles, charger le skill `api-design`.

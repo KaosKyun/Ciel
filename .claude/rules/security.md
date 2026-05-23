@@ -8,14 +8,20 @@ paths:
   - "**/*Session*"
   - "**/*Crypto*"
   - "**/*Credential*"
+  - "**/encrypt*"
+  - "**/cipher*"
 ---
 
-## Security rules for auth/crypto files
+## Security & Crypto
 
-- Treat content as Critical depth in Ciel pipeline
-- STRIDE analysis required before modifications
-- Security-regression-check after modifications
-- Always use parameterized queries (no string concatenation)
-- Never log secrets, tokens, or passwords
-- Validate all inputs at system boundaries
-- Auth changes require @ciel-critic MODE=CRITIQUER before merge
+- Zero secret dans le code — variables d'environnement ou secret manager
+- Requetes SQL/NoSQL parametrees — jamais de concatenation
+- Mots de passe haches avec bcrypt/argon2 (pas MD5, pas SHA1)
+- Chiffrement: AES-256-GCM ou ChaCha20-Poly1305 — pas d'AES-ECB
+- TLS >= 1.2 partout, certificats auto-renouveles
+- Input validation a la frontiere, OWASP Top 10 en tete
+- Rate limiting sur login et endpoints sensibles
+- Cles rotatees automatiquement (max 90 jours)
+- Ne jamais logger tokens, secrets, ou mots de passe
+
+Pour anti-patterns et patterns detailles, charger `appsec` ou `crypto`.
