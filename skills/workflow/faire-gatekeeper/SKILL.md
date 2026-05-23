@@ -7,11 +7,13 @@ description: How to implement code safely — 6 quality gates for Ciel v5 (test-
 
 ## What this covers
 
-How to implement code with discipline during Ciel v5 FAIRE phase (etape 11). These gates run during coding and are enforced by the plugin or hooks. SPIKE mode relaxes some gates.
+How to implement code with discipline during Ciel v8 FAIRE phase (etape 11). These gates run during coding and are enforced by hooks. After FAIRE, the pipeline continues to TESTER (run test suite).
 
 ## Core principle
 
 **Check gates per-file, not per-task.** Each write/edit gets its own gate check. In SPIKE mode, gates 1 and 6 are optional but the code must be marked FIXME/TODO.
+
+**After FAIRE: TESTER.** Once implementation is done, the next mandatory step is TESTER — run the project's test suite. RED means back to FAIRE. GREEN means continue to ADR/RELIRE.
 
 ## The 6 gates (v5)
 

@@ -112,5 +112,6 @@
   "orphans": [
     ".opencode/agents/ciel-plan.md — created but unreferenced. Read-only planning agent. Candidate for removal."
   ],
+  "testCommand": "cd packages/ciel && npm test",
   "lastUpdated": "2026-05-23T20:00:00.000Z"
 }

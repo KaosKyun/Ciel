@@ -75,9 +75,9 @@ if echo "$FILE_PATH" | grep -qiE '(auth|Auth|security|Security|Token|Session|Pas
 fi
 
 if $CRITICAL; then
-  echo "  [CIEL] Critical path: invoke faire-gatekeeper, stride-analyzer must have run, test-first (RED)." >&2
+  echo "  [CIEL] Critical path: invoke faire-gatekeeper, stride-analyzer must have run, test-first (RED). After FAIRE: TESTER (run test suite)." >&2
 else
-  echo "  [CIEL] Standard path: invoke faire-gatekeeper (alternatives, idiomatic, quality, removal, test-first)." >&2
+  echo "  [CIEL] Standard path: invoke faire-gatekeeper (alternatives, idiomatic, quality, removal, test-first). After FAIRE: TESTER (run test suite)." >&2
 fi
 
 exit 0

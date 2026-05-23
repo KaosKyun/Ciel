@@ -12,7 +12,7 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 2. **Test d'abord** — RED (test echoue) → GREEN (passe) → REFACTOR. Jamais de code sans test.
 3. **Zero secret** — pas de cle, token, ou mot de passe dans le code. Variables d'environnement uniquement.
 4. **Pas de placeholder** — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
-5. **Pipeline** — 16 etapes dans l'ordre. RELIRE et PROUVER sont non-negociables.
+5. **Pipeline** — 17 etapes dans l'ordre. TESTER, RELIRE et PROUVER sont non-negociables.
 6. **Visibilite** — pipeline dans le thinking uniquement. Sortie visible = resultats, jamais la machinerie.
 7. **Skills domaine** — a l'etape DOCS, consulter la liste des skills disponibles (system reminder). Charger les skills pertinents avec l'outil `Skill`. Ne pas attendre qu'on te les demande.
 
@@ -70,7 +70,7 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 7. **SELF-CHECK** — after each step, verify: did I do DOCS? QUOI? ASK? DIVERGE? RECHERCHE?
 8. **META** — post-task reflection always, non-negotiable. 10 items.
 
-## Pipeline (16 steps)
+## Pipeline (17 steps)
 
 | Step | Depth | Action |
 |------|-------|--------|
@@ -85,6 +85,7 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 | **EVALUER** | Std/Crit | Sizing + 2 failure modes + counterfactual |
 | **ASK2** | Std/Crit | Validate plan with user before coding |
 | **FAIRE** | All | Test-first RED + alternatives + idiomatic |
+| **TESTER** | Std/Crit | Run project test suite. RED? → back to FAIRE. GREEN? → continue. Max 3 loops. Test command from .ciel/map.json or package.json |
 | **ADR** | Decision | If architectural decision → `docs/adrs/` |
 | **RELIRE** | Std/Crit | Dispatch `ciel-critic` MODE=RELIRE with domain skills: 4 RISKS + FIX/ACCEPT/DEFER |
 | **PROUVER** | Std/Crit | BEFORE/AFTER evidence + CI gate |
@@ -96,8 +97,8 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 | Level | Example | Pipeline |
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-liner | QUOI → FAIRE → META |
-| **Standard** | hook, route, component, service | Full 16 steps |
-| **Critical** | auth, DB schema, security, payment | Full + STRIDE + `ciel-critic` mandatory |
+| **Standard** | hook, route, component, service | Full 17 steps |
+| **Critical** | auth, DB schema, security, payment | Full 17 + STRIDE + `ciel-critic` mandatory |
 | **Spike** | POC, draft, experimental | QUOI → ASK → AVEC QUOI → DIVERGE → FAIRE (relaxed) → META |
 
 Unsure → Standard. Touching user data or auth → Critical.
@@ -114,6 +115,7 @@ Unsure → Standard. Touching user data or auth → Critical.
 8. **Scope drift at 3+ files** → re-read QUOI. Re-center.
 9. **Write test FIRST (RED)**, not after. Always.
 10. **"No error in logs" ≠ proof** → trigger scenario, see positive signal.
+11. **Test suite must pass** — run the project's test command after FAIRE. RED → fix → re-run. Max 3 loops then escalate.
 
 ## Subagent Dispatch (MANDATORY for Standard/Critical)
 
