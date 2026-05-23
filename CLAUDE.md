@@ -6,6 +6,18 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 
 ---
 
+## Regles fondamentales (toujours actives — violation = CRITICAL)
+
+1. **Ne jamais inventer** — verifier API, package, version avant usage. Pas de citation = tu ne sais pas.
+2. **Test d'abord** — RED (test echoue) → GREEN (passe) → REFACTOR. Jamais de code sans test.
+3. **Zero secret** — pas de cle, token, ou mot de passe dans le code. Variables d'environnement uniquement.
+4. **Pas de placeholder** — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
+5. **Pipeline** — 16 etapes dans l'ordre. RELIRE et PROUVER sont non-negociables.
+6. **Visibilite** — pipeline dans le thinking uniquement. Sortie visible = resultats, jamais la machinerie.
+7. **Skills domaine** — a l'etape DOCS, consulter la liste des skills disponibles (system reminder). Charger les skills pertinents avec l'outil `Skill`. Ne pas attendre qu'on te les demande.
+
+---
+
 ## Visibilite — regle dure (VIOLATION = CRITICAL)
 
 **Le pipeline est ta checklist mentale, pas un journal public.**
@@ -62,7 +74,7 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 
 | Step | Depth | Action |
 |------|-------|--------|
-| **DOCS** | All | Read AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json, .ciel/memory.json |
+| **DOCS** | All | Read AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json, .ciel/memory.json + review available skills (system reminder), load relevant domain skills via `Skill` tool |
 | **QUOI** | All | Goal (1 sentence) + NOT-X + Definition of Done |
 | **ASK** | Std/Crit | `AskUserQuestion` if ambiguous. Otherwise DECIDE. |
 | **AVEC QUOI** | Std/Crit | Read installed versions (package.json) — not memory |
@@ -119,9 +131,10 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 ## Skills reference
 
+- **Domain catalogue**: 48 skills in `.claude/skills/` (api-design, database-design, appsec, monitoring, etc.). Review available skills at DOCS step and load relevant ones via `Skill`.
 - **Workflow**: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `diverge`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `memoire`, `memoire-consolidator`, `meta-critiquer`
 - **Security**: `stride-analyzer`, `security-hardening`, `security-regression-check` (Critical only)
-- **Domain**: `frontend-mastery`, `backend-mastery`, `database-mastery`, `api-architecture`, `performance-engineering`
+- **Domain (legacy)**: `frontend-mastery`, `backend-mastery`, `database-mastery`, `api-architecture`, `performance-engineering`
 - **Utility**: `pr-opener`, `commit-writer`, `branch-setup`, `issue-creator`, `issue-closer`
 
 ## Hooks (automatic — configured in .claude/settings.json)

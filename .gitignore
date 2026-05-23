@@ -34,6 +34,7 @@ ciel-overlay.md
 
 # Claude Code generated/build files (not source of truth)
 .claude/skills/
+.claude/hooks/
 .claude/settings.local.json
 .claude/settings.json.bak-*
 

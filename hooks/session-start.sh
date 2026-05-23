@@ -103,6 +103,20 @@ elif [[ -d "$CWD/.ciel" ]] || [[ -f "$CWD/.claude/settings.json" ]] || [[ -f "$C
   MSG+=$'\n'"No cued-recall memory yet. Run /ciel-memory-bootstrap to scan project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, etc.)."
 fi
 
+# ─── Pre-flight checklist — injected into every session ──────────────────────
+MSG+=$'\n'"---"
+MSG+=$'\n'"Checklist pre-vol (verifier avant chaque tache) :"
+MSG+=$'\n'"  Logs : structured JSON + correlation ID par requete ?"
+MSG+=$'\n'"  Backups : RPO/RTO definis ? Test de restore fait ?"
+MSG+=$'\n'"  Cache : TTL + strategie d'invalidation en place ?"
+MSG+=$'\n'"  Timeouts : explicites (connect/read/request) — pas d'infini ?"
+MSG+=$'\n'"  Securite : auth, injection, CSRF, rate limiting verifies ?"
+MSG+=$'\n'"  Metriques : RED (Rate, Errors, Duration) exposees par endpoint ?"
+MSG+=$'\n'"  Deploiement : CI/CD automatise, health check, rollback possible ?"
+MSG+=$'\n'"  Pagination : cursor-based, limite max definie ?"
+MSG+=$'\n'"  Erreurs : structurees (code + message + details) ?"
+MSG+=$'\n'"  Angles morts : 3 choses identifiees qui manquent dans la demande ?"
+
 # ─── Update check (throttled to once per 24h, never blocks) ──────────────────
 # Fetches GitHub VERSION non-blocking (max 2s). Any failure → silent skip.
 MANIFEST="$HOME/.ciel/manifest.json"
