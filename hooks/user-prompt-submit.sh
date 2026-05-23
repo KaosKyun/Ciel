@@ -28,7 +28,7 @@ if echo "$PROMPT" | grep -qiE '\b(auth|authenti|author|jwt|oauth|password|secret
 fi
 
 # Check for Trivial signals (only if not Critical)
-if [[ "$DEPTH" != "Critical" ]] && echo "$PROMPT" | grep -qiE '\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b'; then
+if [[ "$DEPTH" != "Critical" ]] && echo "$PROMPT" | grep -qiE '\b(rename|typo|copyright|readme|1-line|one.line|fix.typo|spelling)\b'; then
   DEPTH="Trivial"
   REASON="rename/typo/docs keyword detected"
 fi

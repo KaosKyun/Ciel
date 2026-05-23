@@ -86,7 +86,7 @@ check_release_gate() {
   return 0
 }
 
-META_MSG="CIEL STOP — 30s META-CRITIQUER obligatoire avant de declarer fini: (1) depth match? (2) new failure mode → Guard? (3) user correction → memoire (capture to .ciel/memory/episodes/)? (4) stale branches? (5) uncovered issues? (6) context health? (7) session-progress.md written? (8) dead code sweep (ruff/knip/Detekt)? Invoke meta-critiquer skill then memoire if corrections detected."
+META_MSG="CIEL STOP — 30s META-CRITIQUER obligatoire avant de declarer fini: (1) depth match? (2) new failure mode → Guard? (3) user correction → memoire (capture to .ciel/memory/episodes/ via memory-engine.py)? (4) stale branches? (5) uncovered issues? (6) context health? (7) session-progress.md written? (8) dead code sweep (ruff/knip/Detekt)? (9) agent-discovered pattern → memoire capture (if you noticed a reusable pattern, bug, or convention not yet in .ciel/memory/ — call memory-engine.py capture with --captured-from=agent-observed)? (10) 5+ triggers without promotion → invoke memoire-consolidator? Invoke meta-critiquer skill then memoire."
 
 if check_release_gate "$CWD"; then
   MSG="$RG_MSG

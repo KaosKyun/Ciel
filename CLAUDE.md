@@ -88,7 +88,7 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 | **ADR** | Decision | If architectural decision → `docs/adrs/` |
 | **RELIRE** | Std/Crit | Dispatch `ciel-critic` MODE=RELIRE with domain skills: 4 RISKS + FIX/ACCEPT/DEFER |
 | **PROUVER** | Std/Crit | BEFORE/AFTER evidence + CI gate |
-| **MEMOIRE** | All | Cued-recall: capture interventions/decisions to .ciel/memory/episodes/ + update index.json (see skill `memoire`, ADR-0001) |
+| **MEMOIRE** | All | Cued-recall: capture interventions + agent-discovered patterns to .ciel/memory/episodes/ via `python3 .claude/hooks/memory-engine.py capture --captured-from=user-intervention|agent-observed` (see skill `memoire`, ADR-0001) |
 | **META** | All | Post-task reflection (10 items) |
 
 ## Depth Gauge

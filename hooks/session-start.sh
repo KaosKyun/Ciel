@@ -88,7 +88,14 @@ try:
         lines = [f\"  [{mid}, {m.get('trigger_count', 0)}x] {m.get('title', '?')}\" for mid, m in top]
         total = len(active)
         more = f' (+{total - len(top)} more)' if total > len(top) else ''
-        print(f'Cued-recall memory active ({total} memories{more}):\\n' + '\\n'.join(lines))
+        promo = [(mid, m) for mid, m in mems.items() if (m.get('trigger_count') or 0) >= 5 and str(m.get('file', '')).startswith('episodes/')]
+        promo_hint = ''
+        if promo:
+            promo.sort(key=lambda x: -(x[1].get('trigger_count') or 0))
+            promo_names = ', '.join([m.get('title', '?') for _, m in promo[:3]])
+            more_promo = f' +{len(promo) - 3} more' if len(promo) > 3 else ''
+            promo_hint = '\\nConsolidation candidates (' + str(len(promo)) + ' episodes >=5 triggers): ' + promo_names + more_promo + '. Run memoire-consolidator.'
+        print(f'Cued-recall memory active ({total} memories{more}):\\n' + '\\n'.join(lines) + promo_hint)
 except Exception:
     print('')
 " 2>/dev/null || echo "")

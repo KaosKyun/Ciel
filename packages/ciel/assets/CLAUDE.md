@@ -1,8 +1,20 @@
-# CLAUDE.md — Ciel v6 (IMPERATIVE — FOLLOW ALL RULES)
+# CLAUDE.md — Ciel v7 (IMPERATIVE — FOLLOW ALL RULES)
 
 This file is Claude Code's project-level instruction. **It is not advisory — these rules are mandatory.**
 
 **Core principle:** *"Understand before generating. Verify before claiming done."*
+
+---
+
+## Regles fondamentales (toujours actives — violation = CRITICAL)
+
+1. **Ne jamais inventer** — verifier API, package, version avant usage. Pas de citation = tu ne sais pas.
+2. **Test d'abord** — RED (test echoue) → GREEN (passe) → REFACTOR. Jamais de code sans test.
+3. **Zero secret** — pas de cle, token, ou mot de passe dans le code. Variables d'environnement uniquement.
+4. **Pas de placeholder** — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
+5. **Pipeline** — 16 etapes dans l'ordre. RELIRE et PROUVER sont non-negociables.
+6. **Visibilite** — pipeline dans le thinking uniquement. Sortie visible = resultats, jamais la machinerie.
+7. **Skills domaine** — a l'etape DOCS, consulter la liste des skills disponibles (system reminder). Charger les skills pertinents avec l'outil `Skill`. Ne pas attendre qu'on te les demande.
 
 ---
 
@@ -62,21 +74,21 @@ This file is Claude Code's project-level instruction. **It is not advisory — t
 
 | Step | Depth | Action |
 |------|-------|--------|
-| **DOCS** | All | Read AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json, .ciel/memory.json |
+| **DOCS** | All | Read AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json, .ciel/memory.json + review available skills (system reminder), load relevant domain skills via `Skill` tool |
 | **QUOI** | All | Goal (1 sentence) + NOT-X + Definition of Done |
 | **ASK** | Std/Crit | `AskUserQuestion` if ambiguous. Otherwise DECIDE. |
 | **AVEC QUOI** | Std/Crit | Read installed versions (package.json) — not memory |
 | **DIVERGE** | Std/Crit | 2-3 different approaches BEFORE choosing |
-| **RECHERCHE** | Std/Crit | Dispatch `ciel-researcher`: official docs + anti-patterns + changelog |
+| **RECHERCHE** | Std/Crit | Dispatch `ciel-researcher` with domain skills: official docs + anti-patterns + changelog |
 | **SECURITE** | Critical | STRIDE 6 categories → `ciel-critic` MODE=CRITIQUER |
-| **CODEBASE** | Std/Crit | Dispatch `ciel-explorer`: pattern fitness + data flow + git history |
+| **CODEBASE** | Std/Crit | Dispatch `ciel-explorer` with domain skills: pattern fitness + data flow + git history |
 | **EVALUER** | Std/Crit | Sizing + 2 failure modes + counterfactual |
 | **ASK2** | Std/Crit | Validate plan with user before coding |
 | **FAIRE** | All | Test-first RED + alternatives + idiomatic |
 | **ADR** | Decision | If architectural decision → `docs/adrs/` |
-| **RELIRE** | Std/Crit | Dispatch `ciel-critic` MODE=RELIRE: 3 RISKS + FIX/ACCEPT/DEFER |
+| **RELIRE** | Std/Crit | Dispatch `ciel-critic` MODE=RELIRE with domain skills: 4 RISKS + FIX/ACCEPT/DEFER |
 | **PROUVER** | Std/Crit | BEFORE/AFTER evidence + CI gate |
-| **MEMOIRE** | All | Cued-recall: capture interventions/decisions to .ciel/memory/episodes/ + update index.json (see skill `memoire`, ADR-0001) |
+| **MEMOIRE** | All | Cued-recall: capture interventions + agent-discovered patterns to .ciel/memory/episodes/ via `python3 .claude/hooks/memory-engine.py capture --captured-from=user-intervention|agent-observed` (see skill `memoire`, ADR-0001) |
 | **META** | All | Post-task reflection (10 items) |
 
 ## Depth Gauge
@@ -105,23 +117,30 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 ## Subagent Dispatch (MANDATORY for Standard/Critical)
 
-**Rule**: Dispatch BOTH `ciel-researcher` + `ciel-explorer` **IN PARALLEL** before writing any code on Standard/Critical tasks.
+**Rule**: Dispatch BOTH `ciel-researcher` + `ciel-explorer` **IN PARALLEL** before writing any code on Standard/Critical tasks. Include relevant domain skill names in the dispatch prompt so agents can read SKILL.md files and apply domain expertise.
+
+**Dispatch prompt format**:
+- Researcher: `"Research: [topic]. Apply domain skills: [skill1], [skill2]. Installed: [version]. Goal: [quoi]."`
+- Explorer: `"Explore: [intention]. Apply domain skills: [skill1], [skill2]. Goal: [quoi]. NOT-X: [constraints]."`
+- Critic (RELIRE): `"MODE: RELIRE. CHANGED_FILES: [list]. QUOI_GOAL: [quoi]. Apply domain skills: [skill1], [skill2]."`
 
 | Agent | When | Via | In parallel with |
 |-------|------|-----|-----------------|
-| `ciel-researcher` | RECHERCHE (Std/Crit) | `task` subagent_type=`ciel-researcher` | `ciel-explorer` |
-| `ciel-explorer` | CODEBASE (Std/Crit) | `task` subagent_type=`ciel-explorer` | `ciel-researcher` |
-| `ciel-critic` (RELIRE) | RELIRE after FAIRE (Std/Crit) | `task` subagent_type=`ciel-critic` | — |
-| `ciel-critic` (CRITIQUER) | SECURITE (Critical only) | `task` subagent_type=`ciel-critic` | — |
-| `ciel-improver` | ONLY on /ciel-improve, /ciel-eval | `task` subagent_type=`ciel-improver` | — |
+| `ciel-researcher` | RECHERCHE (Std/Crit) | `Agent` subagent_type=`ciel-researcher` | `ciel-explorer` |
+| `ciel-explorer` | CODEBASE (Std/Crit) | `Agent` subagent_type=`ciel-explorer` | `ciel-researcher` |
+| `ciel-critic` (RELIRE) | RELIRE after FAIRE (Std/Crit) | `Agent` subagent_type=`ciel-critic` | — |
+| `ciel-critic` (CRITIQUER) | SECURITE (Critical only) | `Agent` subagent_type=`ciel-critic` | — |
+| `ciel-improver` | ONLY on /ciel-improve, /ciel-eval | `Agent` subagent_type=`ciel-improver` | — |
 
 **IMPORTANT**: If a subagent dispatch fails (`ProviderModelNotFoundError`), fall back to inline research/exploration. Do NOT skip the step.
 
 ## Skills reference
 
+- **Domain skills**: in `.claude/skills/` (api-design, database-design, appsec, monitoring, etc.). Review available skills at DOCS step and load relevant ones via `Skill`.
 - **Workflow**: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `diverge`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `memoire`, `memoire-consolidator`, `meta-critiquer`
 - **Security**: `stride-analyzer`, `security-hardening`, `security-regression-check` (Critical only)
-- **Domain**: `frontend-mastery`, `backend-mastery`, `database-mastery`, `api-architecture`, `performance-engineering`
+- **Critique**: `relire-critic`, `critiquer-auditor`, `stride-analyzer`, `debug-reasoning-rca` (used by ciel-critic)
+- **Rules**: auto-inject via `.claude/rules/` when matching files are read (api, testing, security, database, frontend, backend, cicd, iac, containers, monitoring)
 - **Utility**: `pr-opener`, `commit-writer`, `branch-setup`, `issue-creator`, `issue-closer`
 
 ## Hooks (automatic — configured in .claude/settings.json)
@@ -179,7 +198,7 @@ These are the most frequently skipped pipeline steps. Do NOT fall into these tra
 | **No DOCS** | Starting a task without reading project state | Always read `.ciel/map.json` + `ciel-overlay.md` first |
 | **No QUOI** | Coding without defining the goal + constraints | State "Goal (1 sentence) + NOT-X + DoD" before touching code |
 | **No DIVERGE** | Using the first approach that comes to mind | Generate 2-3 alternatives before picking one |
-| **No subagents** | Doing research/exploration inline instead of dispatching | Dispatch `ciel-researcher` + `ciel-explorer` in parallel — **before any Edit/Write on Standard/Critical** |
+| **No subagents** | Doing research/exploration inline instead of dispatching | Dispatch `ciel-researcher` + `ciel-explorer` in parallel with domain skill names — **before any Edit/Write on Standard/Critical** |
 | **No RELIRE** | Merging without a hostile code review | Always dispatch `ciel-critic` MODE=RELIRE before merge |
 | **RELIRE skipped on multi-file edit** | ≥2 Edit calls made without ciel-critic | Any session touching ≥2 files at Standard depth requires ciel-critic dispatch |
 | **No PROUVER** | Claiming done without evidence | Show BEFORE/AFTER evidence (logs, curl, screenshot) |

@@ -302,27 +302,35 @@ def score_memory(mem, paths, symbols, intents, langs, prompt_lower="") -> int:
 
 
 def mark_stale_inplace(memories: dict, now: datetime) -> int:
-    """Flag stale=True for memories past their stale_after_days threshold.
+    """Flag stale=True for memories past their Ebbinghaus-adjusted threshold.
 
     Returns count newly marked. Active memories that have never been triggered
     decay from captured_at; triggered memories from last_triggered.
 
-    Future-dated anchors (clock skew, manual edit) are clamped to now → those
-    memories are immune to staling, which matches user expectation that a
-    just-captured memory shouldn't decay regardless of timestamp source.
+    Threshold scales with trigger_count using an Ebbinghaus-style forgetting
+    curve: well-triggered memories decay slower (stronger engrams). A memory
+    triggered 15+ times gets ~5x the base threshold (450 days vs 90).
+
+    Future-dated anchors (clock skew, manual edit) are clamped to now, making
+    those memories immune to staling regardless of timestamp source.
     """
     newly_stale = 0
     for mid, m in memories.items():
         if m.get('stale'):
             continue
         anchor = m.get('last_triggered') or m.get('captured_at')
-        threshold = m.get('stale_after_days', 90)
+        base_threshold = m.get('stale_after_days', 90)
         if not anchor:
             continue
         try:
             then = datetime.fromisoformat(anchor.replace('Z', '+00:00'))
             age_days = max(0, (now - then).days)
-            if age_days > threshold:
+            # Ebbinghaus-style strength factor: more triggers = slower decay.
+            # log2(1+count) gives: 0→1x, 1→2x, 3→3x, 7→4x, 15→5x
+            tc = max(0, m.get('trigger_count') or 0)
+            strength = 1.0 + math.log2(1 + tc)
+            effective_threshold = base_threshold * strength
+            if age_days > effective_threshold:
                 m['stale'] = True
                 newly_stale += 1
         except (ValueError, TypeError):
@@ -437,12 +445,28 @@ def cmd_query(args):
         mark_stale_inplace(mems, now)
 
         scored = []
-        for mid, m in mems.items():
-            if m.get('stale'):
-                continue
-            s = score_memory(m, paths, symbols, intents, langs, prompt_lower=prompt_lower)
-            if s > 0:
-                scored.append((s, mid, m))
+        # Language pre-filter: when prompt has language cues (e.g. ".ts" →
+        # "typescript"), skip memories tagged with non-matching languages.
+        # Language-agnostic memories (no language tags) always included.
+        # This is safe because score_memory's hard language gate would return 0
+        # for these memories anyway — we skip the path/symbol/intent scoring.
+        if langs:
+            langs_lower = {l.lower() for l in langs}
+            for mid, m in mems.items():
+                if m.get('stale'):
+                    continue
+                mem_langs = m.get('languages') or []
+                if not mem_langs or any(l.lower() in langs_lower for l in mem_langs):
+                    s = score_memory(m, paths, symbols, intents, langs, prompt_lower=prompt_lower)
+                    if s > 0:
+                        scored.append((s, mid, m))
+        else:
+            for mid, m in mems.items():
+                if m.get('stale'):
+                    continue
+                s = score_memory(m, paths, symbols, intents, langs, prompt_lower=prompt_lower)
+                if s > 0:
+                    scored.append((s, mid, m))
 
         if not scored:
             return idx
