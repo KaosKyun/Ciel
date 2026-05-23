@@ -581,7 +581,7 @@ def cmd_rebuild_index(args):
 
     parsed = 0
     for mdfile in base.rglob('*.md'):
-        if mdfile.name.lower() in ('readme.md', 'review-queue.md'):
+        if mdfile.name.lower() in ('readme.md', 'review-queue.md', 'insights.md'):
             continue
         try:
             content = mdfile.read_text(encoding='utf-8')
@@ -657,11 +657,11 @@ def cmd_capture(args):
         "symbols": symbols,
         "intents": intents,
         "captured_at": iso_now,
-        "captured_from": "runtime",
+        "captured_from": args.captured_from or 'runtime',
         "source": args.source or 'manual capture',
         "trigger_count": 0,
         "last_triggered": None,
-        "stale_after_days": "90",
+        "stale_after_days": 90,
         "stale": False,
     }
 
@@ -940,6 +940,26 @@ def cmd_analyze(args):
     insights_md = base / 'INSIGHTS.md'
     insights_md.write_text('\n'.join(lines), encoding='utf-8')
 
+    # Write review-queue.md when dead anchors exist so the memoire-consolidator
+    # skill has a concrete file to reference. Timestamped so re-runs don't wipe
+    # manual triage notes.
+    if dead_anchors:
+        rq = base / 'review-queue.md'
+        rq_lines = [
+            f"# Dead Anchor Review Queue",
+            f"",
+            f"_Generated {insights['generated_at']} by `memory-engine.py analyze`._",
+            f"",
+            f"Memories whose every `path_patterns` entry resolves to no file on disk.",
+            f"Triage each entry: **promote** (update patterns), **demote** (set stale), or **delete**.",
+            f"",
+        ]
+        for mid in dead_anchors:
+            m = memories[mid]
+            patterns = ", ".join(m.get('path_patterns') or [])
+            rq_lines.append(f"- [ ] `{mid}` — {m.get('title', '?')} (patterns: {patterns})")
+        rq.write_text('\n'.join(rq_lines) + '\n', encoding='utf-8')
+
     print(f"Insights written: {insights_json.relative_to(cwd)}, {insights_md.relative_to(cwd)}")
     print(f"  promotion_candidates: {len(promotion_candidates)}")
     print(f"  dead_anchors: {len(dead_anchors)}")
@@ -979,6 +999,7 @@ def main():
     cp.add_argument('--symbols', default=None, help='Comma-separated symbol names')
     cp.add_argument('--languages', default=None, help='Comma-separated language tags')
     cp.add_argument('--content', default=None, help='Memory body text (defaults to title)')
+    cp.add_argument('--captured-from', default='runtime', help='Capture source (user-intervention, agent-observed, etc.)')
     cp.add_argument('--type', default='episode', choices=['episode', 'concept', 'guard'], help='Memory type')
     cp.add_argument('--cwd', default=None)
     cp.set_defaults(func=cmd_capture)

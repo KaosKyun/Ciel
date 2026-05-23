@@ -15,12 +15,26 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.sh\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v7] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && { ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\""
+          },
+          {
+            "type": "command",
+            "command": "{ ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
           }
         ]
       }
