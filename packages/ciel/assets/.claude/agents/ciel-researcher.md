@@ -3,7 +3,7 @@ name: ciel-researcher
 description: "Isolated-context researcher for Ciel v7. Dispatch for RECHERCHE — official docs verification, anti-pattern detection, framework philosophy, version changelog, source credibility checks. Receives domain skill names in dispatch prompt, reads SKILL.md files to apply domain expertise. Use for any documentation lookup or external knowledge task."
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 disallowedTools: Write, Edit
-memory: local
+memory: project
 permissionMode: acceptEdits  # read-only — do NOT remove Write/Edit from disallowedTools
 maxTurns: 20
 ---
