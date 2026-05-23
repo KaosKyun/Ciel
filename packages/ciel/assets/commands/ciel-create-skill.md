@@ -1,42 +1,40 @@
 ---
-description: Generates a valid Ciel SKILL.md scaffold following Anthropic Skills-first rules (kebab-case ≤64, YAML description ≤1536, body ≤500 lines).
+description: Generates a valid Ciel v7 SKILL.md scaffold — kebab-case name, YAML frontmatter with triggers.path, 3-section body (Checklist / Anti-patterns / Patterns), max 200 lines.
 ---
 
-# /ciel-create-skill — Create a new Ciel skill
+# /ciel-create-skill — Create a new Ciel v7 skill
 
-*Generates a valid SKILL.md scaffold following Anthropic Skills-first rules (kebab-case name ≤64 chars, YAML frontmatter ≤1536-char description, ≤500-line body, progressive disclosure to one reference.md).*
+Generates a valid SKILL.md scaffold following Ciel v7 format: 3 sections (Checklist, Anti-patterns, Patterns), kebab-case name, optional path trigger.
 
-Usage: `/ciel-create-skill <name> <purpose>`
+Usage: `/ciel-create-skill <name> <domain-description>`
 
-- `name` — kebab-case, max 64 chars, unique across `skills/`
-- `purpose` — one-line description of what the skill does
+- `name` — kebab-case, max 64 chars, unique across `.claude/skills/`
+- `domain-description` — one-line description of what domain expertise this skill encodes
 
 ---
 
 ## What it does
 
-1. Dispatches the `improver` agent in MODE=CREATE-SKILL
-2. The agent invokes `skill-creator` skill
-3. Validates name, category (you pick), description length, uniqueness, paths glob
-4. Generates a scaffold SKILL.md + optional reference.md
-5. Returns the proposed files for user review
-6. On approval, writes files + registers in `skills/ciel/reference.md` catalog
+1. Dispatches `ciel-improver` agent with MODE=CREATE-SKILL
+2. Validates name (kebab-case, uniqueness, no reserved words)
+3. Helps you define the path trigger (if any) and anti-patterns
+4. Generates SKILL.md scaffold in v7 3-section format
+5. On approval, writes to `.claude/skills/<name>/SKILL.md`
+6. Optionally runs `sync-skills.sh` to distribute to mirrors
 
 ---
 
 ## Example
 
 ```
-/ciel-create-skill kotlin-coroutines-mastery "Expert in Kotlin coroutines: structured concurrency, Flow operators, cancellation, testing. Use when working with suspend functions, CoroutineScope, Flow, or coroutine builders."
+/ciel-create-skill kotlin-coroutines "Kotlin coroutines — structured concurrency, Flow operators, cancellation, testing. Use when working with suspend functions, CoroutineScope, Flow."
 ```
 
 Expected output:
-1. Validation: ✓ name valid, unique, no reserved words
-2. Category suggestion: `domain` (based on "Expert in X" pattern)
-3. Preview of `skills/domain/kotlin-coroutines-mastery/SKILL.md` (~150 lines)
-4. Preview of `skills/domain/kotlin-coroutines-mastery/reference.md` (~300 lines) with Flow operators cheatsheet
-5. Catalog entry: `| kotlin-coroutines-mastery | Kotlin files with suspend/Flow |`
-6. Approve? [y/n/edit]
+1. Validation: name valid and unique
+2. Path trigger suggestion: `**/*.kt,**/*.kts`
+3. Preview of `SKILL.md` scaffold (~100-150 lines)
+4. Approve? [y/n/edit]
 
 ---
 
@@ -45,33 +43,21 @@ Expected output:
 - kebab-case only (no underscores, no camelCase)
 - Max 64 chars
 - No reserved words: `anthropic`, `claude`, `mcp`
-- Must be unique across `skills/**/SKILL.md`
-- Warn if starts with category name (e.g. `workflow-foo` in `workflow/` is redundant)
-
----
-
-## Category decision
-
-- `workflow` — enforces a CRÉER/CRITIQUER/META-CRITIQUER step
-- `research` — finds information outside the codebase
-- `domain` — encodes expertise in a specific tech or pattern family
-- `utility` — wraps a frequent mechanical operation
-- `meta` — modifies Ciel itself
+- Must be unique across `.claude/skills/`
 
 ---
 
 ## Guardrails
 
 - **Max 1 new skill per invocation** — prevents skill explosion
-- **SKILL.md size**: ≤ 300 lines (hard cap)
-- **reference.md size**: ≤ 500 lines (hard cap)
-- **Duplication detection**: warns if description overlaps ≥ 70% with existing skill
-- **Never creates**: files in `.claude-plugin/`, agents, hooks, commands — those use different patterns
+- **SKILL.md max 200 lines** — v7 hard cap
+- **Duplication detection**: warns if description overlaps >= 70% with existing skill
+- **Never creates**: agent definitions, hooks, commands — those use different patterns
 
 ---
 
 ## After creation
 
-1. Test the skill: `/ciel-eval <name>` (runs baseline eval if dataset exists)
-2. If it's a `workflow` skill, update `skills/ciel/SKILL.md` pipeline sections to reference it
-3. Commit with message `feat(ciel): add <category>/<name> skill`
+1. Test the skill on a relevant task — does it load when expected?
+2. Commit with message: `feat(skills): add <name> skill`
+3. Run `bash scripts/sync-skills.sh` to distribute to all mirrors

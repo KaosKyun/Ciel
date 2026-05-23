@@ -1,62 +1,43 @@
 ---
-description: Check GitHub for newer Ciel release and re-install. Runs `scripts/install.sh --check-update` then `--update`.
+description: Check GitHub for newer Ciel release and re-install. Preserves project config — ciel-overlay.md, .ciel/, settings.json.
 ---
 
 # /ciel-update — Update Ciel to the latest version
 
 Checks GitHub for a newer release and re-installs if available.
 
+Usage: `/ciel-update [--check]`
+
+- No flag — full update (check + apply)
+- `--check` — only check remote version, report, don't install
+
 ## Steps
 
-1. **Check version**: `bash scripts/install.sh --check-update`
-   - Fetches `VERSION` from GitHub, compares with local
-   - Prints "up to date" or "update available"
-
-2. **Apply update**: `bash scripts/install.sh --update -y`
-   - Re-installs all Ciel files (plugins, agents, commands, hooks)
-   - Preserves: `ciel-overlay.md`, `.ciel/`, existing configs
-   - Non-destructive merge on `opencode.json`
-
-3. **npm update**: `npm update -g @neikyun/ciel`
-   - Updates the Ciel CLI tool from npm
-   - Skip if npm is not available or the package isn't installed globally
-
-## Flags
-
-| Flag | Purpose |
-|------|---------|
-| `--check-update` | Check remote version, don't install |
-| `--update` / `-u` | Force reinstall all files |
-| `-y` | Skip confirmation (non-interactive) |
-| `-q` | Quiet mode (summary only) |
-
-## One-liner
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --check-update
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --update -y
-```
+1. **Check version**: fetch `VERSION` from GitHub, compare with `.ciel/version` or `VERSION`
+2. **Apply update**: re-install all Ciel files (hooks, agents, commands, skills, plugin)
+3. **Verify**: confirm hooks executable, agents present, config valid
 
 ## What's preserved
 
 - `ciel-overlay.md` — project-specific rules
-- `.ciel/map.json`, `.ciel/memory.json`, `.ciel/parking.md`
-- `opencode.json` — existing config merged non-destructively
-- `.claude/settings.json` — hook paths preserved
+- `.ciel/` — state directory (map.json, memory/, parking.md)
+- `.claude/settings.json` — merged non-destructively
+- `.opencode/opencode.json` — merged non-destructively
 
 ## What's replaced
 
-- `.opencode/plugins/ciel.ts` — fresh plugin
-- `.opencode/agents/ciel-*.md` — agent definitions
-- `.opencode/commands/ciel-*.md` — command files
-- `.claude/agents/ciel-*.md` — Claude Code agents
 - `.claude/hooks/*.sh` — shell hooks
-- `CLAUDE.md` — root instruction
+- `.claude/agents/ciel-*.md` — agent definitions
+- `.claude/commands/ciel-*.md` — command files
+- `.claude/skills/` — domain skills
+- `.opencode/plugins/ciel.ts` — plugin
+- `.opencode/agents/ciel-*.md` — OpenCode agents
+- `.opencode/commands/ciel*.md` — OpenCode commands
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| `Could not fetch remote version` | Check internet or proxy: `https_proxy=... bash install.sh --check-update` |
-| Plugin not loaded after update | Restart OpenCode (plugin loaded at session start) |
-| `jq not found` warning | Install jq for automatic opencode.json patching |
+| Could not fetch remote version | Check internet or proxy: `https_proxy=...` |
+| Plugin not loaded after update | Restart editor (plugin loaded at session start) |
+| Hook permissions after update | `chmod +x .claude/hooks/*.sh` |

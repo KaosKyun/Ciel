@@ -1,40 +1,43 @@
 ---
-description: Displays the current Ciel environment status — active version, loaded skills, registered hooks, last session state, and configuration health. A diagnostic entry point for "is Ciel working?" questions.
+description: Displays current Ciel environment status — version, platform, hooks, skills, agents, commands, memory health. Diagnostic entry point for "is Ciel working?" questions.
 ---
 
 # /ciel-status — Ciel Environment Health Check
 
-*Displays the current Ciel environment status: version, skills, hooks, and config.*
+Displays the current Ciel environment status: version, platform, hooks, skills, agents, and config health.
 
 Usage: `/ciel-status [--check]`
 
-- `--check` — run diagnostics (verify hooks fire, skills load, config is valid)
+- No flag — summary view
+- `--check` — run full diagnostics (verify hooks fire, skills load, config valid)
 
-## Output
+## Summary output
 
 ```
 ## CIEL STATUS
 
-Version: v{{VERSION}}
+Version: v4.0.1
 Platform: Claude Code
-Config: .claude/settings.json — OK (4 hooks registered)
-Skills directory: skills/ — 43 skills loaded
-Commands: 7 commands available
-Last session: 2026-05-06T11:20:00Z — Skills library reorg
+Config: .claude/settings.json — OK
+Hooks: 12 registered
+Skills: 48 domain skills in .claude/skills/
+Agents: 4 sub-agents (researcher, explorer, critic, improver)
+Commands: 7 available
+Memory: .ciel/memory/ — N episodes
 ```
 
 ## Diagnostics (--check)
 
-- [ ] CLAUDE.md readable and includes Ciel pipeline
-- [ ] .claude/settings.json valid JSON, hooks registered
-- [ ] .ciel/map.json parseable and up-to-date
-- [ ] .ciel/memory.json parseable
-- [ ] Shell hooks executable (check-test-first, block-destructive, track-file, meta-critiquer)
-- [ ] Skills directory non-empty and accessible
-- [ ] Agent definitions present (.claude/agents/ or .opencode/agents/)
+- CLAUDE.md readable and includes Ciel pipeline
+- .claude/settings.json valid JSON, all hooks registered
+- .ciel/map.json parseable
+- .ciel/memory/index.json present
+- Shell hooks executable and firing
+- Skills directory non-empty
+- Agent definitions present (4 files)
 
-## When triggered
+## When to use
 
-- User asks "is Ciel working?" or "check Ciel health"
-- After ciel-init to verify installation
+- After `/ciel-init` to verify installation
+- When "is Ciel working?" is asked
 - Debugging hook failures or missing depth classification

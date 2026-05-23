@@ -1,32 +1,43 @@
 ---
-description: Displays the current Ciel environment status — active version, loaded skills, registered hooks, last session state, and configuration health. A diagnostic entry point for "is Ciel working?" questions.
+description: Displays current Ciel environment status — version, platform, hooks, skills, agents, commands, memory health. Diagnostic entry point for "is Ciel working?" questions.
 ---
 
 # /ciel-status — Ciel Environment Health Check
 
-*Displays the current Ciel environment status: version, skills, hooks, and config.*
+Displays the current Ciel environment status: version, platform, hooks, skills, agents, and config health.
 
-Usage: `/ciel-status`
+Usage: `/ciel-status [--check]`
 
-## Instructions
+- No flag — summary view
+- `--check` — run full diagnostics (verify hooks fire, skills load, config valid)
 
-1. **Run integrity check first**: Execute `npx ciel-init check` — this verifies version against NPM AND checks all Ciel files are present, settings.json is valid with hooks, opencode.json references the plugin, hooks are executable, etc.
+## Summary output
 
-2. **If CLI not available** (npx fails), fall back to manual checks:
-   - Check `VERSION` file or `.ciel/memory.json` for installed version
-   - Verify `.claude/settings.json` is valid JSON with `hooks` key
-   - Verify `.claude/agents/` has all 4 agent definitions
-   - Verify `.claude/hooks/` has all 4 hook scripts (and they're executable)
-   - Verify `.claude/skills/ciel/SKILL.md` exists (/ciel command)
-   - Verify `.claude/commands/ciel-*.md` exist (sub-commands)
-   - Verify `.ciel/map.json` and `.ciel/memory.json` exist and are parseable
-   - Verify `CLAUDE.md` exists and references Ciel pipeline
+```
+## CIEL STATUS
 
-3. **Present results** — show a clear summary: what's OK, what's missing, version status.
+Version: v4.0.1
+Platform: Claude Code
+Config: .claude/settings.json — OK
+Hooks: 12 registered
+Skills: 48 domain skills in .claude/skills/
+Agents: 4 sub-agents (researcher, explorer, critic, improver)
+Commands: 7 available
+Memory: .ciel/memory/ — N episodes
+```
 
-## When triggered
+## Diagnostics (--check)
 
-- User asks "is Ciel working?" or "check Ciel health"
-- After ciel-init to verify installation
+- CLAUDE.md readable and includes Ciel pipeline
+- .claude/settings.json valid JSON, all hooks registered
+- .ciel/map.json parseable
+- .ciel/memory/index.json present
+- Shell hooks executable and firing
+- Skills directory non-empty
+- Agent definitions present (4 files)
+
+## When to use
+
+- After `/ciel-init` to verify installation
+- When "is Ciel working?" is asked
 - Debugging hook failures or missing depth classification
-- User reports missing commands or broken Ciel behavior

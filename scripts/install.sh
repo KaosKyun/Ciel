@@ -320,7 +320,7 @@ install_ciel_files() {
         download_if_needed "platforms/opencode/.opencode/agents/ciel-explorer.md"
         download_if_needed "platforms/opencode/.opencode/agents/ciel-critic.md"
         download_if_needed "platforms/opencode/.opencode/agents/ciel-improver.md"
-        for cmd in ciel-init ciel-update ciel-refresh ciel-improve ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
+        for cmd in ciel-init ciel-update ciel-improve ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-status; do
           download_if_needed "platforms/opencode/.opencode/commands/${cmd}.md"
         done
         ensure cp "$TMP_DIR/platforms/opencode/.opencode/plugins/ciel.ts" "$target_dir/.opencode/plugins/"
@@ -489,7 +489,7 @@ PY
         done
         # NOTE: ciel.md is NOT copied — /ciel is handled by the skill (skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
-        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
+        for cmd in ciel-init ciel-update ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-status; do
           download_if_needed "commands/${cmd}.md"
         done
         download_if_needed ".claude/settings.json"
@@ -528,7 +528,7 @@ PY
         [ -f "$TMP_DIR/.claude/hooks/memory-engine.py" ] && cp "$TMP_DIR/.claude/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
-        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
+        for cmd in ciel-init ciel-update ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-status; do
           if [ -f "$TMP_DIR/commands/${cmd}.md" ]; then
             ensure cp "$TMP_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/"
           fi
@@ -558,7 +558,7 @@ PY
         fi
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
-        for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
+        for cmd in ciel-init ciel-update ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-status; do
           if [ -f "$SRC_DIR/commands/${cmd}.md" ]; then
             cp $CP_FLAG "$SRC_DIR/commands/${cmd}.md" "$target_dir/.claude/commands/" 2>/dev/null && \
               installed+=("${cmd}") || skipped+=("${cmd}")
@@ -802,7 +802,7 @@ do_uninstall() {
 
   # Claude Code: sub-commands only (/ciel is from skills/ciel/SKILL.md)
   # ciel-improve is OpenCode-only, not in .claude/commands/
-  for cmd in ciel-init ciel-update ciel-refresh ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-migrate ciel-status; do
+  for cmd in ciel-init ciel-update ciel-eval ciel-create-skill ciel-audit ciel-memory-bootstrap ciel-status; do
     if [ -f ".claude/commands/${cmd}.md" ]; then
       rm -f ".claude/commands/${cmd}.md" 2>/dev/null && { ok ".claude/commands/${cmd}.md removed"; ((count++)); } || true
     fi
