@@ -1,7 +1,7 @@
 #!/bin/bash
-# Ciel — Skills & Hooks sync
-# Single source of truth: .claude/skills/ + hooks/
-# Syncs to: .claude/hooks/ (Claude Code runtime) + packages/ciel/assets/skills/ (distribution)
+# Ciel — Skills, Rules & Hooks sync
+# Single source of truth: .claude/skills/ + .claude/rules/ + hooks/
+# Syncs to: .claude/hooks/ (Claude Code runtime) + packages/ciel/assets/ (distribution)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -22,10 +22,18 @@ echo "  Hooks synced: $(ls "$PROJECT_DIR/hooks/" | wc -l | tr -d ' ') files"
 if [ -d "$PROJECT_DIR/.claude/skills" ]; then
   echo "Syncing .claude/skills/ -> packages/ciel/assets/skills/"
   mkdir -p "$PROJECT_DIR/packages/ciel/assets/skills"
-  rsync -av --delete --exclude='.legacy' "$PROJECT_DIR/.claude/skills/" "$PROJECT_DIR/packages/ciel/assets/skills/" 2>&1 | tail -1
+  rsync -av --delete "$PROJECT_DIR/.claude/skills/" "$PROJECT_DIR/packages/ciel/assets/skills/" 2>&1 | tail -1
 fi
 
-# --- 3. Report ---
-SKILL_COUNT=$(find "$PROJECT_DIR/.claude/skills" -maxdepth 2 -name "SKILL.md" -not -path "*/.legacy/*" 2>/dev/null | wc -l | tr -d ' ')
-echo "  Skills: $SKILL_COUNT"
+# --- 3. Sync rules -> packages/ciel/assets/rules/ ---
+if [ -d "$PROJECT_DIR/.claude/rules" ]; then
+  echo "Syncing .claude/rules/ -> packages/ciel/assets/rules/"
+  mkdir -p "$PROJECT_DIR/packages/ciel/assets/rules"
+  rsync -av --delete "$PROJECT_DIR/.claude/rules/" "$PROJECT_DIR/packages/ciel/assets/rules/" 2>&1 | tail -1
+fi
+
+# --- 4. Report ---
+SKILL_COUNT=$(find "$PROJECT_DIR/.claude/skills" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
+RULES_COUNT=$(find "$PROJECT_DIR/.claude/rules" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+echo "  Skills: $SKILL_COUNT, Rules: $RULES_COUNT"
 echo "=== Sync complete ==="

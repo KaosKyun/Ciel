@@ -508,6 +508,21 @@ PY
             cp "$TMP_DIR/skills/workflow/${skill}/SKILL.md" "$target_dir/.claude/skills/workflow/${skill}/SKILL.md"
           fi
         done
+        # Domain skills (48 skills across 12 layers — api-design, frontend, database, etc.).
+        # Mirrored to .claude/skills/<name>/SKILL.md for auto-discovery.
+        for skill in agile alerting api-design appsec architecture backend backup-recovery caching cdn chaos cicd-pipeline cloud code-quality code-review communication containers cqrs crypto data-engineering database-design ddd deployment-strategies desktop devsecops event-driven frontend functional high-availability iac logging ml-engineering mobile monitoring networking nosql oop-solid performance reactive release-management resilience serverless servers sql supply-chain system-design tech-leadership testing tracing; do
+          download_if_needed "skills/${skill}/SKILL.md"
+          if [ -f "$TMP_DIR/skills/${skill}/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/${skill}"
+            cp "$TMP_DIR/skills/${skill}/SKILL.md" "$target_dir/.claude/skills/${skill}/SKILL.md"
+          fi
+        done
+        # Rules — auto-inject on matching file paths via .claude/rules/
+        mkdir -p "$target_dir/.claude/rules"
+        for rule in api backend cicd containers database frontend iac monitoring security testing; do
+          download_if_needed ".claude/rules/${rule}.md"
+          [ -f "$TMP_DIR/.claude/rules/${rule}.md" ] && cp "$TMP_DIR/.claude/rules/${rule}.md" "$target_dir/.claude/rules/${rule}.md" || true
+        done
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
         [ -f "$TMP_DIR/.claude/hooks/memory-engine.py" ] && cp "$TMP_DIR/.claude/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
@@ -549,24 +564,39 @@ PY
               installed+=("${cmd}") || skipped+=("${cmd}")
           fi
         done
-        # Ciel skill (/ciel command on Claude Code)
-        if [ -f "$target_dir/.claude/skills" ]; then rm -f "$target_dir/.claude/skills" 2>/dev/null || true; fi
-        mkdir -p "$target_dir/.claude/skills/ciel"
-        cp $CP_FLAG "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null && \
-          installed+=("ciel skill") || skipped+=("ciel skill")
-        cp $CP_FLAG "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null && \
-          installed+=("ciel reference") || skipped+=("ciel reference")
-        # Workflow skills (memoire, depth-classifier, quoi-framer, etc.). Iterate
-        # the source directory to ship every skill present, so adding a new one
-        # in skills/workflow/ propagates without touching install.sh again.
-        if [ -d "$SRC_DIR/skills/workflow" ]; then
-          for skill_src in "$SRC_DIR/skills/workflow"/*/SKILL.md; do
+        # Install all skills (domain + workflow + research + meta + utility).
+        # Flat skills live at skills/<name>/SKILL.md. Grouped skills (workflow,
+        # research, meta, utility) live at skills/<group>/<name>/SKILL.md. Ciel
+        # skill also copies reference.md.
+        if [ -d "$SRC_DIR/skills" ]; then
+          if [ -f "$target_dir/.claude/skills" ]; then rm -f "$target_dir/.claude/skills" 2>/dev/null || true; fi
+          mkdir -p "$target_dir/.claude/skills"
+
+          # Ciel skill — special case (copies reference.md too)
+          if [ -f "$SRC_DIR/skills/ciel/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/ciel"
+            cp $CP_FLAG "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null || true
+            cp $CP_FLAG "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null || true
+          fi
+
+          # All other skills — iterate source to discover both flat and grouped.
+          # skills/<name>/SKILL.md          -> .claude/skills/<name>/SKILL.md
+          # skills/<group>/<name>/SKILL.md  -> .claude/skills/<group>/<name>/SKILL.md
+          for skill_src in $(find "$SRC_DIR/skills" -name "SKILL.md" -not -path "*/.legacy*" -not -path "*/ciel/*"); do
             [ -f "$skill_src" ] || continue
-            skill_name="$(basename "$(dirname "$skill_src")")"
-            mkdir -p "$target_dir/.claude/skills/workflow/${skill_name}"
-            cp $CP_FLAG "$skill_src" "$target_dir/.claude/skills/workflow/${skill_name}/SKILL.md" 2>/dev/null || true
+            rel="${skill_src#$SRC_DIR/skills/}"
+            skill_dir="$(dirname "$rel")"
+            mkdir -p "$target_dir/.claude/skills/${skill_dir}"
+            cp $CP_FLAG "$skill_src" "$target_dir/.claude/skills/${skill_dir}/SKILL.md" 2>/dev/null || true
           done
-          installed+=("workflow skills")
+          installed+=("skills")
+        fi
+
+        # Copy rules — auto-inject on matching file paths
+        if [ -d "$SRC_DIR/.claude/rules" ]; then
+          mkdir -p "$target_dir/.claude/rules"
+          cp $CP_FLAG "$SRC_DIR/.claude/rules/"*.md "$target_dir/.claude/rules/" 2>/dev/null && \
+            installed+=("rules") || skipped+=("rules")
         fi
         cp $CP_FLAG "$SRC_DIR/.claude/settings.json" "$target_dir/.claude/settings.json" 2>/dev/null && \
           installed+=("settings.json") || skipped+=("settings.json")
