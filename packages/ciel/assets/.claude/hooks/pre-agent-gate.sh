@@ -8,15 +8,14 @@
 # Escape hatch: include [CIEL_GATE_BYPASS] anywhere in the prompt to allow
 #   a non-ciel agent through (e.g. legitimate one-off native dispatch).
 
-set -euo pipefail
+set -uo pipefail
 
-input_json=""
-if [ ! -t 0 ]; then
-    input_json=$(cat)
-fi
+input_json=$(cat 2>/dev/null || echo "{}")
 [ -z "$input_json" ] && exit 0
 
-parsed=$(echo "$input_json" | python3 -c "
+# Parse subagent_type and prompt head — prefer python3, fall back to grep
+if command -v python3 &>/dev/null; then
+  parsed=$(echo "$input_json" | python3 -c "
 import json, sys
 try:
     d = json.load(sys.stdin)
@@ -27,6 +26,12 @@ try:
 except Exception:
     print('\t')
 " 2>/dev/null)
+else
+  # Fallback: grep-based extraction (no python3 available)
+  subagent_type=$(echo "$input_json" | grep -o '"subagent_type"\s*:\s*"[^"]*"' | head -1 | sed 's/.*"subagent_type"\s*:\s*"\([^"]*\)".*/\1/' 2>/dev/null || echo "")
+  prompt_head=$(echo "$input_json" | grep -o '"prompt"\s*:\s*"[^"]*"' | head -1 | cut -c1-200 2>/dev/null || echo "")
+  parsed="${subagent_type}\t${prompt_head}"
+fi
 
 subagent_type="${parsed%%$'\t'*}"
 prompt_head="${parsed#*$'\t'}"

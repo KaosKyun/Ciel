@@ -477,7 +477,7 @@ PY
         for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
           download_if_needed ".claude/agents/${agent}.md"
         done
-        for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh; do
+        for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh pre-agent-gate.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh stop.sh subagent-stop.sh session-version-check.sh; do
           download_if_needed ".claude/hooks/${hook}"
         done
         # Cued-recall memory engine + bootstrap (top-level hooks/, shared across platforms).

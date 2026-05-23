@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && { ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
+            "command": "echo \"[CIEL v7] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && { ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
           }
         ]
       }
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "touch /tmp/ciel_dispatched && echo \"[CIEL] Explorer started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/exploration-log.md\""
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Explorer started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/exploration-log.md\""
           }
         ]
       },
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "touch /tmp/ciel_dispatched && echo \"[CIEL] Researcher started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Researcher started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
           }
         ]
       },
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL] Critic started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Critic started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
           }
         ]
       }

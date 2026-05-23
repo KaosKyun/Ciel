@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[CIEL v6] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && { ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
+            "command": "echo \"[CIEL v7] Session started — Pipeline: DOCS → QUOI → ASK → AVEC QUOI → DIVERGE → RECHERCHE → CODEBASE → EVALUER → ASK2 → FAIRE → RELIRE → PROUVER → MEMOIRE → META\" && { ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
           }
         ]
       }

@@ -2,8 +2,8 @@
 # CIEL SECURITY GATE: block destructive bash commands
 # exit 2 = block, exit 0 = allow
 
-INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
+INPUT=$(cat 2>/dev/null || echo "{}")
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
 
 if echo "$COMMAND" | grep -qiE 'rm\s+(-rf|--recursive|/-f)'; then
   echo "[CIEL SECURITY] Destructive command blocked: rm -rf" >&2

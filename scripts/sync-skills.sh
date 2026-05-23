@@ -39,7 +39,21 @@ if [ -d "$PROJECT_DIR/.claude/agents" ]; then
   rsync -av --delete "$PROJECT_DIR/.claude/agents/" "$PROJECT_DIR/packages/ciel/assets/.claude/agents/" 2>&1 | tail -1
 fi
 
-# --- 5. Report ---
+# --- 5. Sync .claude/hooks/ -> packages/ciel/assets/.claude/hooks/ ---
+if [ -d "$PROJECT_DIR/.claude/hooks" ]; then
+  echo "Syncing .claude/hooks/ -> packages/ciel/assets/.claude/hooks/"
+  mkdir -p "$PROJECT_DIR/packages/ciel/assets/.claude/hooks"
+  rsync -av --delete "$PROJECT_DIR/.claude/hooks/" "$PROJECT_DIR/packages/ciel/assets/.claude/hooks/" 2>&1 | tail -1
+fi
+
+# --- 6. Sync .claude/settings.json -> packages/ciel/assets/.claude/settings.json ---
+if [ -f "$PROJECT_DIR/.claude/settings.json" ]; then
+  echo "Syncing .claude/settings.json -> packages/ciel/assets/.claude/settings.json"
+  mkdir -p "$PROJECT_DIR/packages/ciel/assets/.claude"
+  cp "$PROJECT_DIR/.claude/settings.json" "$PROJECT_DIR/packages/ciel/assets/.claude/settings.json"
+fi
+
+# --- 7. Report ---
 SKILL_COUNT=$(find "$PROJECT_DIR/.claude/skills" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 RULES_COUNT=$(find "$PROJECT_DIR/.claude/rules" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
 AGENT_COUNT=$(find "$PROJECT_DIR/.claude/agents" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
