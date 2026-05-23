@@ -477,14 +477,11 @@ PY
         for agent in ciel-researcher ciel-explorer ciel-critic ciel-improver; do
           download_if_needed ".claude/agents/${agent}.md"
         done
-        for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh pre-agent-gate.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh stop.sh subagent-stop.sh session-version-check.sh; do
-          download_if_needed ".claude/hooks/${hook}"
-        done
-        # Cued-recall memory engine + bootstrap (top-level hooks/, shared across platforms).
-        # These are downloaded into the .claude/hooks dir alongside the platform-specific ones
-        # so user-prompt-submit.sh and memory-bootstrap.sh can find memory-engine.py via the
-        # $CLAUDE_PROJECT_DIR/.claude/hooks/ resolution path.
-        for hook in user-prompt-submit.sh memory-bootstrap.sh memory-engine.py session-start.sh; do
+        # All hooks are downloaded from hooks/ (repo root, tracked by git).
+        # .claude/hooks/ is gitignored and NOT available on GitHub — using it causes 404s.
+        # Shared hooks (memory-engine, user-prompt-submit, session-start, memory-bootstrap)
+        # live alongside platform hooks in the same hooks/ directory.
+        for hook in check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh pre-agent-gate.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh stop.sh subagent-stop.sh session-version-check.sh user-prompt-submit.sh memory-bootstrap.sh memory-engine.py session-start.sh; do
           curl -fsSL "$GITHUB_RAW/hooks/${hook}" -o "$TMP_DIR/.claude/hooks/${hook}" 2>/dev/null || warn "Missing: hooks/${hook}"
         done
         # NOTE: ciel.md is NOT copied — /ciel is handled by the skill (skills/ciel/SKILL.md)
@@ -499,8 +496,22 @@ PY
         download_if_needed "skills/ciel/reference.md"
         [ -f "$TMP_DIR/skills/ciel/SKILL.md" ] && cp "$TMP_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" || true
         [ -f "$TMP_DIR/skills/ciel/reference.md" ] && cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" || true
-        # Workflow skills (memoire, depth-classifier, quoi-framer, etc.) — ship the full set.
-        # Mirrored to .claude/skills/workflow/<name>/SKILL.md so Claude Code can auto-discover them.
+        # ── Skills (curl mode) ───────────────────────────────────────────
+        # Mirrored to .claude/skills/<group>/<name>/SKILL.md for auto-discovery.
+        # WARNING: these lists MUST stay in sync with tracked files in skills/.
+        # Run `git ls-files skills/ | grep SKILL.md` and `.claude/rules/` to verify.
+        # Local-mode installs use `find` and are always in sync dynamically.
+
+        # Domain skills (14 — skills/domain/<name>/SKILL.md)
+        for skill in accessibility-wcag-auditor api-architecture backend-mastery cicd-pipeline-designer cicd-security-hardener database-mastery frontend-mastery mcp-configurator observability performance-engineering refactoring-patterns security-hardening test-writing ts-js-patterns; do
+          download_if_needed "skills/domain/${skill}/SKILL.md"
+          if [ -f "$TMP_DIR/skills/domain/${skill}/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/domain/${skill}"
+            cp "$TMP_DIR/skills/domain/${skill}/SKILL.md" "$target_dir/.claude/skills/domain/${skill}/SKILL.md"
+          fi
+        done
+
+        # Workflow skills (28 — skills/workflow/<name>/SKILL.md)
         for skill in adr-auto ai-failure-modes-detector ask-window avec-quoi-versioner ci-watcher critiquer-auditor debug-reasoning-rca depth-classifier diverge doc-validator-official evaluer-sizer faire-gatekeeper flux-narrator memoire memoire-consolidator meta-critiquer modern-patterns-checker pattern-fitness-check playwright-visual-critic pr-review-responder prouver-verifier quoi-framer relire-critic security-regression-check self-consistency-verifier spike-mode stride-analyzer test-strategy-vitest-playwright; do
           download_if_needed "skills/workflow/${skill}/SKILL.md"
           if [ -f "$TMP_DIR/skills/workflow/${skill}/SKILL.md" ]; then
@@ -508,18 +519,39 @@ PY
             cp "$TMP_DIR/skills/workflow/${skill}/SKILL.md" "$target_dir/.claude/skills/workflow/${skill}/SKILL.md"
           fi
         done
-        # Domain skills (48 skills across 12 layers — api-design, frontend, database, etc.).
-        # Mirrored to .claude/skills/<name>/SKILL.md for auto-discovery.
-        for skill in agile alerting api-design appsec architecture backend backup-recovery caching cdn chaos cicd-pipeline cloud code-quality code-review communication containers cqrs crypto data-engineering database-design ddd deployment-strategies desktop devsecops event-driven frontend functional high-availability iac logging ml-engineering mobile monitoring networking nosql oop-solid performance reactive release-management resilience serverless servers sql supply-chain system-design tech-leadership testing tracing; do
-          download_if_needed "skills/${skill}/SKILL.md"
-          if [ -f "$TMP_DIR/skills/${skill}/SKILL.md" ]; then
-            mkdir -p "$target_dir/.claude/skills/${skill}"
-            cp "$TMP_DIR/skills/${skill}/SKILL.md" "$target_dir/.claude/skills/${skill}/SKILL.md"
+
+        # Meta skills (6 — skills/meta/<name>/SKILL.md)
+        for skill in ciel-improve learnings-capture skill-creator skill-freshness-auditor skill-variant-evaluator skills-first-design-auditor; do
+          download_if_needed "skills/meta/${skill}/SKILL.md"
+          if [ -f "$TMP_DIR/skills/meta/${skill}/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/meta/${skill}"
+            cp "$TMP_DIR/skills/meta/${skill}/SKILL.md" "$target_dir/.claude/skills/meta/${skill}/SKILL.md"
           fi
         done
+
+        # Utility skills (9 — skills/utility/<name>/SKILL.md)
+        for skill in branch-cleaner branch-setup changelog-updater commit-writer issue-closer issue-creator pr-merger pr-opener release-publisher; do
+          download_if_needed "skills/utility/${skill}/SKILL.md"
+          if [ -f "$TMP_DIR/skills/utility/${skill}/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/utility/${skill}"
+            cp "$TMP_DIR/skills/utility/${skill}/SKILL.md" "$target_dir/.claude/skills/utility/${skill}/SKILL.md"
+          fi
+        done
+
+        # Research skills (6 — skills/research/<name>/SKILL.md)
+        for skill in fact-check-claims research-forums research-github-issues research-web-sources synthesize-findings validate-source-credibility; do
+          download_if_needed "skills/research/${skill}/SKILL.md"
+          if [ -f "$TMP_DIR/skills/research/${skill}/SKILL.md" ]; then
+            mkdir -p "$target_dir/.claude/skills/research/${skill}"
+            cp "$TMP_DIR/skills/research/${skill}/SKILL.md" "$target_dir/.claude/skills/research/${skill}/SKILL.md"
+          fi
+        done
+
         # Rules — auto-inject on matching file paths via .claude/rules/
+        # Only 2 rules exist (security, testing). Kept as explicit list so missing
+        # rules are noticed rather than silently skipped.
         mkdir -p "$target_dir/.claude/rules"
-        for rule in api backend cicd containers database frontend iac monitoring security testing; do
+        for rule in security testing; do
           download_if_needed ".claude/rules/${rule}.md"
           [ -f "$TMP_DIR/.claude/rules/${rule}.md" ] && cp "$TMP_DIR/.claude/rules/${rule}.md" "$target_dir/.claude/rules/${rule}.md" || true
         done
@@ -544,17 +576,15 @@ PY
       else
         cp $CP_FLAG "$SRC_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/" 2>/dev/null && \
           installed+=("agents") || skipped+=("agents")
-        cp $CP_FLAG "$SRC_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null && \
-          installed+=("hooks") || skipped+=("hooks")
-        # Copy shared hooks from project root hooks/ (memory-bootstrap, session-start, user-prompt-submit, memory-engine)
-        # These are in hooks/ (not .claude/hooks/) in the source project but get deployed to .claude/hooks/
-        for shared_hook in memory-bootstrap.sh session-start.sh user-prompt-submit.sh; do
-          if [ -f "$SRC_DIR/hooks/$shared_hook" ]; then
-            cp $CP_FLAG "$SRC_DIR/hooks/$shared_hook" "$target_dir/.claude/hooks/" 2>/dev/null || true
-          fi
-        done
-        if [ -f "$SRC_DIR/hooks/memory-engine.py" ]; then
-          cp $CP_FLAG "$SRC_DIR/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
+        # Copy all hooks from hooks/ (repo root, tracked by git).
+        # .claude/hooks/ is gitignored and may not exist in a fresh clone —
+        # hooks/ is the single source of truth.
+        if [ -d "$SRC_DIR/hooks" ]; then
+          cp $CP_FLAG "$SRC_DIR/hooks/"*.sh "$target_dir/.claude/hooks/" 2>/dev/null || true
+          cp $CP_FLAG "$SRC_DIR/hooks/"*.py "$target_dir/.claude/hooks/" 2>/dev/null || true
+          installed+=("hooks") || true
+        else
+          skipped+=("hooks")
         fi
         # Copy sub-commands only (/ciel is handled by skills/ciel/SKILL.md)
         # ciel-improve is OpenCode-only (.opencode/commands/), not available as generic command
