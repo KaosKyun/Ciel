@@ -8,10 +8,11 @@ description: "Monitoring — RED/USE metrics, SLI/SLO/SLA comme contrats, dashbo
 **Principe premier :** Le monitoring n'est pas "avoir des dashboards" — c'est pouvoir répondre à deux questions en < 30 secondes : "est-ce que le système fonctionne ?" et "si non, qu'est-ce qui a changé ?". Si tes dashboards ne répondent pas à ça, ils sont du bruit visuel. La métrique fondamentale n'est pas le nombre de graphiques — c'est le Mean Time To Detect (MTTD). Combien de temps entre le début de l'incident et la première alerte ? Si la réponse est "quand un client ouvre un ticket", ton monitoring a échoué.
 
 ## Checklist
-- [ ] RED metrics par service : Rate, Errors, Duration (P50/P95/P99) — couvre l'expérience utilisateur
-- [ ] USE metrics par ressource : Utilization, Saturation, Errors — couvre l'infrastructure
+- [ ] RED metrics par service : Rate, Errors, Duration (P50/P95/P99) — collectées via Prometheus, exposées sur `/metrics`
+- [ ] USE metrics par ressource : Utilization, Saturation, Errors — node_exporter/cAdvisor → Prometheus → Grafana
+- [ ] Dashboards, règles Prometheus, et config AlertManager sont dans le repo (monitoring as code) — pas créés à la main dans l'UI Grafana
+- [ ] Dashboards Grafana avec seuils visuels (vert/jaune/rouge) — pas juste des lignes sur un graphique
 - [ ] SLI définis (ce qu'on mesure), SLO documentés (l'objectif), SLA communiqués (la promesse)
-- [ ] Dashboards avec seuils visuels (vert/jaune/rouge) — pas juste des lignes sur un graphique
 - [ ] Alertes sur les signaux critiques uniquement — pas d'alerte sur "CPU > 70% pendant 30s à 3h du matin"
 - [ ] Runbook associé à chaque alerte — "si cette alerte sonne, voici quoi faire"
 
@@ -32,14 +33,22 @@ description: "Monitoring — RED/USE metrics, SLI/SLO/SLA comme contrats, dashbo
 **Faire plutôt :** monitoring (métriques + dashboards + alertes) + logging (logs structurés JSON + correlation ID) + tracing (OpenTelemetry, traces distribuées). Les trois piliers de l'observabilité.
 
 ## Patterns
+### Prometheus + Grafana (stack standard)
+**Quand :** toute application en production.
+**Comment :** Prometheus scrape les métriques exposées par l'app (`/metrics`). Grafana interroge Prometheus (PromQL) et affiche les dashboards. Pas de solution propriétaire — cette stack est le standard ouvert, toutes les bibliothèques l'implémentent. Chaque service expose ses propres métriques RED, l'infrastructure expose les USE via node_exporter / cAdvisor.
+
 ### RED method (services)
 **Quand :** monitoring de tout service (API, worker, etc.).
-**Comment :** Rate (requêtes/s), Errors (taux d'erreur), Duration (P50/P95/P99). 3 métriques par endpoint. Couvre l'expérience utilisateur. Si le Rate chute, si les Errors montent, si la Duration explose — alerter.
+**Comment :** Rate (requêtes/s), Errors (taux d'erreur), Duration (P50/P95/P99) via histogram Prometheus. 3 métriques par endpoint. Couvre l'expérience utilisateur. PromQL : `rate(http_requests_total[5m])`, `rate(http_errors_total[5m])`, `histogram_quantile(0.95, rate(http_duration_bucket[5m]))`.
 
 ### USE method (ressources)
 **Quand :** monitoring de toute ressource (CPU, RAM, disque, réseau, DB pool).
-**Comment :** Utilization (% utilisé), Saturation (file d'attente), Errors (compteur d'erreurs). 3 métriques par ressource. Couvre la santé de l'infrastructure. Si Utilization > 80%, si Saturation > 0, si Errors > 0 — investiguer.
+**Comment :** Utilization (% utilisé), Saturation (file d'attente), Errors (compteur d'erreurs) via node_exporter. 3 métriques par ressource. Dashboard Grafana avec seuils vert/jaune/rouge. Si Utilization > 80%, si Saturation > 0, si Errors > 0 — investiguer.
 
 ### SLO-based alerting
 **Quand :** définir les alertes sans tomber dans l'alert fatigue.
-**Comment :** définir un SLO (ex: "99.9% des requêtes < 500ms sur 30 jours"). L'alerte se déclenche quand le error budget est consommé trop vite (ex: 5% du budget mensuel en 1h), pas sur chaque dépassement ponctuel.
+**Comment :** définir un SLO (ex: "99.9% des requêtes < 500ms sur 30 jours"). L'alerte se déclenche quand le error budget est consommé trop vite (ex: 5% du budget mensuel en 1h). Configurer dans AlertManager via Prometheus rules : `alert: HighErrorBurnRate`, `expr: rate(http_errors_total[1h]) / rate(http_requests_total[1h]) > 0.05`.
+
+### Monitoring as Code (dashboards + rules dans le repo)
+**Quand :** toute équipe de plus d'une personne.
+**Comment :** dashboards Grafana en JSON (Grafonnet pour les générer), règles Prometheus en YAML, config AlertManager en YAML — tout dans `monitoring/` du repo. Déploiement via CI/CD (Terraform, Grafana provisioning API). PR pour chaque changement de dashboard ou alerte. Le monitoring est de l'infrastructure — le même niveau de rigueur que le Terraform de prod.

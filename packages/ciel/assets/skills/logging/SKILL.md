@@ -39,4 +39,8 @@ description: "Logging — structured JSON, correlation ID, PII scrubbing, centra
 
 ### Centralized aggregation
 **Quand :** plus d'un service.
-**Comment :** tous les logs → stdout (K8s/Docker) → agent (Promtail, Filebeat, Datadog Agent) → store central (Loki, Elasticsearch). Un seul endroit pour chercher.
+**Comment :** tous les logs → stdout (K8s/Docker) → Promtail (parse, label) → Loki (stocke) → Grafana (requete LogQL). Un seul endroit pour chercher. LogQL : `{service="api", level="error"} |= "payment" | json`. Depuis Grafana, lien direct : log → trace ID → Tempo → span exact.
+
+### Debug flow Grafana (metrics → logs → traces)
+**Quand :** incident en production.
+**Comment :** (1) Grafana dashboard : métrique RED rouge → clic sur le point → (2) "Explore logs" → LogQL filtré par temps + service → (3) extraire le trace ID du log → (4) Tempo : trace complète avec tous les spans. Sans intégration, ces 3 outils sont séparés. Avec Grafana, ils sont liés.
