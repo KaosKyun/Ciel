@@ -106,7 +106,7 @@ async function main(): Promise<void> {
           // Re-exec with the freshly updated binary to run init
           const passthrough = [...process.argv.slice(1).filter(a => a !== "update" && a !== "repair"), "update", "--skip-npm-update", "--yes"];
           try {
-            execSync(`npx ciel-init ${passthrough.map(a => `"${a}"`).join(" ")}`, { stdio: "inherit" });
+            execSync(`npx @neikyun/ciel ${passthrough.map(a => `"${a}"`).join(" ")}`, { stdio: "inherit" });
           } catch {
             warn("npx re-exec failed, falling back to in-process init");
             await runInit({ ...options, force: true, yes: true });
