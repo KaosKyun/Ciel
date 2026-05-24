@@ -77,11 +77,6 @@ jobs:
       - name: Publish to npm
         working-directory: packages/ciel
         run: |
-          # setup-node creates .npmrc with _authToken=${NODE_AUTH_TOKEN}.
-          # When NODE_AUTH_TOKEN is unset (OIDC mode), the empty token
-          # blocks the OIDC exchange. Strip it so npm uses OIDC auth.
-          sed -i '/_authToken/d' ~/.npmrc
-
           if [ "${{ github.event.inputs.dry-run }}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "=== Dry run mode ==="
             npm publish --dry-run
