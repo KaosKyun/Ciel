@@ -112,7 +112,7 @@ if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   echo "$DEPTH" > "$CLAUDE_PROJECT_DIR/.ciel/last-depth" 2>/dev/null || true
 fi
 
-MSG_BASE="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE Invoke depth-classifier if ambiguous before routing pipeline."
+MSG_BASE="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE | SKILLS: load workflow skill via Skill() for current pipeline step (CLAUDE.md column 'Skill a charger'). Never skip. Invoke depth-classifier if ambiguous before routing pipeline."
 
 # Emit JSON via python to handle newlines and quoting safely
 MSG_BASE="$MSG_BASE" MEMORY_OUTPUT="$MEMORY_OUTPUT" python3 -c "
