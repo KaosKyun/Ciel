@@ -52,9 +52,7 @@ jobs:
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: '20'
-          # No registry-url — npm OIDC handles auth when id-token:write is set.
-          # A registry-url would create a .npmrc with _authToken that interferes
-          # with the OIDC token exchange.
+          registry-url: 'https://registry.npmjs.org'
 
 
 
@@ -79,6 +77,11 @@ jobs:
       - name: Publish to npm
         working-directory: packages/ciel
         run: |
+          # setup-node creates .npmrc with _authToken=${NODE_AUTH_TOKEN}.
+          # When NODE_AUTH_TOKEN is unset (OIDC mode), the empty token
+          # blocks the OIDC exchange. Strip it so npm uses OIDC auth.
+          sed -i '/_authToken/d' ~/.npmrc
+
           if [ "${{ github.event.inputs.dry-run }}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "=== Dry run mode ==="
             npm publish --dry-run
