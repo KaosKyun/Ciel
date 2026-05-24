@@ -511,8 +511,8 @@ PY
           fi
         done
 
-        # Workflow skills (28 — skills/workflow/<name>/SKILL.md)
-        for skill in adr-auto ai-failure-modes-detector ask-window avec-quoi-versioner ci-watcher critiquer-auditor debug-reasoning-rca depth-classifier diverge doc-validator-official evaluer-sizer faire-gatekeeper flux-narrator memoire memoire-consolidator meta-critiquer modern-patterns-checker pattern-fitness-check playwright-visual-critic pr-review-responder prouver-verifier quoi-framer relire-critic security-regression-check self-consistency-verifier spike-mode stride-analyzer test-strategy-vitest-playwright; do
+        # Workflow skills (29 — skills/workflow/<name>/SKILL.md)
+        for skill in adr-auto ai-failure-modes-detector ask-window avec-quoi-versioner ci-watcher ciel-dev-process critiquer-auditor debug-reasoning-rca depth-classifier diverge doc-validator-official evaluer-sizer faire-gatekeeper flux-narrator memoire memoire-consolidator meta-critiquer modern-patterns-checker pattern-fitness-check playwright-visual-critic pr-review-responder prouver-verifier quoi-framer relire-critic security-regression-check self-consistency-verifier spike-mode stride-analyzer test-strategy-vitest-playwright; do
           download_if_needed "skills/workflow/${skill}/SKILL.md"
           if [ -f "$TMP_DIR/skills/workflow/${skill}/SKILL.md" ]; then
             mkdir -p "$target_dir/.claude/skills/workflow/${skill}"
