@@ -103,6 +103,10 @@ if [[ -n "$ENGINE_PATH" ]] && [[ -n "$PROJECT_DIR" ]] && [[ -f "$PROJECT_DIR/.ci
   MEMORY_OUTPUT=$(python3 "$ENGINE_PATH" query --prompt "$PROMPT" --cwd "$PROJECT_DIR" --depth "$DEPTH_LOWER" 2>/dev/null || echo "")
 fi
 
+# Persist depth classification for downstream hooks (pre-tool-write gate reads this)
+DEPTH_FILE="${CLAUDE_PROJECT_DIR:-}/.ciel/last-depth"
+echo "$DEPTH" > "$DEPTH_FILE" 2>/dev/null || true
+
 MSG_BASE="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE Invoke depth-classifier if ambiguous before routing pipeline."
 
 # Emit JSON via python to handle newlines and quoting safely

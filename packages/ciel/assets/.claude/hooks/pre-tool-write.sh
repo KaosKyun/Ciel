@@ -49,19 +49,26 @@ if ls /tmp/ciel_dispatched.* >/dev/null 2>&1; then
   DISPATCHED=1
 fi
 
+# === DEPTH CHECK ===
+# Read depth classification from UserPromptSubmit hook (auto-bypass for Trivial)
+TASK_DEPTH="Standard"
+if [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/.ciel/last-depth" ]; then
+  TASK_DEPTH=$(cat "$PROJECT_DIR/.ciel/last-depth" 2>/dev/null || echo "Standard")
+fi
+
 # === DISPATCH GATE — BLOCK (v8 enforcement) ===
 # Block source code edits when no Ciel agent has been dispatched.
-# Skip non-code files (docs, config, JSON, YAML, etc.) — those are safe to edit inline.
+# Auto-bypass for Trivial tasks (depth classified by UserPromptSubmit hook).
+# Skip non-code files (docs, config, JSON, YAML, etc.) — safe to edit inline.
 # Skip test files — test-first RED means tests must be written before source.
-if [ "$IS_SOURCE" -eq 1 ] && [ "$IS_TEST" -eq 0 ] && [ "$DISPATCHED" -eq 0 ]; then
+if [ "$IS_SOURCE" -eq 1 ] && [ "$IS_TEST" -eq 0 ] && [ "$DISPATCHED" -eq 0 ] && [ "$TASK_DEPTH" != "Trivial" ]; then
   echo "[CIEL DISPATCH GATE] BLOCKED: Write to $(basename "$FILE_PATH")" >&2
   echo "" >&2
-  echo "  No Ciel agent dispatched yet. On Standard/Critical tasks you MUST:" >&2
-  echo "  1. Dispatch ciel-researcher + ciel-explorer in parallel (Agent tool)" >&2
-  echo "  2. Include relevant domain skill names in the dispatch prompt" >&2
-  echo "  3. Then retry the edit." >&2
+  echo "  Depth: $TASK_DEPTH — no Ciel agent dispatched yet." >&2
+  echo "  Dispatch ciel-researcher + ciel-explorer in parallel (Agent tool)," >&2
+  echo "  with relevant domain skill names in the dispatch prompt." >&2
   echo "" >&2
-  echo "  Trivial task? Add [CIEL_GATE_BYPASS] to bypass this gate." >&2
+  echo "  This is actually a Trivial task? Use [CIEL_GATE_BYPASS]." >&2
   exit 2
 fi
 
