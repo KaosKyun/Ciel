@@ -82,7 +82,7 @@ const CLAUDE_COMMANDS = [
   "ciel-create-skill.md",
   "ciel-audit.md",
   "ciel-status.md",
-  "ciel-memory-bootstrap.md",
+  "ciel-memory-init.md",
 ];
 
 const OPENCODE_AGENTS = [
@@ -102,7 +102,7 @@ const OPENCODE_COMMANDS = [
   "ciel-create-skill.md",
   "ciel-audit.md",
   "ciel-status.md",
-  "ciel-memory-bootstrap.md",
+  "ciel-memory-init.md",
 ];
 
 function checkFile(targetDir: string, relPath: string): boolean {

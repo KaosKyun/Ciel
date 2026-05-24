@@ -2,11 +2,11 @@
 description: Scan project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, Claude Code auto-memory at ~/.claude/projects/<slug>/memory/, etc.) and propose ingestion into the cued-recall memory under .ciel/memory/. Reports findings if no sources found. Always confirms each candidate with the user before writing.
 ---
 
-# /ciel-memory-bootstrap — Initialize Cued-Recall Memory
+# /ciel-memory-init — Initialize Cued-Recall Memory
 
 **Purpose:** First-run scan of an existing project to convert tribal knowledge already documented in `lessons.md`, `ciel-overlay.md`, `.claude/rules/`, Claude Code's per-project auto-memory (`~/.claude/projects/<slug>/memory/`), and similar files into the structured cued-recall memory at `.ciel/memory/`.
 
-**Usage:** `/ciel-memory-bootstrap` (no args)
+**Usage:** `/ciel-memory-init` (no args)
 
 This is **deterministic**: no agent dispatch, no pipeline, no DIVERGE/EVALUER. Just scan, propose, write on user confirmation.
 
@@ -163,7 +163,7 @@ Report:
 - N memories captured
 - Sources processed
 - Index rebuilt with M total entries
-- Suggest: "Cued-recall memory now active. Memories will auto-inject when their cues match in future tasks. Run `/ciel-memory-bootstrap` again anytime to re-scan for new tribal docs."
+- Suggest: "Cued-recall memory now active. Memories will auto-inject when their cues match in future tasks. Run `/ciel-memory-init` again anytime to re-scan for new tribal docs."
 
 ---
 

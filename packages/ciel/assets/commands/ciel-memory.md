@@ -81,7 +81,7 @@ mem_002  | Never trust default ...  | 0x       | never
 ...
 ```
 
-If empty: "No memories yet. The cued-recall memory is empty. It populates when you intervene with corrections. Run `/ciel-memory-bootstrap` to seed from existing tribal docs."
+If empty: "No memories yet. The cued-recall memory is empty. It populates when you intervene with corrections. Run `/ciel-memory-init` to seed from existing tribal docs."
 
 ### Step 4 — Show mode
 
@@ -188,23 +188,23 @@ After stats, suggest:
 
 ## Constraints
 
-- **Read-only.** Never write to `.ciel/memory/` from this command. Use `/ciel-memory-bootstrap` for ingestion.
+- **Read-only.** Never write to `.ciel/memory/` from this command. Use `/ciel-memory-init` for ingestion.
 - **No agent dispatch.** This command is deterministic. No researcher, explorer, or critic.
 - **No index rebuild.** Querying does not trigger a rebuild. Use `/ciel-doctor` or `memory-engine.py rebuild-index` explicitly if the index is corrupt.
-- **Handle missing index gracefully.** If `.ciel/memory/index.json` doesn't exist, tell the user: "No memory index found. Run `/ciel-memory-bootstrap` to initialize."
+- **Handle missing index gracefully.** If `.ciel/memory/index.json` doesn't exist, tell the user: "No memory index found. Run `/ciel-memory-init` to initialize."
 
 ## Failure modes
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Script not found | `$CLAUDE_PROJECT_DIR` not set | Try `$HOME/.ciel/hooks/memory-engine.py` |
-| index.json missing | Memory never initialized | Run `/ciel-memory-bootstrap` |
+| index.json missing | Memory never initialized | Run `/ciel-memory-init` |
 | index.json malformed | Manual edit error | Run `python3 hooks/memory-engine.py rebuild-index` |
 | 0 results on valid query | Cues don't match memory tags | Try broader terms or `/ciel-memory list` |
 
 ## See also
 
-- `/ciel-memory-bootstrap` — ingestion (scan, seed, capture)
+- `/ciel-memory-init` — ingestion (scan, seed, capture)
 - `/ciel-doctor` — health check including memory index integrity
 - `hooks/memory-engine.py` — the engine powering query/rebuild/capture
 - `docs/adrs/0001-cued-recall-memory.md` — design rationale

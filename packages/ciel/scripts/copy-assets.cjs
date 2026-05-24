@@ -23,7 +23,7 @@ const TEMPLATE_PATTERNS = [
   { src: "platforms/opencode/.opencode/commands/ciel-eval.md", dest: "platforms/opencode/.opencode/commands/ciel-eval.md" },
   { src: "platforms/opencode/.opencode/commands/ciel-create-skill.md", dest: "platforms/opencode/.opencode/commands/ciel-create-skill.md" },
   { src: "platforms/opencode/.opencode/commands/ciel-status.md", dest: "platforms/opencode/.opencode/commands/ciel-status.md" },
-  { src: "platforms/opencode/.opencode/commands/ciel-memory-bootstrap.md", dest: "platforms/opencode/.opencode/commands/ciel-memory-bootstrap.md" },
+  { src: "platforms/opencode/.opencode/commands/ciel-memory-init.md", dest: "platforms/opencode/.opencode/commands/ciel-memory-init.md" },
   { src: "platforms/opencode/.opencode/commands/ciel-audit.md", dest: "platforms/opencode/.opencode/commands/ciel-audit.md" },
   { src: "platforms/opencode/.opencode/commands/ciel.md", dest: "platforms/opencode/.opencode/commands/ciel.md" },
   { src: "platforms/opencode/AGENTS.md", dest: "platforms/opencode/AGENTS.md" },
@@ -57,7 +57,7 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-create-skill.md", dest: "commands/ciel-create-skill.md" },
   { src: "commands/ciel-status.md", dest: "commands/ciel-status.md" },
   { src: "commands/ciel-audit.md", dest: "commands/ciel-audit.md" },
-  { src: "commands/ciel-memory-bootstrap.md", dest: "commands/ciel-memory-bootstrap.md" },
+  { src: "commands/ciel-memory-init.md", dest: "commands/ciel-memory-init.md" },
   { src: "commands/ciel-memory.md", dest: "commands/ciel-memory.md" },
   { src: "commands/ciel-compile.md", dest: "commands/ciel-compile.md" },
 

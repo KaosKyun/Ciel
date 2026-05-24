@@ -132,7 +132,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     "ciel-eval.md",
     "ciel-create-skill.md",
     "ciel-audit.md",
-    "ciel-memory-bootstrap.md",
+    "ciel-memory-init.md",
     "ciel-memory.md",
     "ciel-status.md",
   ];

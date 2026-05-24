@@ -112,7 +112,7 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
     "ciel-create-skill.md",
     "ciel-audit.md",
     "ciel-status.md",
-    "ciel-memory-bootstrap.md",
+    "ciel-memory-init.md",
     "ciel.md",
   ];
   for (const cmd of commandFiles) {
