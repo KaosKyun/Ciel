@@ -42,6 +42,7 @@ const TEMPLATE_PATTERNS = [
   { src: "hooks/pre-tool-write.sh", dest: ".claude/hooks/pre-tool-write.sh" },
   { src: "hooks/pre-agent-gate.sh", dest: ".claude/hooks/pre-agent-gate.sh" },
   { src: "hooks/check-dispatch-gate.sh", dest: ".claude/hooks/check-dispatch-gate.sh" },
+  { src: "hooks/track-pipeline.sh", dest: ".claude/hooks/track-pipeline.sh" },
   // Cued-recall memory hooks
   { src: "hooks/session-start.sh", dest: ".claude/hooks/session-start.sh" },
   { src: "hooks/user-prompt-submit.sh", dest: ".claude/hooks/user-prompt-submit.sh" },

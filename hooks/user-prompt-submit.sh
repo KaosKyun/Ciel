@@ -112,7 +112,34 @@ if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   echo "$DEPTH" > "$CLAUDE_PROJECT_DIR/.ciel/last-depth" 2>/dev/null || true
 fi
 
-MSG_BASE="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE | SKILLS: load workflow skill via Skill() for current pipeline step (CLAUDE.md column 'Skill a charger'). Never skip. Invoke depth-classifier if ambiguous before routing pipeline."
+# ─── Pipeline state tracker ───────────────────────────────────────────
+PIPELINE_STATE=""
+if [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/.ciel/pipeline-state.json" ]; then
+  PIPELINE_STATE=$(STATE_FILE="$PROJECT_DIR/.ciel/pipeline-state.json" python3 << 'PYEOF'
+import json, os, sys
+try:
+    with open(os.environ['STATE_FILE']) as f:
+        state = json.load(f)
+    steps = state.get('steps', {})
+    order = ['DOCS','QUOI','ASK','AVEC QUOI','DIVERGE','RECHERCHE','SECURITE','CODEBASE','EVALUER','ASK2','FAIRE','TESTER','ADR','RELIRE','PROUVER','MEMOIRE','COMPILER','META']
+    done = [s for s in order if s in steps and steps[s].get('status') == 'done']
+    done_count = len(done)
+    total = len(order)
+    current = state.get('current_step', '')
+    # Show last 6 completed + current if pending
+    display = done[-6:] if len(done) > 6 else done[:]
+    show = [d + '✓' for d in display]
+    if current and current not in done:
+        show.append(current + '●')
+    bar = ' → '.join(show)
+    print(f' | PIPELINE: {bar} ({done_count}/{total})')
+except Exception:
+    pass
+PYEOF
+)
+fi
+
+MSG_BASE="CIEL depth hint: $DEPTH ($REASON).$DISPATCH_GATE$META_GATE$INTERVENTION_GATE$PIPELINE_STATE | SKILLS: load workflow skill via Skill() for current pipeline step (CLAUDE.md column 'Skill a charger'). Never skip. Invoke depth-classifier if ambiguous before routing pipeline."
 
 # Emit JSON via python to handle newlines and quoting safely
 MSG_BASE="$MSG_BASE" MEMORY_OUTPUT="$MEMORY_OUTPUT" python3 -c "

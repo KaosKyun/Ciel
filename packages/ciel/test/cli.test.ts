@@ -138,6 +138,7 @@ describe("CLI — Integrity check", () => {
       "check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh",
       "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
       "check-dispatch-gate.sh",
+      "track-pipeline.sh",
       "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
     ]) {
       const p = join(dir, ".claude/hooks", hook);
@@ -254,6 +255,7 @@ describe("CLI — Integrity check", () => {
       "check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh",
       "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
       "check-dispatch-gate.sh",
+      "track-pipeline.sh",
       "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
     ]) {
       writeFileSync(join(dir, ".claude/hooks", hook), "#!/bin/bash\necho ok");

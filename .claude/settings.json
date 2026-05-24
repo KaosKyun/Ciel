@@ -95,6 +95,15 @@
             "command": "COUNT=$(cat \"${CLAUDE_PROJECT_DIR:-$PWD}/.ciel/tracked-files.json\" 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print(len(d))\" 2>/dev/null || echo \"?\"); echo \"[CIEL] Tracked files: $COUNT — RELIRE recommended at 5+ files or on Critical paths\" >&2"
           }
         ]
+      },
+      {
+        "matcher": "Skill|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-pipeline.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-pipeline.sh\""
+          }
+        ]
       }
     ],
     "SubagentStart": [

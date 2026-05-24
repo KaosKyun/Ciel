@@ -70,6 +70,7 @@ const CLAUDE_HOOKS = [
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
   "check-dispatch-gate.sh",
+  "track-pipeline.sh",
   "session-start.sh",
   "user-prompt-submit.sh",
   "memory-bootstrap.sh",
