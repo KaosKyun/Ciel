@@ -190,7 +190,7 @@ describe("CLI package structure", () => {
 
   it("assets directory exists with templates", () => {
     assert.ok(existsSync("./assets/platforms/opencode/.opencode/agents/ciel.md"), "Agent template should exist");
-    assert.ok(existsSync("./assets/.claude/hooks/check-test-first.sh"), "Hook template should exist");
+    assert.ok(existsSync("./assets/.claude/hooks/pre-tool-write.sh"), "Hook template should exist");
     assert.ok(existsSync("./assets/AGENTS.md"), "AGENTS.md should exist");
   });
 
@@ -206,13 +206,13 @@ describe("CLI package structure", () => {
     assert.ok(!content.includes("ciel-plan"), "Should NOT reference orphaned ciel-plan");
   });
 
-  it("CLAUDE.md template is enriched (90+ lines, v8)", () => {
+  it("CLAUDE.md template is v9 (~25 lines)", () => {
     const fs = require("node:fs");
     const content = fs.readFileSync("./assets/CLAUDE.md", "utf-8");
-    assert.ok(content.includes("Ciel v8"), "Should be v8");
-    assert.ok(content.includes("Top 11 Guards"), "Should have guards");
-    assert.ok(content.includes("Subagent Dispatch"), "Should have dispatch rules");
+    assert.ok(content.includes("Ciel v9"), "Should be v9");
+    assert.ok(content.includes("Subagents"), "Should have dispatch rules");
     assert.ok(content.includes("ciel-critic"), "Should reference critic subagent");
+    assert.ok(content.includes("META"), "Should have META section");
   });
 
   it("package.json has correct bin and main", () => {

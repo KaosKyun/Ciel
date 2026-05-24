@@ -45,10 +45,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-test-first.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-test-first.sh\""
-          },
-          {
-            "type": "command",
             "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-write.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-write.sh\""
           }
         ]
@@ -89,48 +85,6 @@
           {
             "type": "command",
             "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\""
-          },
-          {
-            "type": "command",
-            "command": "COUNT=$(cat \"${CLAUDE_PROJECT_DIR:-$PWD}/.ciel/tracked-files.json\" 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print(len(d))\" 2>/dev/null || echo \"?\"); echo \"[CIEL] Tracked files: $COUNT — RELIRE recommended at 5+ files or on Critical paths\" >&2"
-          }
-        ]
-      },
-      {
-        "matcher": "Skill|Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-pipeline.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-pipeline.sh\""
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "matcher": "ciel-explorer",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Explorer started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/exploration-log.md\""
-          }
-        ]
-      },
-      {
-        "matcher": "ciel-researcher",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Researcher started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
-          }
-        ]
-      },
-      {
-        "matcher": "ciel-critic",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Critic started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
           }
         ]
       }
@@ -140,17 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\""
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\""
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop.sh\""
           }
         ]
       }
@@ -160,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/.ciel\" && echo \"[CIEL] Pre-compact: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/compact-log.md\""
+            "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/.ciel\""
           }
         ]
       }

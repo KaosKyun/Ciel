@@ -128,17 +128,16 @@ describe("CLI — Integrity check", () => {
     writeFileSync(join(dir, "CLAUDE.md"), "# Ciel");
     writeFileSync(join(dir, ".claude/settings.json"), JSON.stringify({
       hooks: {
-        PreToolUse: [{ hooks: [{ command: ".claude/hooks/check-test-first.sh" }] }]
+        PreToolUse: [{ hooks: [{ command: ".claude/hooks/pre-tool-write.sh" }] }]
       }
     }));
     for (const agent of ["ciel-researcher.md", "ciel-explorer.md", "ciel-critic.md", "ciel-improver.md"]) {
       writeFileSync(join(dir, ".claude/agents", agent), "# agent");
     }
     for (const hook of [
-      "check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh",
+      "block-destructive.sh", "track-file.sh",
       "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
-      "check-dispatch-gate.sh",
-      "track-pipeline.sh",
+      "check-dispatch-gate.sh", "stop.sh",
       "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
     ]) {
       const p = join(dir, ".claude/hooks", hook);
@@ -248,18 +247,16 @@ describe("CLI — Integrity check", () => {
     mkdirSync(join(dir, ".claude/hooks"), { recursive: true });
     mkdirSync(join(dir, ".ciel"), { recursive: true });
     writeFileSync(join(dir, ".claude/settings.json"), JSON.stringify({
-      hooks: { PreToolUse: [{ hooks: [{ command: ".claude/hooks/check-test-first.sh" }] }] }
+      hooks: { PreToolUse: [{ hooks: [{ command: ".claude/hooks/pre-tool-write.sh" }] }] }
     }));
     // Write hook files without exec bit
     for (const hook of [
-      "check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh",
+      "block-destructive.sh", "track-file.sh",
       "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
-      "check-dispatch-gate.sh",
-      "track-pipeline.sh",
+      "check-dispatch-gate.sh", "stop.sh",
       "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
     ]) {
       writeFileSync(join(dir, ".claude/hooks", hook), "#!/bin/bash\necho ok");
-      // chmod 644 (no exec)
       require("fs").chmodSync(join(dir, ".claude/hooks", hook), 0o644);
     }
     writeFileSync(join(dir, ".ciel/map.json"), "{}");

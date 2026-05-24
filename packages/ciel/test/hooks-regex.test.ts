@@ -36,14 +36,17 @@ function runHook(prompt: string): { fired: boolean; gateLabel: string | null } {
   return { fired, gateLabel: labelMatch ? labelMatch[1].trim() : null };
 }
 
-describe("user-prompt-submit.sh — explicit save-request regex (MUST match)", () => {
+describe("user-prompt-submit.sh — explicit save-request regex (v9: MUST NOT match — removed, too aggressive)", () => {
+  // v9 intentionally removed the explicit "save to memory" pattern — it caused
+  // too many false positives. Memory capture is now handled via intervention
+  // detection + META reflection questions.
   const cases = [
     "save this to memory",
     "save that to the memory",
     "save it in memory",
     "put it in memory",
     "put this in the memory",
-    "put it in the memory of ciel",        // The literal Neiyomi user phrase
+    "put it in the memory of ciel",
     "garde ça en mémoire",
     "garde cela en memoire",
     "mets ça en mémoire",
@@ -55,9 +58,9 @@ describe("user-prompt-submit.sh — explicit save-request regex (MUST match)", (
     "memorise that",
   ];
   for (const prompt of cases) {
-    it(`fires CAPTURE GATE on: "${prompt}"`, () => {
-      const { fired, gateLabel } = runHook(prompt);
-      assert.ok(fired, `expected CAPTURE GATE for "${prompt}", got: ${JSON.stringify({ fired, gateLabel })}`);
+    it(`does NOT fire CAPTURE GATE on: "${prompt}" (v9 — removed)`, () => {
+      const { fired } = runHook(prompt);
+      assert.equal(fired, false, `unexpected CAPTURE GATE on "${prompt}" — v9 no longer captures explicit save requests`);
     });
   }
 });

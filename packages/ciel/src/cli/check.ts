@@ -62,15 +62,13 @@ const CLAUDE_AGENTS = [
 ];
 
 const CLAUDE_HOOKS = [
-  "check-test-first.sh",
   "block-destructive.sh",
   "track-file.sh",
-  "meta-critiquer.sh",
   "session-version-check.sh",
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
   "check-dispatch-gate.sh",
-  "track-pipeline.sh",
+  "stop.sh",
   "session-start.sh",
   "user-prompt-submit.sh",
   "memory-bootstrap.sh",

@@ -22,14 +22,13 @@ export interface InstallResult {
 // list will be (re)installed on `--force` upgrade.
 // Exported for test/merge-settings.test.ts — internal API, not for SDK consumers.
 export const CIEL_HOOK_FILES = [
-  "check-test-first.sh",
   "block-destructive.sh",
   "track-file.sh",
-  "meta-critiquer.sh",
   "session-version-check.sh",
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
-  // Cued-recall hooks — ship from `.claude/hooks/` to the same destination.
+  "check-dispatch-gate.sh",
+  "stop.sh",
   "session-start.sh",
   "user-prompt-submit.sh",
   "memory-bootstrap.sh",
@@ -51,6 +50,8 @@ export const CIEL_LEGACY_HOOK_FILES = [
   "pre-write-gate.sh",      // renamed → pre-tool-write.sh in v2.0
   "post-write-relire.sh",   // renamed → post-tool-write.sh in v2.0
   "post-tool-write.sh",     // removed in v6.x (replaced by track-file + RELIRE gate)
+  "check-test-first.sh",    // removed in v6.14 (v9 thin shell)
+  "meta-critiquer.sh",      // removed in v6.14 (v9 thin shell)
 ];
 
 // Top-level settings.json keys that Ciel OWNS and SHOULD overwrite on `--force`

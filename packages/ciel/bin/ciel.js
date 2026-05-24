@@ -161,7 +161,7 @@ if (!isHelp && !isVersion && ASSETS && existsSync(join(ASSETS, "platforms/openco
 
     // Vérifier ce qui manque pour chaque plateforme détectée
     const opencodeFilesExist = existsSync(join(targetDir, ".opencode/agents/ciel.md"));
-    const claudeFilesExist = existsSync(join(targetDir, ".claude/hooks/check-test-first.sh"));
+    const claudeFilesExist = existsSync(join(targetDir, ".claude/hooks/pre-tool-write.sh"));
 
     if (needsInit || (platforms.includes("OpenCode") && !opencodeFilesExist) || (platforms.includes("Claude Code") && !claudeFilesExist)) {
       let n = 0;

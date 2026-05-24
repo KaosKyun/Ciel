@@ -34,15 +34,13 @@ const TEMPLATE_PATTERNS = [
   { src: ".claude/agents/ciel-explorer.md", dest: ".claude/agents/ciel-explorer.md" },
   { src: ".claude/agents/ciel-critic.md", dest: ".claude/agents/ciel-critic.md" },
   { src: ".claude/agents/ciel-improver.md", dest: ".claude/agents/ciel-improver.md" },
-  { src: "hooks/check-test-first.sh", dest: ".claude/hooks/check-test-first.sh" },
   { src: "hooks/block-destructive.sh", dest: ".claude/hooks/block-destructive.sh" },
   { src: "hooks/track-file.sh", dest: ".claude/hooks/track-file.sh" },
-  { src: "hooks/meta-critiquer.sh", dest: ".claude/hooks/meta-critiquer.sh" },
   { src: "hooks/session-version-check.sh", dest: ".claude/hooks/session-version-check.sh" },
   { src: "hooks/pre-tool-write.sh", dest: ".claude/hooks/pre-tool-write.sh" },
   { src: "hooks/pre-agent-gate.sh", dest: ".claude/hooks/pre-agent-gate.sh" },
   { src: "hooks/check-dispatch-gate.sh", dest: ".claude/hooks/check-dispatch-gate.sh" },
-  { src: "hooks/track-pipeline.sh", dest: ".claude/hooks/track-pipeline.sh" },
+  { src: "hooks/stop.sh", dest: ".claude/hooks/stop.sh" },
   // Cued-recall memory hooks
   { src: "hooks/session-start.sh", dest: ".claude/hooks/session-start.sh" },
   { src: "hooks/user-prompt-submit.sh", dest: ".claude/hooks/user-prompt-submit.sh" },
@@ -94,6 +92,19 @@ if (existsSync(metaDir)) {
     const skillPath = join("skills", "meta", entry, "SKILL.md");
     if (existsSync(join(REPO_ROOT, skillPath))) {
       TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
+    }
+  }
+}
+
+// Auto-discover domain rules (.claude/rules/*.md).
+const rulesDir = join(REPO_ROOT, ".claude", "rules");
+if (existsSync(rulesDir)) {
+  for (const entry of readdirSync(rulesDir)) {
+    if (entry.endsWith(".md")) {
+      const rulePath = join(".claude", "rules", entry);
+      if (existsSync(join(REPO_ROOT, rulePath))) {
+        TEMPLATE_PATTERNS.push({ src: rulePath, dest: rulePath });
+      }
     }
   }
 }

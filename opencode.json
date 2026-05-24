@@ -5,7 +5,7 @@
   ],
   "plugin": [
     "./.opencode/plugins/ciel.js",
-    "./.opencode/plugins/ciel.ts"
+    "@neikyun/ciel"
   ],
   "permission": {
     "question": "allow",

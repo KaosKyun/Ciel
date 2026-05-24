@@ -26,6 +26,18 @@ import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
+# ─── Structured Logging ──────────────────────────────────────────────────────
+
+def _log(level, message, **context):
+    """Write structured JSON log line to stderr. Never touches stdout."""
+    entry = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "level": level,
+        "msg": message,
+        **context,
+    }
+    print(json.dumps(entry, ensure_ascii=False), file=sys.stderr)
+
 # ─── Constants ──────────────────────────────────────────────────────────────
 
 TOKEN_CAPS = {
@@ -494,6 +506,7 @@ def cmd_query(args):
         for mid, m, _ in selected:
             m['trigger_count'] = (m.get('trigger_count') or 0) + 1
             m['last_triggered'] = iso_now
+            m['last_edited'] = iso_now
 
         for _, _, line in selected:
             output_lines.append(line)
@@ -534,7 +547,7 @@ def cmd_init(args):
 # Fields whose values must remain string regardless of how they look.
 # Prevents int-coercion of numeric-looking ids (e.g. "12345") which would
 # break the index keying and JSON round-trip.
-_STRING_FIELDS = frozenset({'id', 'title', 'last_triggered', 'captured_at', 'file', 'source', 'captured_from'})
+_STRING_FIELDS = frozenset({'id', 'title', 'last_triggered', 'captured_at', 'last_edited', 'file', 'source', 'captured_from'})
 
 
 def parse_yaml_frontmatter(text: str) -> dict:
@@ -567,7 +580,13 @@ def parse_yaml_frontmatter(text: str) -> dict:
                 out[key] = []
             elif val.startswith('[') and val.endswith(']'):
                 inner = val[1:-1].strip()
-                items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+                items = []
+                seen = set()
+                for x in inner.split(','):
+                    x = x.strip().strip('"\'')
+                    if x and x not in seen:
+                        seen.add(x)
+                        items.append(x)
                 out[key] = items
             elif val.lower() == 'null' or val == '~':
                 out[key] = None
@@ -591,7 +610,7 @@ def cmd_rebuild_index(args):
     cwd = resolve_cwd(args.cwd)
     base = cwd / '.ciel' / 'memory'
     if not base.exists():
-        print(f"No memory directory at {base}", file=sys.stderr)
+        _log("error", "No memory directory", path=str(base))
         sys.exit(1)
 
     # Preserve trigger counts from existing index. cmd_query updates counts
@@ -607,6 +626,29 @@ def cmd_rebuild_index(args):
         except (json.JSONDecodeError, OSError):
             pass
 
+    # Index schema contract (version 2)
+    # ─────────────────────────────────────────────────────────────────
+    # memories:     mid → frontmatter          1:1  PK — mid is unique
+    # by_path:      pattern → [mid, ...]       1:N  FK → memories
+    # by_symbol:    symbol  → [mid, ...]       1:N  FK → memories
+    # by_intent:    intent  → [mid, ...]       1:N  FK → memories
+    # by_language:  lang    → [mid, ...]       1:N  FK → memories
+    #
+    # Guarantees (enforced at rebuild time):
+    #   G1 — Referential integrity: every mid in any index exists in memories
+    #   G2 — No self-duplicates: a given (key, mid) pair appears at most once
+    #        per index list (setdefault+append is safe when source frontmatter
+    #        has no duplicate entries — which the parser guarantees)
+    #   G3 — Index values are always lists, never None/scalar
+    #   G4 — No orphan index keys: empty [] keys are pruned after build
+    #
+    # Non-guarantees (by design):
+    #   - Order within index lists is insertion order (filesystem order), not
+    #     relevance-sorted. Callers (cmd_query) re-rank by trigger_count.
+    #   - Duplicate mids across different keys in the same index: a memory
+    #     with symbols [auth, oauth] appears under both keys. This is correct.
+    #   - Index is a cache: rebuild-index reconstructs it from source .md files.
+    #     The source of truth is always the .md frontmatter, never the index.
     idx = {
         "version": 2,
         "memories": {},
@@ -638,6 +680,10 @@ def cmd_rebuild_index(args):
                 old_lt = old.get('last_triggered')
                 if old_lt and not fm.get('last_triggered'):
                     fm['last_triggered'] = old_lt
+                old_le = old.get('last_edited')
+                new_le = fm.get('last_edited')
+                if old_le and (not new_le or old_le > new_le):
+                    fm['last_edited'] = old_le
             fm['file'] = str(mdfile.relative_to(base))
             idx['memories'][mid] = fm
             for path in fm.get('path_patterns') or []:
@@ -650,7 +696,21 @@ def cmd_rebuild_index(args):
                 idx['by_language'].setdefault(lang, []).append(mid)
             parsed += 1
         except (OSError, UnicodeDecodeError) as e:
-            print(f"Warning: skipping {mdfile}: {e}", file=sys.stderr)
+            _log("warn", "Skipping unparseable memory file", file=str(mdfile), error=str(e))
+
+    # Integrity checks (G1, G3)
+    mid_set = set(idx['memories'].keys())
+    for index_name in ('by_path', 'by_symbol', 'by_intent', 'by_language'):
+        idx_map = idx[index_name]
+        empty_keys = [k for k, v in idx_map.items() if not v]
+        for k in empty_keys:
+            del idx_map[k]
+        for key, mids in idx_map.items():
+            orphans = [m for m in mids if m not in mid_set]
+            if orphans:
+                _log("warn", "Dangling reference in index — repaired",
+                     index=index_name, key=key, orphans=orphans)
+                idx_map[key] = [m for m in mids if m in mid_set]
 
     out = base / 'index.json'
     atomic_write_json(out, idx)
@@ -705,6 +765,7 @@ def cmd_capture(args):
         "captured_at": iso_now,
         "captured_from": args.captured_from or 'runtime',
         "source": args.source or 'manual capture',
+        "last_edited": iso_now,
         "trigger_count": 0,
         "last_triggered": None,
         "stale_after_days": 90,
@@ -759,7 +820,7 @@ def cmd_analyze(args):
     cwd = resolve_cwd(args.cwd)
     base = cwd / '.ciel' / 'memory'
     if not base.exists():
-        print(f"No memory directory at {base}", file=sys.stderr)
+        _log("error", "No memory directory", path=str(base))
         sys.exit(1)
 
     index_file = base / 'index.json'

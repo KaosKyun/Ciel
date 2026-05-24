@@ -1,0 +1,26 @@
+#!/bin/bash
+# Ciel v9 — Pre-commit hook: auto-sync template assets
+# Runs copy-assets.cjs when source template files are staged.
+# Auto-stages synced assets so they're included in the commit.
+# Fast path: exits immediately if no source templates are staged.
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
+[ -z "$STAGED" ] && exit 0
+
+# Source patterns that copy-assets.cjs reads from
+echo "$STAGED" | grep -qE '^(hooks/|skills/|\.claude/rules/|\.claude/agents/|CLAUDE\.md|AGENTS\.md|platforms/opencode/|commands/)' || exit 0
+
+if node "$REPO_ROOT/packages/ciel/scripts/copy-assets.cjs" > /dev/null 2>&1; then
+    ASSETS_DIR="$REPO_ROOT/packages/ciel/assets"
+    if ! git diff --quiet -- "$ASSETS_DIR/"; then
+        git add -- "$ASSETS_DIR/"
+        echo "CIEL pre-commit: assets synced and staged."
+    fi
+else
+    echo "CIEL pre-commit: ERROR — copy-assets.cjs failed. Commit blocked."
+    exit 1
+fi
+
+exit 0
