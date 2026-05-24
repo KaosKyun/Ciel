@@ -1,7 +1,7 @@
 // Claude Code platform installer logic
 // Handles detection, file copy, and config generation for Claude Code projects
 
-import { existsSync, mkdirSync, copyFileSync, chmodSync, readFileSync, writeFileSync, lstatSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, copyFileSync, chmodSync, readFileSync, writeFileSync, lstatSync, unlinkSync, readdirSync } from "fs";
 import { join, dirname, sep, resolve } from "path";
 import { ok, warn } from "./utils";
 
@@ -180,6 +180,20 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     } catch (e: any) {
       if (!quiet) warn(`  skipped AGENTS.md — ${e.code ?? e.message}`);
       skipped.push("AGENTS.md");
+    }
+  }
+
+  // .claude/rules/ — domain rules (v9), auto-load via paths: frontmatter
+  const rulesSrcDir = join(srcDir, ".claude/rules");
+  const rulesDestDir = join(targetDir, ".claude/rules");
+  if (existsSync(rulesSrcDir)) {
+    mkdirSafe(rulesDestDir, targetDir);
+    for (const ruleFile of readdirSync(rulesSrcDir)) {
+      if (!ruleFile.endsWith(".md")) continue;
+      const src = join(rulesSrcDir, ruleFile);
+      const dest = join(rulesDestDir, ruleFile);
+      const action = copyIfNewer(src, dest, force);
+      if (action === "copied") installed.push(`.claude/rules/${ruleFile}`);
     }
   }
 
