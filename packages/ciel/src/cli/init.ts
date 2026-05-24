@@ -117,6 +117,7 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     ".claude/rules/github.md",
     ".claude/rules/logging.md",
     ".claude/rules/monitoring.md",
+    ".claude/rules/environments.md",
     ".claude/rules/research.md",
     ".claude/rules/security.md",
     ".claude/rules/testing.md",
@@ -136,6 +137,7 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     "skills/ciel/SKILL.md",
     "skills/ciel/reference.md",
     // Domain skills (invoked via Skill() by rules Dispatch)
+    "skills/environments/SKILL.md",
     "skills/github/SKILL.md",
     "skills/research/SKILL.md",
   ];
