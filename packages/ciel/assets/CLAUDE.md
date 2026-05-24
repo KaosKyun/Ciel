@@ -22,7 +22,7 @@ Chaque etape a un skill workflow dedie a charger via `Skill` avant de l'executer
 
 | Step | Depth | Skill a charger | Action |
 |------|-------|-----------------|--------|
-| **DOCS** | All | — | Lire AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json + charger les skills domaine pertinents via `Skill` |
+| **DOCS** | All | `depth-classifier` | Lire AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json. Classifier la profondeur et ecrire le resultat (Trivial/Standard/Critical) dans `.ciel/last-depth`. Charger les skills domaine pertinents via `Skill`. |
 | **QUOI** | All | `quoi-framer` | Objectif (1 phrase) + NOT-X + Definition of Done |
 | **ASK** | Std/Crit | `ask-window` | `AskUserQuestion` si ambigu. Sinon DECIDE. |
 | **AVEC QUOI** | Std/Crit | `avec-quoi-versioner` | Lire les versions installees (package.json) — pas la memoire |

@@ -17,21 +17,12 @@ except:
 
 [ -z "$PROMPT" ] && exit 0
 
-# Mechanical depth signals
-DEPTH="Standard"  # default
-REASON=""
-
-# Check for Critical signals
-if echo "$PROMPT" | grep -qiE '\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration.*schema|2fa|mfa|encryption|credential|cookie.*security)\b'; then
-  DEPTH="Critical"
-  REASON="auth/security/payment keyword detected"
-fi
-
-# Check for Trivial signals (only if not Critical)
-if [[ "$DEPTH" != "Critical" ]] && echo "$PROMPT" | grep -qiE '\b(rename|typo|copyright|readme|1-line|one.line|fix.typo|spelling)\b'; then
-  DEPTH="Trivial"
-  REASON="rename/typo/docs keyword detected"
-fi
+# Depth classification is model-driven, not regex-driven.
+# Default to Standard — the model reclassifies via depth-classifier skill at DOCS step
+# and writes the result to .ciel/last-depth (read by pre-tool-write gate).
+# No mechanical keyword detection — regex is too imprecise for AI-driven tasks.
+DEPTH="Standard"
+REASON="model reclassifies via depth-classifier at DOCS — write to .ciel/last-depth"
 
 DISPATCH_GATE=""
 if [[ "$DEPTH" == "Standard" || "$DEPTH" == "Critical" ]]; then
