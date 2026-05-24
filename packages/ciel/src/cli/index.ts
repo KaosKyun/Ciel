@@ -10,7 +10,7 @@
 
 import { runInit } from "./init";
 import { runUninstall } from "./uninstall";
-import { runCheck } from "./check";
+import { runCheck, checkVersionOnly } from "./check";
 import { getVersion } from "./version";
 
 function usage(): void {
@@ -34,6 +34,7 @@ COMMANDS:
 OPTIONS:
   -y, --yes     Skip confirmation prompt (non-interactive)
   -q, --quiet   Suppress progress output
+  --check       (with update) Only check for newer version, don't install
   --help        Show this help message
   --version     Show version
 
@@ -41,6 +42,7 @@ EXAMPLES:
   npx ciel-init                   Install interactively
   npx ciel-init -y                Install in CI without prompt
   npx ciel-init update            Force reinstall
+  npx ciel-init update --check    Check for newer version only
   npx ciel-init uninstall         Remove Ciel
   npx ciel-init check             Check version + installation integrity
   npx ciel-init check --integrity  Verify installation files only
@@ -74,6 +76,10 @@ async function main(): Promise<void> {
       break;
     case "update":
     case "repair":
+      if (args.includes("--check")) {
+        await checkVersionOnly();
+        process.exit(0);
+      }
       await runInit({ ...options, force: true });
       break;
     case "uninstall":

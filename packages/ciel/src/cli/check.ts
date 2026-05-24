@@ -361,6 +361,10 @@ async function checkVersion(): Promise<number> {
   }
 }
 
+export async function checkVersionOnly(): Promise<number> {
+  return checkVersion();
+}
+
 function runIntegrityCheck(): number {
   const targetDir = process.cwd();
   const result = checkIntegrity(targetDir);
