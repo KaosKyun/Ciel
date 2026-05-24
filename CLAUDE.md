@@ -10,13 +10,13 @@
 2. **Test d'abord** — RED (test echoue) → GREEN (passe) → REFACTOR. Jamais de code sans test.
 3. **Zero secret** — pas de cle, token, ou mot de passe dans le code. Variables d'environnement uniquement.
 4. **Pas de placeholder** — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
-5. **Pipeline complet** — 17 etapes dans l'ordre. Ne saute jamais TESTER, RELIRE, ni PROUVER.
+5. **Pipeline complet** — 18 etapes dans l'ordre. Ne saute jamais TESTER, RELIRE, ni PROUVER.
 6. **Pipeline invisible** — jamais de tableaux d'etapes, de "DOCS termine", de "Passons a QUOI", ni de comptes-rendus META dans la sortie visible. L'utilisateur voit les resultats, jamais la machinerie.
 7. **Skills obligatoires** — a chaque etape du pipeline, charger le skill workflow correspondant avec l'outil `Skill` (colonne "Skill a charger" dans le tableau). Ne jamais sauter un skill: son contenu n'est pas dans ta memoire d'entrainement, il est dans le fichier SKILL.md.
 
 ---
 
-## Pipeline (17 etapes — a tracker en interne, jamais affiche)
+## Pipeline (18 etapes — a tracker en interne, jamais affiche)
 
 Chaque etape a un skill workflow dedie a charger via `Skill` avant de l'executer.
 
@@ -38,6 +38,7 @@ Chaque etape a un skill workflow dedie a charger via `Skill` avant de l'executer
 | **RELIRE** | Std/Crit | `relire-critic` | Dispatch `ciel-critic` MODE=RELIRE: 4 RISQUES + FIX/ACCEPT/DEFER |
 | **PROUVER** | Std/Crit | `prouver-verifier` | Evidence AVANT/APRES + CI gate + issue comment gate |
 | **MEMOIRE** | All | `memoire` | Capturer bugs decouverts, patterns appris, decisions utilisateur, anti-patterns detectes → `python3 .claude/hooks/memory-engine.py capture` |
+| **COMPILER** | Std/Crit | `savoir-compiler` | Si >= 5 episodes non compiles → compiler en `.ciel/wiki/`. Sinon skip. |
 | **META** | All | `meta-critiquer` | Reflection (10 items ci-dessous). Jamais dans la sortie visible. |
 
 ---
@@ -47,8 +48,8 @@ Chaque etape a un skill workflow dedie a charger via `Skill` avant de l'executer
 | Level | Example | Pipeline |
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-liner | DOCS → QUOI → FAIRE → META |
-| **Standard** | hook, route, component, service | 17 etapes completes |
-| **Critical** | auth, DB schema, security, payment | 17 + STRIDE + `ciel-critic` obligatoire |
+| **Standard** | hook, route, component, service | 18 etapes completes |
+| **Critical** | auth, DB schema, security, payment | 18 + STRIDE + `ciel-critic` obligatoire |
 | **Spike** | POC, draft, experimental | QUOI → ASK → AVEC QUOI → DIVERGE → FAIRE (relaxe) → META |
 
 Doute → Standard. Touche aux donnees utilisateur ou auth → Critical.
@@ -74,7 +75,7 @@ Prompt critique: `"MODE: RELIRE. CHANGED_FILES: [list]. QUOI_GOAL: [quoi]. Apply
 
 ---
 
-## Top 10 Guards
+## Top 11 Guards
 
 1. **"I already know this" = red flag** → RESEARCH. Fais-le.
 2. **Pas de citation = tu ne sais pas** → verifie avant d'affirmer.
@@ -86,6 +87,7 @@ Prompt critique: `"MODE: RELIRE. CHANGED_FILES: [list]. QUOI_GOAL: [quoi]. Apply
 8. **Test d'abord (RED)**, jamais apres. Toujours.
 9. **"No error in logs" ≠ preuve** → declenche le scenario, vois un signal positif.
 10. **Test suite doit passer** — execute la commande de test apres FAIRE. RED → corrige → re-run. Max 3 boucles puis escalade.
+11. **Episodes sans compilation = savoir dormant** — >= 5 episodes non compiles → declencher `savoir-compiler`. La memoire qui n'est jamais distillee est de la memoire perdue.
 
 ---
 
@@ -122,4 +124,5 @@ A la fin de chaque tache, charger `meta-critiquer` et repondre a ces 10 question
 - **Pas de PROUVER** → montrer evidence AVANT/APRES (logs, curl, screenshot)
 - **Pas de MEMOIRE** → sauver `.ciel/map.json` et capturer a `.ciel/memory/` en fin de tache
 - **Pas de META** → toujours executer la reflection (10 items)
+- **Pas de COMPILER** → si >= 5 episodes non compiles, declencher `savoir-compiler`
 - **Pipeline visible** → le pipeline est dans le thinking UNIQUEMENT

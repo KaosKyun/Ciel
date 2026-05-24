@@ -59,6 +59,7 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-status.md", dest: "commands/ciel-status.md" },
   { src: "commands/ciel-audit.md", dest: "commands/ciel-audit.md" },
   { src: "commands/ciel-memory-bootstrap.md", dest: "commands/ciel-memory-bootstrap.md" },
+  { src: "commands/ciel-compile.md", dest: "commands/ciel-compile.md" },
 
   // Ciel skill files (for Claude Code)
   { src: "skills/ciel/SKILL.md", dest: "skills/ciel/SKILL.md" },
@@ -81,6 +82,17 @@ if (existsSync(workflowDir)) {
     const refPath = join("skills", "workflow", entry, "reference.md");
     if (existsSync(join(REPO_ROOT, refPath))) {
       TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
+    }
+  }
+}
+
+// Auto-discover meta skills (skills/meta/<name>/SKILL.md).
+const metaDir = join(REPO_ROOT, "skills", "meta");
+if (existsSync(metaDir)) {
+  for (const entry of readdirSync(metaDir)) {
+    const skillPath = join("skills", "meta", entry, "SKILL.md");
+    if (existsSync(join(REPO_ROOT, skillPath))) {
+      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
     }
   }
 }

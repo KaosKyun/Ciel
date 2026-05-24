@@ -197,7 +197,7 @@ describe("CLI package structure", () => {
   it("agent template is v6 enriched (107 lines, guards present)", () => {
     const fs = require("node:fs");
     const content = fs.readFileSync("./assets/platforms/opencode/.opencode/agents/ciel.md", "utf-8");
-    assert.ok(content.includes("Top 10 Guards"), "Should have guards");
+    assert.ok(content.includes("Top 11 Guards"), "Should have guards");
     assert.ok(content.includes("Subagent Dispatch"), "Should have dispatch rules");
     assert.ok(content.includes("@ciel-critic MODE=RELIRE"), "Should have RELIRE mode");
     assert.ok(content.includes("@ciel-critic MODE=CRITIQUER"), "Should have CRITIQUER mode");
@@ -210,7 +210,7 @@ describe("CLI package structure", () => {
     const fs = require("node:fs");
     const content = fs.readFileSync("./assets/CLAUDE.md", "utf-8");
     assert.ok(content.includes("Ciel v8"), "Should be v8");
-    assert.ok(content.includes("Top 10 Guards"), "Should have guards");
+    assert.ok(content.includes("Top 11 Guards"), "Should have guards");
     assert.ok(content.includes("Subagent Dispatch"), "Should have dispatch rules");
     assert.ok(content.includes("ciel-critic"), "Should reference critic subagent");
   });

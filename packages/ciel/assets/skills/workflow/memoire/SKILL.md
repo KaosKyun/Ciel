@@ -193,6 +193,8 @@ The legacy single-blob `learnings.md` is kept for backward compatibility but **d
 
 - `docs/adrs/0001-cued-recall-memory.md` — full design rationale and binding principles
 - `skills/workflow/memoire-consolidator` — periodic maintenance: promote, merge, decay
+- `skills/meta/savoir-compiler` — compile raw episodes into structured wiki pages (Karpathy-inspired)
 - `commands/ciel-memory-bootstrap.md` — first-run scan + ingestion
+- `commands/ciel-compile.md` — manual wiki compilation trigger
 - `hooks/user-prompt-submit.sh` — detects intervention patterns and proposes capture
 - `hooks/session-start.sh` — injects matching memories at session start
