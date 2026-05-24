@@ -54,6 +54,9 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Upgrade npm (OIDC needs >= 11.5.1)
+        run: npm install -g npm@latest
+
 
 
       - name: Get version
@@ -76,6 +79,8 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/ciel
+        env:
+          NODE_AUTH_TOKEN: ''  # empty — forces npm OIDC exchange (npm >= 11.5.1)
         run: |
           if [ "${{ github.event.inputs.dry-run }}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "=== Dry run mode ==="
