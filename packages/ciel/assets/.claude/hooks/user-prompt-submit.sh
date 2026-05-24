@@ -121,16 +121,20 @@ try:
     with open(os.environ['STATE_FILE']) as f:
         state = json.load(f)
     steps = state.get('steps', {})
-    order = ['DOCS','QUOI','ASK','AVEC QUOI','DIVERGE','RECHERCHE','SECURITE','CODEBASE','EVALUER','ASK2','FAIRE','TESTER','ADR','RELIRE','PROUVER','MEMOIRE','COMPILER','META']
+    # ASK2 excluded — no Skill/Agent mapping exists for user-validation steps
+    order = ['DOCS','QUOI','ASK','AVEC QUOI','DIVERGE','RECHERCHE','SECURITE','CODEBASE','EVALUER','FAIRE','TESTER','ADR','RELIRE','PROUVER','MEMOIRE','COMPILER','META']
     done = [s for s in order if s in steps and steps[s].get('status') == 'done']
     done_count = len(done)
     total = len(order)
-    current = state.get('current_step', '')
-    # Show last 6 completed + current if pending
+    # Compute pending step: first unfinished after last done
+    done_indices = [order.index(s) for s in done]
+    last_done_idx = max(done_indices) if done_indices else -1
+    pending = order[last_done_idx + 1] if last_done_idx + 1 < total else None
+    # Show last 6 completed + pending indicator
     display = done[-6:] if len(done) > 6 else done[:]
     show = [d + '✓' for d in display]
-    if current and current not in done:
-        show.append(current + '●')
+    if pending and pending not in done:
+        show.append(pending + '●')
     bar = ' → '.join(show)
     print(f' | PIPELINE: {bar} ({done_count}/{total})')
 except Exception:

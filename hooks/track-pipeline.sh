@@ -91,13 +91,9 @@ if os.path.exists(state_file):
 if 'steps' not in state:
     state['steps'] = {}
 
-# DOCS call means new task — reset but preserve MEMOIRE/COMPILER/META
+# DOCS call means new task — full reset
 if step == 'DOCS' and state.get('current_step') != 'DOCS':
-    old_steps = state.get('steps', {})
     state['steps'] = {}
-    for s in ['MEMOIRE', 'COMPILER', 'META']:
-        if s in old_steps:
-            state['steps'][s] = old_steps[s]
     state['task_started_at'] = now
 
 state['steps'][step] = {'status': 'done', 'at': now}
@@ -121,9 +117,10 @@ with open(state_file) as f:
     state = json.load(f)
 
 steps = state.get('steps', {})
+# ASK2 excluded — no Skill/Agent mapping exists for user-validation steps
 pipeline_order = [
     'DOCS', 'QUOI', 'ASK', 'AVEC QUOI', 'DIVERGE',
-    'RECHERCHE', 'SECURITE', 'CODEBASE', 'EVALUER', 'ASK2',
+    'RECHERCHE', 'SECURITE', 'CODEBASE', 'EVALUER',
     'FAIRE', 'TESTER', 'ADR', 'RELIRE', 'PROUVER',
     'MEMOIRE', 'COMPILER', 'META'
 ]
@@ -131,14 +128,19 @@ pipeline_order = [
 done = [s for s in pipeline_order if s in steps and steps[s].get('status') == 'done']
 done_count = len(done)
 total = len(pipeline_order)
-current = state.get('current_step', '?')
 
+# Compute pending step: first unfinished after last done
+done_indices = [pipeline_order.index(s) for s in done]
+last_done_idx = max(done_indices) if done_indices else -1
+pending = pipeline_order[last_done_idx + 1] if last_done_idx + 1 < total else None
+
+# Show last 5 completed + pending indicator
 display = []
 show = done[-5:] if len(done) > 5 else done[:]
 for s in show:
     display.append(s)
-if current and current not in done:
-    display.append('●' + current)
+if pending and pending not in done:
+    display.append('●' + pending)
 
 line = ' → '.join(display)
 print(f'[CIEL] {line} ({done_count}/{total})', file=sys.stderr)
