@@ -1,0 +1,186 @@
+{
+  "autoMemoryEnabled": false,
+  "permissions": {
+    "allow": [
+      "Bash(npx ciel-init *)",
+      "Bash(npm update *)",
+      "Bash(npm install *)",
+      "Bash(npm test *)",
+      "Bash(npx tsx *)",
+      "Bash(npx tsc *)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_FORK_SUBAGENT": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\""
+          },
+          {
+            "type": "command",
+            "command": "{ ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-test-first.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-test-first.sh\""
+          },
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-write.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-write.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(rm *)",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-destructive.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-destructive.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-agent-gate.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-agent-gate.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\""
+          },
+          {
+            "type": "command",
+            "command": "COUNT=$(cat \"${CLAUDE_PROJECT_DIR:-$PWD}/.ciel/tracked-files.json\" 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print(len(d))\" 2>/dev/null || echo \"?\"); echo \"[CIEL] Tracked files: $COUNT — RELIRE recommended at 5+ files or on Critical paths\" >&2"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "ciel-explorer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Explorer started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/exploration-log.md\""
+          }
+        ]
+      },
+      {
+        "matcher": "ciel-researcher",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Researcher started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+          }
+        ]
+      },
+      {
+        "matcher": "ciel-critic",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Critic started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+          }
+        ]
+      },
+      {
+        "matcher": "ciel-explorer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Explorer started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/exploration-log.md\""
+          }
+        ]
+      },
+      {
+        "matcher": "ciel-researcher",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Researcher started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+          }
+        ]
+      },
+      {
+        "matcher": "ciel-critic",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date +%s)\" > \"/tmp/ciel_dispatched.$$\" && echo \"[CIEL] Critic started: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/subagent-log.md\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/meta-critiquer.sh\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/.ciel\" && echo \"[CIEL] Pre-compact: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/compact-log.md\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/.ciel\" && echo \"[CIEL] Pre-compact: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> \"$CLAUDE_PROJECT_DIR/.ciel/compact-log.md\""
+          }
+        ]
+      }
+    ]
+  }
+}
