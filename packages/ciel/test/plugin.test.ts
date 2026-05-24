@@ -206,13 +206,12 @@ describe("CLI package structure", () => {
     assert.ok(!content.includes("ciel-plan"), "Should NOT reference orphaned ciel-plan");
   });
 
-  it("CLAUDE.md template is enriched (90+ lines, v6)", () => {
+  it("CLAUDE.md template is enriched (90+ lines, v8)", () => {
     const fs = require("node:fs");
     const content = fs.readFileSync("./assets/CLAUDE.md", "utf-8");
-    assert.ok(content.includes("Ciel v6"), "Should be v6");
+    assert.ok(content.includes("Ciel v8"), "Should be v8");
     assert.ok(content.includes("Top 10 Guards"), "Should have guards");
     assert.ok(content.includes("Subagent Dispatch"), "Should have dispatch rules");
-    assert.ok(content.includes("Hooks (automatic"), "Should reference hooks");
     assert.ok(content.includes("ciel-critic"), "Should reference critic subagent");
   });
 

@@ -1,218 +1,123 @@
-# CLAUDE.md — Ciel v7 (IMPERATIVE — FOLLOW ALL RULES)
-
-This file is Claude Code's project-level instruction. **It is not advisory — these rules are mandatory.**
+# CLAUDE.md — Ciel v8
 
 **Core principle:** *"Understand before generating. Verify before claiming done."*
 
 ---
 
-## Regles fondamentales (toujours actives — violation = CRITICAL)
+## Regles dures (violation = CRITICAL)
 
 1. **Ne jamais inventer** — verifier API, package, version avant usage. Pas de citation = tu ne sais pas.
 2. **Test d'abord** — RED (test echoue) → GREEN (passe) → REFACTOR. Jamais de code sans test.
 3. **Zero secret** — pas de cle, token, ou mot de passe dans le code. Variables d'environnement uniquement.
 4. **Pas de placeholder** — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
-5. **Pipeline** — 17 etapes dans l'ordre. TESTER, RELIRE et PROUVER sont non-negociables.
-6. **Visibilite** — pipeline dans le thinking uniquement. Sortie visible = resultats, jamais la machinerie.
-7. **Skills domaine** — a l'etape DOCS, consulter la liste des skills disponibles (system reminder). Charger les skills pertinents avec l'outil `Skill`. Ne pas attendre qu'on te les demande.
+5. **Pipeline complet** — 17 etapes dans l'ordre. Ne saute jamais TESTER, RELIRE, ni PROUVER.
+6. **Pipeline invisible** — jamais de tableaux d'etapes, de "DOCS termine", de "Passons a QUOI", ni de comptes-rendus META dans la sortie visible. L'utilisateur voit les resultats, jamais la machinerie.
+7. **Skills obligatoires** — a chaque etape du pipeline, charger le skill workflow correspondant avec l'outil `Skill` (colonne "Skill a charger" dans le tableau). Ne jamais sauter un skill: son contenu n'est pas dans ta memoire d'entrainement, il est dans le fichier SKILL.md.
 
 ---
 
-## Visibilite — regle dure (VIOLATION = CRITICAL)
+## Pipeline (17 etapes — a tracker en interne, jamais affiche)
 
-**Le pipeline est ta checklist mentale, pas un journal public.**
+Chaque etape a un skill workflow dedie a charger via `Skill` avant de l'executer.
 
-| Dans le THINKING (interne) | Dans la SORTIE VISIBLE |
-|---------------------------|----------------------|
-| Classification de profondeur | Resultat final |
-| Etapes du pipeline (DOCS, QUOI, DIVERGE...) | Informations pertinentes pour l'utilisateur |
-| Transitions d'etapes (in_progress > completed) | Diffs, preuves, erreurs, reponses |
-| TaskCreate/TaskUpdate | Jamais — c'est ta machinerie interne |
-
-**INTERDIT en sortie visible** :
-- Tableaux d'etapes de pipeline ("| Etape | Statut |")
-- Annonces de progression ("DOCS termine", "Passons a QUOI", "Maintenant FAIRE")
-- Listes numerotees des etapes completees
-- "Pipeline X/Y etapes complete"
-- "GATE DISPATCH effectue"
-- "[CIEL]" ou "[CIEL Depth:]" dans le texte visible
-- Comptes-rendus META visibles (les 10 items restent en thinking)
-
-**PERMIS en sortie visible** :
-- Resultats, reponses, diffs, logs
-- "PR mergee", "Workflow declenche", "VERSION mis a jour"
-- Questions a l'utilisateur (AskUserQuestion)
-
-**TaskCreate/TaskUpdate** : cree-les pour ton tracking interne, sans les narrer. L'utilisateur ne voit pas tes transitions de taches.
+| Step | Depth | Skill a charger | Action |
+|------|-------|-----------------|--------|
+| **DOCS** | All | — | Lire AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json + charger les skills domaine pertinents via `Skill` |
+| **QUOI** | All | `quoi-framer` | Objectif (1 phrase) + NOT-X + Definition of Done |
+| **ASK** | Std/Crit | `ask-window` | `AskUserQuestion` si ambigu. Sinon DECIDE. |
+| **AVEC QUOI** | Std/Crit | `avec-quoi-versioner` | Lire les versions installees (package.json) — pas la memoire |
+| **DIVERGE** | Std/Crit | `diverge` | 2-3 approches differentes AVANT de choisir |
+| **RECHERCHE** | Std/Crit | — | Dispatch `ciel-researcher` avec les skills domaine: docs officielles + anti-patterns + changelog |
+| **SECURITE** | Critical | `stride-analyzer` | STRIDE 6 categories → `ciel-critic` MODE=CRITIQUER |
+| **CODEBASE** | Std/Crit | — | Dispatch `ciel-explorer` avec les skills domaine: pattern fitness + data flow + git history |
+| **EVALUER** | Std/Crit | `evaluer-sizer` | Sizing + 2 modes d'echec + contrefactuel |
+| **ASK2** | Std/Crit | — | Valider le plan avec l'utilisateur avant de coder |
+| **FAIRE** | All | `faire-gatekeeper` | 6 gates: test-first RED, alternatives, idiomatique, qualite, removal safety, boy-scout |
+| **TESTER** | Std/Crit | — | Executer la suite de tests. RED? → FAIRE. GREEN? → continuer. Max 3 boucles. Commande: .ciel/map.json → package.json → Makefile |
+| **ADR** | Decision | `adr-auto` | Si decision architecturale → `docs/adrs/` |
+| **RELIRE** | Std/Crit | `relire-critic` | Dispatch `ciel-critic` MODE=RELIRE: 4 RISQUES + FIX/ACCEPT/DEFER |
+| **PROUVER** | Std/Crit | `prouver-verifier` | Evidence AVANT/APRES + CI gate + issue comment gate |
+| **MEMOIRE** | All | `memoire` | Capturer bugs decouverts, patterns appris, decisions utilisateur, anti-patterns detectes → `python3 .claude/hooks/memory-engine.py capture` |
+| **META** | All | `meta-critiquer` | Reflection (10 items ci-dessous). Jamais dans la sortie visible. |
 
 ---
-
-## MANDATORY: How to start every task
-
-1. **Classify depth** using the Depth Gauge below
-2. **Create TODO list** with `TaskCreate` — one entry per pipeline step
-3. **Mark current step `in_progress`** as you work
-4. **Standard/Critical only: dispatch `ciel-researcher` + `ciel-explorer` in parallel BEFORE any Edit/Write** — this is a hard gate, not a suggestion
-5. **Complete all steps** for the classified depth before declaring done
-6. **End with META** — always, 10 items, non-negotiable
-
----
-
-## Rules (immutable — do NOT skip)
-
-0. **Visibilite** — pipeline 100% dans le thinking. Sortie visible = resultats uniquement. Pas de tableaux, pas d'annonces d'etapes, pas de "DOCS termine". L'utilisateur voit les resultats, jamais la machinerie.
-1. **Pipeline interne** — classify depth and track step internally. Concise output.
-2. **Pipeline** — follow the 16-step table below. Complete ALL steps for your depth. No shortcuts.
-3. **TODO list** — use `TaskCreate` at the start of each task (one task per pipeline step). Mark each step `in_progress` before starting it, `completed` when done.
-4. **ASK** — use AskUserQuestion tool ONLY if ambiguous. If context is sufficient, DECIDE and move on.
-5. **Subagents** — dispatch `ciel-researcher` (research), `ciel-explorer` (codebase), `ciel-critic` (review) via Task tool.
-6. **TEST-FIRST (RED)** — write tests BEFORE source code. Never the reverse.
-7. **SELF-CHECK** — after each step, verify: did I do DOCS? QUOI? ASK? DIVERGE? RECHERCHE?
-8. **META** — post-task reflection always, non-negotiable. 10 items.
-
-## Pipeline (17 steps)
-
-| Step | Depth | Action |
-|------|-------|--------|
-| **DOCS** | All | Read AGENTS.md, CLAUDE.md, ciel-overlay.md, .ciel/map.json, .ciel/memory.json + review available skills (system reminder), load relevant domain skills via `Skill` tool |
-| **QUOI** | All | Goal (1 sentence) + NOT-X + Definition of Done |
-| **ASK** | Std/Crit | `AskUserQuestion` if ambiguous. Otherwise DECIDE. |
-| **AVEC QUOI** | Std/Crit | Read installed versions (package.json) — not memory |
-| **DIVERGE** | Std/Crit | 2-3 different approaches BEFORE choosing |
-| **RECHERCHE** | Std/Crit | Dispatch `ciel-researcher` with domain skills: official docs + anti-patterns + changelog |
-| **SECURITE** | Critical | STRIDE 6 categories → `ciel-critic` MODE=CRITIQUER |
-| **CODEBASE** | Std/Crit | Dispatch `ciel-explorer` with domain skills: pattern fitness + data flow + git history |
-| **EVALUER** | Std/Crit | Sizing + 2 failure modes + counterfactual |
-| **ASK2** | Std/Crit | Validate plan with user before coding |
-| **FAIRE** | All | Test-first RED + alternatives + idiomatic |
-| **TESTER** | Std/Crit | Run project test suite. RED? → back to FAIRE. GREEN? → continue. Max 3 loops. Test command from .ciel/map.json or package.json |
-| **ADR** | Decision | If architectural decision → `docs/adrs/` |
-| **RELIRE** | Std/Crit | Dispatch `ciel-critic` MODE=RELIRE with domain skills: 4 RISKS + FIX/ACCEPT/DEFER |
-| **PROUVER** | Std/Crit | BEFORE/AFTER evidence + CI gate |
-| **MEMOIRE** | All | Cued-recall: capture interventions + agent-discovered patterns to .ciel/memory/episodes/ via `python3 .claude/hooks/memory-engine.py capture --captured-from=user-intervention|agent-observed` (see skill `memoire`, ADR-0001) |
-| **META** | All | Post-task reflection (10 items) |
 
 ## Depth Gauge
 
 | Level | Example | Pipeline |
 |-------|---------|----------|
-| **Trivial** | rename, typo, 1-liner | QUOI → FAIRE → META |
-| **Standard** | hook, route, component, service | Full 17 steps |
-| **Critical** | auth, DB schema, security, payment | Full 17 + STRIDE + `ciel-critic` mandatory |
-| **Spike** | POC, draft, experimental | QUOI → ASK → AVEC QUOI → DIVERGE → FAIRE (relaxed) → META |
+| **Trivial** | rename, typo, 1-liner | DOCS → QUOI → FAIRE → META |
+| **Standard** | hook, route, component, service | 17 etapes completes |
+| **Critical** | auth, DB schema, security, payment | 17 + STRIDE + `ciel-critic` obligatoire |
+| **Spike** | POC, draft, experimental | QUOI → ASK → AVEC QUOI → DIVERGE → FAIRE (relaxe) → META |
 
-Unsure → Standard. Touching user data or auth → Critical.
+Doute → Standard. Touche aux donnees utilisateur ou auth → Critical.
+
+---
+
+## Subagent Dispatch (Standard/Critical — avant tout Edit/Write)
+
+Toujours dispatcher `ciel-researcher` + `ciel-explorer` **en parallele** avant d'ecrire du code.
+
+| Agent | Quand | Dispatch |
+|-------|-------|----------|
+| `ciel-researcher` | RECHERCHE | `Agent` subagent_type=`ciel-researcher` |
+| `ciel-explorer` | CODEBASE | `Agent` subagent_type=`ciel-explorer` (en parallele avec researcher) |
+| `ciel-critic` | RELIRE (Std/Crit), SECURITE (Crit) | `Agent` subagent_type=`ciel-critic` |
+| `ciel-improver` | UNIQUEMENT /ciel-improve, /ciel-eval | `Agent` subagent_type=`ciel-improver` |
+
+Prompt chercheur: `"Research: [topic]. Apply domain skills: [skill1], [skill2]. Installed: [version]. Goal: [quoi]."`
+Prompt explorateur: `"Explore: [intention]. Apply domain skills: [skill1], [skill2]. Goal: [quoi]. NOT-X: [constraints]."`
+Prompt critique: `"MODE: RELIRE. CHANGED_FILES: [list]. QUOI_GOAL: [quoi]. Apply domain skills: [skill1], [skill2]."`
+
+---
 
 ## Top 10 Guards
 
-1. **"I already know this" = red flag** → need RESEARCH. Do it.
-2. **Verify before asserting** — no citation = you don't know. Don't guess.
-3. **DB columns** — verify real schema before query (migration file, not memory).
-4. **Test URL host:port** — must match handler host:port. Verify.
-5. **Pattern copied blindly** → fitness check fails. Verify before copying.
-6. **Self-critique in same context** = same blind spots → dispatch `ciel-critic`.
-7. **No alternative considered** → back to EVALUER. Find 2-3 approaches.
-8. **Scope drift at 3+ files** → re-read QUOI. Re-center.
-9. **Write test FIRST (RED)**, not after. Always.
-10. **"No error in logs" ≠ proof** → trigger scenario, see positive signal.
-11. **Test suite must pass** — run the project's test command after FAIRE. RED → fix → re-run. Max 3 loops then escalate.
+1. **"I already know this" = red flag** → RESEARCH. Fais-le.
+2. **Pas de citation = tu ne sais pas** → verifie avant d'affirmer.
+3. **Colonnes DB** → verifier le vrai schema avant de query (fichier migration, pas memoire).
+4. **Pattern copie aveuglement** → fitness check echoue. Verifie avant de copier.
+5. **Auto-critique dans le meme contexte** = memes angles morts → dispatch `ciel-critic`.
+6. **Aucune alternative consideree** → retour a EVALUER. Trouve 2-3 approches.
+7. **Scope drift a 3+ fichiers** → relire QUOI. Recentre-toi.
+8. **Test d'abord (RED)**, jamais apres. Toujours.
+9. **"No error in logs" ≠ preuve** → declenche le scenario, vois un signal positif.
+10. **Test suite doit passer** — execute la commande de test apres FAIRE. RED → corrige → re-run. Max 3 boucles puis escalade.
 
-## Subagent Dispatch (MANDATORY for Standard/Critical)
+---
 
-**Rule**: Dispatch BOTH `ciel-researcher` + `ciel-explorer` **IN PARALLEL** before writing any code on Standard/Critical tasks. Include relevant domain skill names in the dispatch prompt so agents can read SKILL.md files and apply domain expertise.
+## Cued-recall memory
 
-**Dispatch prompt format**:
-- Researcher: `"Research: [topic]. Apply domain skills: [skill1], [skill2]. Installed: [version]. Goal: [quoi]."`
-- Explorer: `"Explore: [intention]. Apply domain skills: [skill1], [skill2]. Goal: [quoi]. NOT-X: [constraints]."`
-- Critic (RELIRE): `"MODE: RELIRE. CHANGED_FILES: [list]. QUOI_GOAL: [quoi]. Apply domain skills: [skill1], [skill2]."`
+Ecrire dans `.ciel/memory/episodes/` via `memory-engine.py capture`. Ne jamais ecrire dans le Claude Code auto-memory (`MEMORY.md`). Confirmer avec `AskUserQuestion` avant chaque capture.
 
-| Agent | When | Via | In parallel with |
-|-------|------|-----|-----------------|
-| `ciel-researcher` | RECHERCHE (Std/Crit) | `Agent` subagent_type=`ciel-researcher` | `ciel-explorer` |
-| `ciel-explorer` | CODEBASE (Std/Crit) | `Agent` subagent_type=`ciel-explorer` | `ciel-researcher` |
-| `ciel-critic` (RELIRE) | RELIRE after FAIRE (Std/Crit) | `Agent` subagent_type=`ciel-critic` | — |
-| `ciel-critic` (CRITIQUER) | SECURITE (Critical only) | `Agent` subagent_type=`ciel-critic` | — |
-| `ciel-improver` | ONLY on /ciel-improve, /ciel-eval | `Agent` subagent_type=`ciel-improver` | — |
+---
 
-**IMPORTANT**: If a subagent dispatch fails (`ProviderModelNotFoundError`), fall back to inline research/exploration. Do NOT skip the step.
+## META — 10 items de reflexion (interne, jamais visible)
 
-## Skills reference
+A la fin de chaque tache, charger `meta-critiquer` et repondre a ces 10 questions DANS LE THINKING:
 
-- **Domain skills**: in `.claude/skills/` (api-design, database-design, appsec, monitoring, etc.). Review available skills at DOCS step and load relevant ones via `Skill`.
-- **Workflow**: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `diverge`, `evaluer-sizer`, `faire-gatekeeper`, `prouver-verifier`, `memoire`, `memoire-consolidator`, `meta-critiquer`
-- **Security**: `stride-analyzer`, `security-hardening`, `security-regression-check` (Critical only)
-- **Critique**: `relire-critic`, `critiquer-auditor`, `stride-analyzer`, `debug-reasoning-rca` (used by ciel-critic)
-- **Rules**: auto-inject via `.claude/rules/` when matching files are read (api, testing, security, database, frontend, backend, cicd, iac, containers, monitoring)
-- **Utility**: `pr-opener`, `commit-writer`, `branch-setup`, `issue-creator`, `issue-closer`
+1. Depth match — la classification etait-elle correcte ? Sinon, quel indice a ete manque ?
+2. Pipeline — etape sautee ou baclee ? Laquelle ?
+3. Skill manquant — un skill domaine aurait-il du etre charge et ne l'a pas ete ?
+4. Subagent — un dispatch a-t-il ete oublie ? (researcher/explorer en parallele)
+5. RELIRE — le critique a-t-il trouve quelque chose que je n'avais pas vu ?
+6. PROUVER — l'evidence est-elle concrete (log/curl/screenshot) ou juste "no error" ?
+7. MEMOIRE — y a-t-il une intervention, decision, ou decouverte a capturer ?
+8. Contrefactuel — qu'aurais-je fait differemment avec 2x plus de temps ?
+9. Angle mort — qu'ai-je omis que l'utilisateur va probablement me demander ensuite ?
+10. Lecon — 1 phrase a memoriser pour la prochaine tache similaire
 
-## Hooks (automatic — configured in .claude/settings.json)
+---
 
-| Hook | Trigger | Action |
-|------|---------|--------|
-| `check-test-first.sh` | Before Edit/Write | Warns if source file has no test |
-| `block-destructive.sh` | Before `rm *` | Blocks destructive commands |
-| `track-file.sh` | After Edit/Write | Tracks changed files for RELIRE |
-| `meta-critiquer.sh` | SubagentStop | Triggers post-task reflection |
-| `user-prompt-submit.sh` | UserPromptSubmit | Depth hint + intervention pattern detection (proposes capture to cued-recall memory) |
-| `session-start.sh` | SessionStart | Loads overlay + lists active cued-recall memories from `.ciel/memory/index.json` |
-| `memory-bootstrap.sh` | Manual (via `/ciel-memory-bootstrap`) | Scans project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, etc.) |
+## Echecs frequents
 
-## Cued-recall memory (`.ciel/memory/`)
-
-The MEMOIRE step writes to a structured corpus that auto-replays when context cues match. See `docs/adrs/0001-cued-recall-memory.md` for the full design.
-
-| Concept | Where |
-|---------|-------|
-| Capture flow (intervention → episode) | `hooks/user-prompt-submit.sh` + skill `memoire` |
-| Recall flow (cue → memory injection) | `hooks/session-start.sh` |
-| Bootstrap from existing tribal docs | `/ciel-memory-bootstrap` slash command |
-| Periodic maintenance (promote/merge/decay) | skill `memoire-consolidator` |
-
-**Token budget by depth**: Trivial 1K / Standard 3K / Critical 5K injected memory tokens. Index is small; content is read on-demand by the model when a cue fires.
-
-**Capture is never auto-silent** — the model surfaces a confirmation question to the user before writing a memory.
-
-### Ciel memory ≠ Claude Code auto-memory (HARD ROUTING RULE)
-
-Claude Code ships an independent **auto-memory** system (`~/.claude/projects/<slug>/memory/MEMORY.md`) that is **NOT** the Ciel cued-recall corpus. They are different stores with different scopes, formats, and consumers.
-
-| | Ciel cued-recall | Claude Code auto-memory |
-|--|--|--|
-| Location | `.ciel/memory/episodes/` (in repo) | `~/.claude/projects/<slug>/memory/MEMORY.md` (per machine, outside repo) |
-| Portable | ✅ ships with the project | ❌ machine-local, lost on `git clone` |
-| Seen by `/ciel-audit` | ✅ Dim 9 reads `index.json` | ❌ invisible |
-| Cued retrieval | ✅ auto-replays on path/symbol/intent match | ❌ broad context injection only |
-| Write API | `python3 hooks/memory-engine.py capture …` | Internal Claude Code tool |
-
-**Routing rule (mandatory)**: when the user says "save to memory", "remember this", "put it in memory", "mémoire", "retiens", "enregistre", "garde en mémoire", or any synonym in any language:
-
-1. The target is **always** `.ciel/memory/episodes/` via `memory-engine.py capture` — never the Claude Code auto-memory.
-2. Confirm with `AskUserQuestion` first (capture is never silent — see ADR-0001).
-3. The `UserPromptSubmit` hook surfaces `CAPTURE GATE: …` when the phrasing matches — follow it.
-4. If `autoMemoryEnabled` is `true` in `.claude/settings.json` and you find yourself tempted to write to `MEMORY.md`, **STOP**. That setting is opt-in and not used by Ciel. The Ciel template ships with it disabled.
-
-## Common failures to avoid
-
-These are the most frequently skipped pipeline steps. Do NOT fall into these traps:
-
-| Failure | When it happens | Fix |
-|---------|----------------|------|
-| **No DOCS** | Starting a task without reading project state | Always read `.ciel/map.json` + `ciel-overlay.md` first |
-| **No QUOI** | Coding without defining the goal + constraints | State "Goal (1 sentence) + NOT-X + DoD" before touching code |
-| **No DIVERGE** | Using the first approach that comes to mind | Generate 2-3 alternatives before picking one |
-| **No subagents** | Doing research/exploration inline instead of dispatching | Dispatch `ciel-researcher` + `ciel-explorer` in parallel with domain skill names — **before any Edit/Write on Standard/Critical** |
-| **No RELIRE** | Merging without a hostile code review | Always dispatch `ciel-critic` MODE=RELIRE before merge |
-| **RELIRE skipped on multi-file edit** | ≥2 Edit calls made without ciel-critic | Any session touching ≥2 files at Standard depth requires ciel-critic dispatch |
-| **No PROUVER** | Claiming done without evidence | Show BEFORE/AFTER evidence (logs, curl, screenshot) |
-| **No MEMOIRE** | Losing state between sessions | Save `.ciel/map.json` + `.ciel/memory.json` at task end |
-| **No META** | Skipping reflection | Always run META (10 items) — it closes the feedback loop |
-| **Pipeline visible** | Displaying pipeline steps, tables, or progress to the user | Pipeline lives in thinking ONLY. User sees results, never the machinery. |
-
-**Self-check**: After each step, ask yourself: "Did I just skip a pipeline step?" If yes, go back and do it.
-
-## MCP integration (opt-in)
-
-Ciel supports Playwright (visual critique) and Context7 (live docs) via MCP. Register:
-```bash
-bash install.sh --with-mcp=playwright,context7
-```
+- **Pas de DOCS** → toujours lire `.ciel/map.json` + `ciel-overlay.md` en premier
+- **Pas de QUOI** → definir objectif + NOT-X + DoD avant de toucher au code
+- **Pas de DIVERGE** → generer 2-3 alternatives avant d'en choisir une
+- **Pas de subagents** → dispatcher researcher + explorer en parallele avant tout Edit/Write
+- **Pas de RELIRE** → toujours dispatcher `ciel-critic` MODE=RELIRE avant merge
+- **Pas de PROUVER** → montrer evidence AVANT/APRES (logs, curl, screenshot)
+- **Pas de MEMOIRE** → sauver `.ciel/map.json` et capturer a `.ciel/memory/` en fin de tache
+- **Pas de META** → toujours executer la reflection (10 items)
+- **Pipeline visible** → le pipeline est dans le thinking UNIQUEMENT
