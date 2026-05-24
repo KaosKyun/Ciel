@@ -57,7 +57,9 @@ Doute → Standard. Touche aux donnees utilisateur ou auth → Critical.
 
 ## Subagent Dispatch (Standard/Critical — avant tout Edit/Write)
 
-Toujours dispatcher `ciel-researcher` + `ciel-explorer` **en parallele** avant d'ecrire du code.
+Ne jamais faire d'Edit/Write sur du code source avant d'avoir dispatche `ciel-researcher` + `ciel-explorer` en parallele. Le hook `pre-tool-write.sh` bloque les ecritures sur `.ts/.tsx/.js/.py/.go/.rs` (etc.) tant que le dispatch n'a pas eu lieu.
+
+Si la tache est Trivial (rename, typo), utiliser `[CIEL_GATE_BYPASS]` dans l'input du tool pour passer le gate.
 
 | Agent | Quand | Dispatch |
 |-------|-------|----------|

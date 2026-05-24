@@ -1,10 +1,10 @@
 #!/bin/bash
 # Ciel — PreToolUse hook for Write/Edit
 # Trigger: PreToolUse on Write|Edit
-# Purpose: inject faire-gatekeeper + dispatch gate + pipeline reminders before code write
-# Critical files get additional stride-analyzer hint
-# Always exits 0 (never blocks), outputs reminders via stderr (reliable channel)
-# Dispatch counter: /tmp/ciel_dispatched set by SubagentStart hooks (ciel-researcher/explorer)
+# Purpose: BLOCK source code writes until dispatch gate passes (v8 — enforcement)
+# Test files and non-code files pass through (always allowed).
+# Escape hatch: [CIEL_GATE_BYPASS] anywhere in the tool input bypasses the gate.
+# Dispatch tracker: /tmp/ciel_dispatched.* (created by SubagentStart hooks)
 
 INPUT=$(cat 2>/dev/null || echo "{}")
 
@@ -22,12 +22,47 @@ except:
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
 
+# === BYPASS CHECK ===
+# [CIEL_GATE_BYPASS] anywhere in the input is an intentional override
+if echo "$INPUT" | grep -q '\[CIEL_GATE_BYPASS\]'; then
+  echo "[CIEL] Gate bypassed via [CIEL_GATE_BYPASS] — allowing write to $(basename "$FILE_PATH")" >&2
+  exit 0
+fi
+
+# === FILE CLASSIFICATION ===
+# Source code files that require dispatch before editing
+IS_SOURCE=0
+if echo "$FILE_PATH" | grep -qE '\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte)$'; then
+  IS_SOURCE=1
+fi
+
+# Test files always pass (test-first RED)
+IS_TEST=0
+if echo "$FILE_PATH" | grep -qE '\.(test|spec)\.|_test\.|_spec\.|/test/|/tests/|/__tests__/'; then
+  IS_TEST=1
+fi
+
 # === DISPATCH GATE CHECK ===
-# /tmp/ciel_dispatched.* files are created by SubagentStart hooks when any Ciel agent dispatches
-# PID-based naming prevents false positives/negatives across concurrent sessions
+# /tmp/ciel_dispatched.* files created by SubagentStart hooks when Ciel agents dispatch
 DISPATCHED=0
 if ls /tmp/ciel_dispatched.* >/dev/null 2>&1; then
   DISPATCHED=1
+fi
+
+# === DISPATCH GATE — BLOCK (v8 enforcement) ===
+# Block source code edits when no Ciel agent has been dispatched.
+# Skip non-code files (docs, config, JSON, YAML, etc.) — those are safe to edit inline.
+# Skip test files — test-first RED means tests must be written before source.
+if [ "$IS_SOURCE" -eq 1 ] && [ "$IS_TEST" -eq 0 ] && [ "$DISPATCHED" -eq 0 ]; then
+  echo "[CIEL DISPATCH GATE] BLOCKED: Write to $(basename "$FILE_PATH")" >&2
+  echo "" >&2
+  echo "  No Ciel agent dispatched yet. On Standard/Critical tasks you MUST:" >&2
+  echo "  1. Dispatch ciel-researcher + ciel-explorer in parallel (Agent tool)" >&2
+  echo "  2. Include relevant domain skill names in the dispatch prompt" >&2
+  echo "  3. Then retry the edit." >&2
+  echo "" >&2
+  echo "  Trivial task? Add [CIEL_GATE_BYPASS] to bypass this gate." >&2
+  exit 2
 fi
 
 # === FILE TRACK COUNT (RELIRE GATE) ===
@@ -40,31 +75,14 @@ except: print(0)
 " 2>/dev/null || echo "0")
 fi
 
-# Build warnings
-WARNINGS=""
-
-# Dispatch gate warning (no dispatched agents on non-trivial write)
-if [ "$DISPATCHED" -eq 0 ] && [ "$COUNT" -ge 1 ]; then
-  WARNINGS="${WARNINGS}[DISPATCH GATE] WARNING: Writing file ${FILE_PATH} without prior agent dispatch (ciel-researcher + ciel-explorer with domain skills). Was this classified as Trivial? If Standard+, dispatch both agents BEFORE writing code."
-fi
-
-# RELIRE gate warning
+# RELIRE gate warning (3+ files → critic required)
 if [ "${COUNT:-0}" -ge 2 ] 2>/dev/null; then
-  PIPELINE_WARN=" | CIEL PIPELINE: ${COUNT} file(s) edited. Have researcher+explorer been dispatched with domain skills? If 3+ files: ciel-critic MODE=RELIRE required before merge."
-  WARNINGS="${WARNINGS}${PIPELINE_WARN}"
-fi
-
-# If only dispatch gate fires, prefix to std err
-if [ -n "$WARNINGS" ]; then
-  echo "[CIEL PRE-WRITE]" >&2
-  echo "$WARNINGS" | while IFS= read -r line; do
-    echo "  $line" >&2
-  done
+  echo "[CIEL RELIRE GATE] ${COUNT} file(s) edited — dispatch ciel-critic MODE=RELIRE when done." >&2
 fi
 
 # === FAIRE GATE REMINDER ===
-# Skip non-code files
-if ! echo "$FILE_PATH" | grep -qE '\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|scala|vue|svelte|sql|sh|json|yaml|yml|toml)$'; then
+# Skip non-code files for faire gate
+if [ "$IS_SOURCE" -eq 0 ] && [ "$IS_TEST" -eq 0 ]; then
   exit 0
 fi
 
