@@ -134,7 +134,11 @@ describe("CLI — Integrity check", () => {
     for (const agent of ["ciel-researcher.md", "ciel-explorer.md", "ciel-critic.md", "ciel-improver.md"]) {
       writeFileSync(join(dir, ".claude/agents", agent), "# agent");
     }
-    for (const hook of ["check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh"]) {
+    for (const hook of [
+      "check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh",
+      "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
+      "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
+    ]) {
       const p = join(dir, ".claude/hooks", hook);
       writeFileSync(p, "#!/bin/bash\necho ok");
       require("fs").chmodSync(p, 0o755);
@@ -245,7 +249,11 @@ describe("CLI — Integrity check", () => {
       hooks: { PreToolUse: [{ hooks: [{ command: ".claude/hooks/check-test-first.sh" }] }] }
     }));
     // Write hook files without exec bit
-    for (const hook of ["check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh"]) {
+    for (const hook of [
+      "check-test-first.sh", "block-destructive.sh", "track-file.sh", "meta-critiquer.sh",
+      "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
+      "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
+    ]) {
       writeFileSync(join(dir, ".claude/hooks", hook), "#!/bin/bash\necho ok");
       // chmod 644 (no exec)
       require("fs").chmodSync(join(dir, ".claude/hooks", hook), 0o644);

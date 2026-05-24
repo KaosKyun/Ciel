@@ -8,11 +8,20 @@ allowed-tools: Bash, WebFetch, Read
 
 ## What this covers
 
-How to prove that code works with concrete evidence. Code written ≠ done. Verified with AVANT/APRÈS evidence = done.
+How to prove that code works with concrete evidence. Code written ≠ done. Code written + tests passing + positive signal = done.
 
 ## Core principle
 
-**"No error in logs" ≠ proof.** Trigger the scenario, see a POSITIVE signal.
+**"No error in logs" ≠ proof.** Trigger the scenario, see a POSITIVE signal. **Tests passing = minimum bar, not the finish line.**
+
+## Test results (from TESTER step)
+
+Test suite output is the first piece of evidence. Capture BEFORE/AFTER test runs:
+
+- **AVANT**: test suite state before fix (RED / passing count / failures)
+- **APRÈS**: test suite state after fix (GREEN / all passing)
+
+If the project has a test command (`.ciel/map.json` → `testCommand` or `package.json` → `scripts.test`), run it and include the output.
 
 ## AVANT/APRÈS methodology (bug fixes)
 

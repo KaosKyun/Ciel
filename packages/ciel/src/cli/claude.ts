@@ -128,12 +128,10 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   const commandFiles = [
     "ciel-init.md",
     "ciel-update.md",
-    "ciel-refresh.md",
     "ciel-eval.md",
     "ciel-create-skill.md",
     "ciel-audit.md",
     "ciel-memory-bootstrap.md",
-    "ciel-migrate.md",
     "ciel-status.md",
   ];
   for (const cmd of commandFiles) {

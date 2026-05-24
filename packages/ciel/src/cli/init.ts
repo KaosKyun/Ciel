@@ -79,11 +79,12 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     // OpenCode commands
     "platforms/opencode/.opencode/commands/ciel-init.md",
     "platforms/opencode/.opencode/commands/ciel-update.md",
-    "platforms/opencode/.opencode/commands/ciel-refresh.md",
     "platforms/opencode/.opencode/commands/ciel-improve.md",
     "platforms/opencode/.opencode/commands/ciel-eval.md",
     "platforms/opencode/.opencode/commands/ciel-create-skill.md",
+    "platforms/opencode/.opencode/commands/ciel-status.md",
     "platforms/opencode/.opencode/commands/ciel-audit.md",
+    "platforms/opencode/.opencode/commands/ciel-memory-bootstrap.md",
     "platforms/opencode/.opencode/commands/ciel.md",
     // OpenCode platform
     "platforms/opencode/AGENTS.md",
@@ -97,6 +98,13 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     ".claude/hooks/block-destructive.sh",
     ".claude/hooks/track-file.sh",
     ".claude/hooks/meta-critiquer.sh",
+    ".claude/hooks/session-version-check.sh",
+    ".claude/hooks/pre-tool-write.sh",
+    ".claude/hooks/pre-agent-gate.sh",
+    ".claude/hooks/session-start.sh",
+    ".claude/hooks/user-prompt-submit.sh",
+    ".claude/hooks/memory-bootstrap.sh",
+    ".claude/hooks/memory-engine.py",
     // Claude Code settings
     ".claude/settings.json",
     // Shared files
@@ -105,10 +113,11 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     // Generic commands
     "commands/ciel-init.md",
     "commands/ciel-update.md",
-    "commands/ciel-refresh.md",
     "commands/ciel-eval.md",
     "commands/ciel-create-skill.md",
+    "commands/ciel-status.md",
     "commands/ciel-audit.md",
+    "commands/ciel-memory-bootstrap.md",
     // Ciel skill
     "skills/ciel/SKILL.md",
     "skills/ciel/reference.md",

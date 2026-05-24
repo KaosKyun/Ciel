@@ -1,17 +1,19 @@
 ---
 name: faire-gatekeeper
-description: How to implement code safely — 6 quality gates for Ciel v5 (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode assouplit les gates. A checklist for implementation discipline during FAIRE (etape 11).
+description: How to implement code safely — 6 quality gates for Ciel v5 (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode relaxes gates. A checklist for implementation discipline during FAIRE (etape 11).
 ---
 
 # Implementation Safety — 6 Quality Gates (Ciel v5)
 
 ## What this covers
 
-How to implement code with discipline during Ciel v5 FAIRE phase (etape 11). These gates run during coding and are enforced by the plugin or hooks. SPIKE mode assouplit certain gates.
+How to implement code with discipline during Ciel v8 FAIRE phase (etape 11). These gates run during coding and are enforced by hooks. After FAIRE, the pipeline continues to TESTER (run test suite).
 
 ## Core principle
 
 **Check gates per-file, not per-task.** Each write/edit gets its own gate check. In SPIKE mode, gates 1 and 6 are optional but the code must be marked FIXME/TODO.
+
+**After FAIRE: TESTER.** Once implementation is done, the next mandatory step is TESTER — run the project's test suite. RED means back to FAIRE. GREEN means continue to ADR/RELIRE.
 
 ## The 6 gates (v5)
 
@@ -21,7 +23,7 @@ Do not write source code before the test exists. If no `*.test.*` file exists:
 - OpenCode: plugin blocks via tool.execute.before
 - Claude Code: hook blocks via exit 2
 
-**SPIKE mode**: gate assouplie. Le code explore peut etre ecrit sans test, mais doit etre marque FIXME/TODO.
+**SPIKE mode**: relaxed. Exploration code may be written without tests, but must be marked FIXME/TODO.
 
 ### Gate 2: Alternatives
 
@@ -43,7 +45,7 @@ Common bypass signals that need justification:
 - Function length: < 50 lines
 - File length: < 400 lines
 
-**SPIKE mode**: quality gate assouplie. Le code explore peut etre long ou complexe, mais doit etre marque FIXME/TODO.
+**SPIKE mode**: relaxed. Exploration code may be longer or complex, but must be marked FIXME/TODO.
 
 ### Gate 5: Removal safety
 
@@ -85,15 +87,15 @@ Gate 6 (boy-scout): <improved: ... | status quo>
 ## SPIKE mode behavior
 
 When `.ciel/exploration.active` exists:
-- Gate 1 (test-first): assouplie
-- Gate 4 (quality): assouplie
-- Gates 2, 3, 5: toujours actives
-- Gate 6 (boy-scout): recommandee mais pas bloquante
-- Le code explore DOIT etre marque FIXME ou TODO
+- Gate 1 (test-first): relaxed
+- Gate 4 (quality): relaxed
+- Gates 2, 3, 5: always active
+- Gate 6 (boy-scout): recommended but not blocking
+- Exploration code MUST be marked FIXME or TODO
 
 ## Key rules
 
 - **Gates are non-negotiable in Standard/Critical mode**: plugin/hooks enforce them
-- **SPIKE mode is for exploration only**: gates are assouplies, but code must be refactored properly after
+- **SPIKE mode is for exploration only**: gates are relaxed, but code must be refactored properly after
 - **Gate 5 matters most**: deleting code without checking dependents is the fastest way to break production
 - **Boy-scout is the cheapest improvement**: if you already read the file, clean it up

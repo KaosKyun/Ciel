@@ -66,15 +66,23 @@ const CLAUDE_HOOKS = [
   "block-destructive.sh",
   "track-file.sh",
   "meta-critiquer.sh",
+  "session-version-check.sh",
+  "pre-tool-write.sh",
+  "pre-agent-gate.sh",
+  "session-start.sh",
+  "user-prompt-submit.sh",
+  "memory-bootstrap.sh",
+  "memory-engine.py",
 ];
 
 const CLAUDE_COMMANDS = [
   "ciel-init.md",
   "ciel-update.md",
-  "ciel-refresh.md",
   "ciel-eval.md",
   "ciel-create-skill.md",
   "ciel-audit.md",
+  "ciel-status.md",
+  "ciel-memory-bootstrap.md",
 ];
 
 const OPENCODE_AGENTS = [
@@ -89,11 +97,12 @@ const OPENCODE_COMMANDS = [
   "ciel.md",
   "ciel-init.md",
   "ciel-update.md",
-  "ciel-refresh.md",
   "ciel-improve.md",
   "ciel-eval.md",
   "ciel-create-skill.md",
   "ciel-audit.md",
+  "ciel-status.md",
+  "ciel-memory-bootstrap.md",
 ];
 
 function checkFile(targetDir: string, relPath: string): boolean {

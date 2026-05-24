@@ -107,11 +107,12 @@ export function installOpenCode(opts: OpenCodeOptions): InstallResult {
   const commandFiles = [
     "ciel-init.md",
     "ciel-update.md",
-    "ciel-refresh.md",
     "ciel-improve.md",
     "ciel-eval.md",
     "ciel-create-skill.md",
     "ciel-audit.md",
+    "ciel-status.md",
+    "ciel-memory-bootstrap.md",
     "ciel.md",
   ];
   for (const cmd of commandFiles) {
