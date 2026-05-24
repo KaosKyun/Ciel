@@ -11,6 +11,8 @@
 import { runInit } from "./init";
 import { runUninstall } from "./uninstall";
 import { runCheck, checkVersionOnly } from "./check";
+import { doctorMain } from "./doctor";
+import { memoryMain } from "./memory";
 import { getVersion } from "./version";
 import { say, warn } from "./utils";
 
@@ -31,6 +33,8 @@ COMMANDS:
   repair        Repair missing/broken Ciel files (alias for update)
   uninstall     Remove all Ciel files from the project
   check         Check version + verify all Ciel files are installed
+  doctor        Health check: hooks, memory index, assets, rules (score 0-100)
+  memory        Query and manage cued-recall memory (query, list, show, stats, save, rebuild)
 
 OPTIONS:
   -y, --yes     Skip confirmation prompt (non-interactive)
@@ -117,6 +121,12 @@ async function main(): Promise<void> {
       break;
     case "check":
       await runCheck();
+      break;
+    case "doctor":
+      await doctorMain(args);
+      break;
+    case "memory":
+      await memoryMain(args);
       break;
     default:
       console.error(`Unknown command: ${command}`);
