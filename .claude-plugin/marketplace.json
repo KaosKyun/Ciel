@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "KaosKyun/Ciel",
-  "version": "6.13.0",
+  "version": "6.13.2",
   "description": "Ciel — Skills-first deep-reasoning workflow plugin",
   "owner": {
     "name": "KaosKyun",
@@ -12,7 +12,7 @@
       "name": "ciel",
       "description": "Skills-first plugin for LLM-assisted development. 56 specialized skills across workflow/research/domain/utility/meta categories + 4 thin-orchestrator agents + self-improvement subsystem (meta-skill + eval-driven AutoResearch).",
       "source": "./",
-      "version": "6.13.0",
+      "version": "6.13.2",
       "category": "development",
       "author": {
         "name": "KaosKyun",

@@ -18,6 +18,31 @@ for candidate in "$CWD/ciel-overlay.md" "$CWD/.claude/ciel-overlay.md"; do
   fi
 done
 
+# ─── META-pending check ──────────────────────────────────────────────────
+# If previous session ended without META reflection after 3+ edits,
+# inject a prominent warning BEFORE resetting the tracker.
+META_PENDING=""
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/.ciel/meta-pending" ]; then
+  META_INFO=$(python3 -c "
+import json
+try:
+    with open('$CLAUDE_PROJECT_DIR/.ciel/meta-pending') as f:
+        d = json.load(f)
+    print(f\"{d.get('edits', '?')} files edited, pending since {d.get('since', '?')}\")
+except: print('unknown')
+" 2>/dev/null || echo "unknown")
+  META_PENDING="
+
+═══════════════════════════════════════════════════════════════
+[CIEL] META STILL DUE — Previous task ended without META reflection.
+  $META_INFO
+  Invoke Skill(meta-critiquer) to complete the 10-item reflection.
+  Clear .ciel/meta-pending when done.
+  DO NOT start a new task until META is complete.
+═══════════════════════════════════════════════════════════════
+"
+fi
+
 # Reset session-scoped edit tracker so META/RELIRE gates don't bleed across sessions
 if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json" ]; then
   echo "[]" > "$CLAUDE_PROJECT_DIR/.ciel/tracked-files.json" 2>/dev/null || true
@@ -59,6 +84,9 @@ _resolve_ciel_version() {
 }
 CIEL_VERSION="$(_resolve_ciel_version)"
 MSG="CIEL v${CIEL_VERSION} — Skills-first deep-reasoning active. "
+if [[ -n "$META_PENDING" ]]; then
+  MSG+="$META_PENDING"
+fi
 if [[ -n "$OVERLAY" ]]; then
   MSG+="Overlay loaded: $OVERLAY. "
 else

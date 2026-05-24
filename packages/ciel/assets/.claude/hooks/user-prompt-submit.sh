@@ -37,8 +37,21 @@ import json, os
 try: print(len(json.load(open(os.environ['CIEL_PATH']))))
 except: print(0)
 " 2>/dev/null || echo "0")
-  if [ "${EDIT_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    META_GATE=" | META GATE: ${EDIT_COUNT} file(s) edited this session — complete 10-item META if previous task ended at PROUVER."
+  if [ "${EDIT_COUNT:-0}" -ge 3 ] 2>/dev/null; then
+    # Write META-pending flag — persists across sessions until META completed
+    META_FLAG="$PROJECT_DIR/.ciel/meta-pending"
+    mkdir -p "$PROJECT_DIR/.ciel" 2>/dev/null || true
+    python3 -c "
+import json, os, datetime
+flag = os.environ.get('META_FLAG', '')
+if flag:
+    data = {'edits': int(os.environ.get('EDIT_COUNT', '0')), 'since': datetime.datetime.utcnow().isoformat() + 'Z'}
+    with open(flag, 'w') as f:
+        json.dump(data, f)
+" META_FLAG="$META_FLAG" EDIT_COUNT="$EDIT_COUNT" 2>/dev/null || true
+    META_GATE=" | META GATE: ${EDIT_COUNT} files edited — previous task MUST complete 10-item META reflection via Skill(meta-critiquer) BEFORE next task. META is NOT optional after 3+ edits. Clear .ciel/meta-pending when done."
+  elif [ "${EDIT_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+    META_GATE=" | META GATE: ${EDIT_COUNT} file(s) edited — complete 10-item META if previous task ended at PROUVER."
   fi
 fi
 

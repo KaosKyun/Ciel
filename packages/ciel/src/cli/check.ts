@@ -69,6 +69,7 @@ const CLAUDE_HOOKS = [
   "session-version-check.sh",
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
+  "check-dispatch-gate.sh",
   "session-start.sh",
   "user-prompt-submit.sh",
   "memory-bootstrap.sh",
