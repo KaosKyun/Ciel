@@ -107,6 +107,19 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     ".claude/hooks/memory-engine.py",
     // Claude Code settings
     ".claude/settings.json",
+    // Claude Code domain rules (v9), auto-discovered by copy-assets
+    ".claude/rules/api-design.md",
+    ".claude/rules/backend.md",
+    ".claude/rules/cicd-pipeline.md",
+    ".claude/rules/containers.md",
+    ".claude/rules/database-design.md",
+    ".claude/rules/frontend.md",
+    ".claude/rules/github.md",
+    ".claude/rules/logging.md",
+    ".claude/rules/monitoring.md",
+    ".claude/rules/research.md",
+    ".claude/rules/security.md",
+    ".claude/rules/testing.md",
     // Shared files
     "CLAUDE.md",
     "AGENTS.md",
@@ -118,9 +131,13 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     "commands/ciel-status.md",
     "commands/ciel-audit.md",
     "commands/ciel-memory-bootstrap.md",
+    "commands/ciel-memory.md",
     // Ciel skill
     "skills/ciel/SKILL.md",
     "skills/ciel/reference.md",
+    // Domain skills (invoked via Skill() by rules Dispatch)
+    "skills/github/SKILL.md",
+    "skills/research/SKILL.md",
   ];
 
   let downloaded = 0;

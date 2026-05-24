@@ -58,6 +58,7 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-status.md", dest: "commands/ciel-status.md" },
   { src: "commands/ciel-audit.md", dest: "commands/ciel-audit.md" },
   { src: "commands/ciel-memory-bootstrap.md", dest: "commands/ciel-memory-bootstrap.md" },
+  { src: "commands/ciel-memory.md", dest: "commands/ciel-memory.md" },
   { src: "commands/ciel-compile.md", dest: "commands/ciel-compile.md" },
 
   // Ciel skill files (for Claude Code)
@@ -92,6 +93,21 @@ if (existsSync(metaDir)) {
     const skillPath = join("skills", "meta", entry, "SKILL.md");
     if (existsSync(join(REPO_ROOT, skillPath))) {
       TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
+    }
+  }
+}
+
+// Auto-discover domain skills (.claude/skills/*/SKILL.md) and their sidecars.
+const domainSkillsDir = join(REPO_ROOT, ".claude", "skills");
+if (existsSync(domainSkillsDir)) {
+  for (const entry of readdirSync(domainSkillsDir)) {
+    const skillPath = join(".claude", "skills", entry, "SKILL.md");
+    if (existsSync(join(REPO_ROOT, skillPath))) {
+      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
+    }
+    const refPath = join(".claude", "skills", entry, "reference.md");
+    if (existsSync(join(REPO_ROOT, refPath))) {
+      TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
     }
   }
 }

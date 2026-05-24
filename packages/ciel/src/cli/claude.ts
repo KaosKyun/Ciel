@@ -133,6 +133,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     "ciel-create-skill.md",
     "ciel-audit.md",
     "ciel-memory-bootstrap.md",
+    "ciel-memory.md",
     "ciel-status.md",
   ];
   for (const cmd of commandFiles) {
@@ -194,6 +195,25 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
       const dest = join(rulesDestDir, ruleFile);
       const action = copyIfNewer(src, dest, force);
       if (action === "copied") installed.push(`.claude/rules/${ruleFile}`);
+    }
+  }
+
+  // .claude/skills/ — domain skills (v9), invoked via Skill() by rules Dispatch
+  const skillsSrcDir = join(srcDir, ".claude/skills");
+  const skillsDestDir = join(targetDir, ".claude/skills");
+  if (existsSync(skillsSrcDir)) {
+    for (const entry of readdirSync(skillsSrcDir)) {
+      const skillMd = join(skillsSrcDir, entry, "SKILL.md");
+      if (!existsSync(skillMd)) continue;
+      const entryDestDir = join(skillsDestDir, entry);
+      mkdirSafe(entryDestDir, targetDir);
+      const action = copyIfNewer(skillMd, join(entryDestDir, "SKILL.md"), force);
+      if (action === "copied") installed.push(`.claude/skills/${entry}/SKILL.md`);
+      const ref = join(skillsSrcDir, entry, "reference.md");
+      if (existsSync(ref)) {
+        const refAction = copyIfNewer(ref, join(entryDestDir, "reference.md"), force);
+        if (refAction === "copied") installed.push(`.claude/skills/${entry}/reference.md`);
+      }
     }
   }
 
