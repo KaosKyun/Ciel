@@ -346,12 +346,8 @@ async function checkVersion(): Promise<number> {
     if (cmp < 0) {
       console.log(`  Update available: v${CIEL_VERSION} → v${remoteVersion}`);
       console.log("");
-      console.log("  If installed globally:");
-      console.log("    npm update -g @neikyun/ciel");
-      console.log("    npx ciel-init update");
-      console.log("");
-      console.log("  If installed in project:");
-      console.log("    npm update @neikyun/ciel");
+      console.log("  Run: npx ciel-init update");
+      console.log("  (This updates the npm package + reinstalls project files)");
       return 0;
     }
 

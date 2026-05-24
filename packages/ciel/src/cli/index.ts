@@ -12,6 +12,7 @@ import { runInit } from "./init";
 import { runUninstall } from "./uninstall";
 import { runCheck, checkVersionOnly } from "./check";
 import { getVersion } from "./version";
+import { say, warn } from "./utils";
 
 function usage(): void {
   const v = getVersion();
@@ -79,6 +80,35 @@ async function main(): Promise<void> {
       if (args.includes("--check")) {
         await checkVersionOnly();
         process.exit(0);
+      }
+      // Update the npm package itself first, then reinstall project files.
+      // --skip-npm-update prevents infinite re-exec loop (set on re-spawn).
+      if (!args.includes("--skip-npm-update")) {
+        const { execSync } = await import("child_process");
+        say("Updating @neikyun/ciel via npm...");
+        let updated = false;
+        try {
+          execSync("npm update -g @neikyun/ciel", { stdio: "inherit" });
+          updated = true;
+        } catch {
+          try {
+            execSync("npm update @neikyun/ciel", { stdio: "inherit" });
+            updated = true;
+          } catch {
+            warn("npm update failed, continuing with installed version");
+          }
+        }
+        if (updated) {
+          // Re-exec with the freshly updated binary to run init
+          const passthrough = [...process.argv.slice(1).filter(a => a !== "update" && a !== "repair"), "update", "--skip-npm-update", "--yes"];
+          try {
+            execSync(`npx ciel-init ${passthrough.map(a => `"${a}"`).join(" ")}`, { stdio: "inherit" });
+          } catch {
+            warn("npx re-exec failed, falling back to in-process init");
+            await runInit({ ...options, force: true, yes: true });
+          }
+          process.exit(0);
+        }
       }
       await runInit({ ...options, force: true });
       break;
