@@ -46,13 +46,14 @@ CLASSIFY: Trivial / Standard / Critical / Spike
 | Trivial | QUOI -> FAIRE -> META |
 | Spike | QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (relaxed) -> META |
 
-PHASE defines skill LOADING ORDER: conception first (system-design, architecture, ha, resilience), then implementation.
+PHASE defines skill LOADING ORDER: conception first (system-design, architecture, ha, resilience), THEN implementation.
 Detect before dispatching. NEVER skip conception for implementation.
 `;
 
 const FAIRE_BEFORE_REMINDER = `
 [CIEL FAIRE GATES -- BEFORE WRITE/EDIT]
 Before executing this write/edit, verify:
+0. CONCEPTION PHASE: If phase=conception, have you loaded system-design, architecture, ha, resilience FIRST? If phase=implementation, was conception done before jumping to code?
 1. TEST-FIRST (RED): Have you written tests FIRST?
 2. ALTERNATIVES: Can you justify X over Y?
 3. IDIOMATIC: Are you using framework idiomatic patterns?
@@ -67,7 +68,7 @@ After completing the task, reflect on:
 (1) Depth match -- etait-ce Trivial/Standard/Critical/Spike correct ?
 (2) Failure mode -- nouveau mode d'echec decouvert ?
 (3) User correction -- l'utilisateur a-t-il corrige quelque chose ? -> persist
-(4) Stale branches -- branches a nettoyer ?
+(4) Phase match -- conception faite avant implementation ? Si non, qu'est-ce qui a ete saute ?
 (5) Uncovered issues -- problemes non resolus ?
 (6) Context health -- suggerer /compact si > 50% ?
 (7) Dead code -- code mort introduit ?

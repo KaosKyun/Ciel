@@ -49,10 +49,12 @@ CLASSIFY: Trivial / Standard / Critical / Spike
 | Spike | QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (relaxed) -> META |
 
 USE the question tool for ASK/ASK2. NEVER skip steps. NEVER code on assumptions.
+PHASE defines skill LOADING ORDER: conception first (system-design, architecture, ha, resilience), THEN implementation. Detect before dispatching.
 `;
 const FAIRE_BEFORE_REMINDER = `
 [CIEL FAIRE GATES -- BEFORE WRITE/EDIT]
 Before executing this write/edit, verify:
+0. CONCEPTION PHASE: If phase=conception, have you loaded system-design, architecture, ha, resilience FIRST? If phase=implementation, was conception done before jumping to code?
 1. TEST-FIRST (RED): Have you written tests FIRST? If this is source code, a corresponding test file must exist or be created first.
 2. ALTERNATIVES: Can you justify X over Y? (comment or commit message)
 3. IDIOMATIC: Are you using the framework's idiomatic pattern? If bypassing, justify why.
@@ -66,7 +68,7 @@ After completing the task, reflect on:
 (1) Depth match -- etait-ce Trivial/Standard/Critical/Spike correct ?
 (2) Failure mode -- nouveau mode d'echec decouvert ?
 (3) User correction -- l'utilisateur a-t-il corrige quelque chose ? -> persist dans learnings
-(4) Stale branches -- branches a nettoyer ?
+(4) Phase match -- conception faite avant implementation ? Si non, qu'est-ce qui a ete saute ?
 (5) Uncovered issues -- problemes non resolus ?
 (6) Context health -- suggerer /compact si > 50% ?
 (7) Dead code -- code mort introduit ?
