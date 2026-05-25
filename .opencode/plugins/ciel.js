@@ -4,10 +4,13 @@
 //   -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2
 //   -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META
 //
+// Phase detection (conception/implementation/debug/research) complements
+// depth classification — determines skill LOADING ORDER (conception first).
+//
 // Injection model:
-//   - shell.env -> inject CIEL_SESSION_ID, CIEL_DEPTH, CIEL_MODE
+//   - shell.env -> inject CIEL_SESSION_ID, CIEL_DEPTH, CIEL_PHASE, CIEL_MODE
 //   - experimental.chat.system.transform -> CIEL WORKFLOW v6 + overlay + state
-//   - experimental.chat.messages.transform -> depth classification
+//   - experimental.chat.messages.transform -> depth + phase classification
 //   - session.* events -> tracking, META-CRITIQUER, RELIRE reminders
 //   - tool.execute.before -> FAIRE gates reminder + critical file detection
 //   - tool.execute.after -> file tracking + RELIRE trigger + map update

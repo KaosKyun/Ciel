@@ -52,7 +52,7 @@ fi
 
 # ─── Phase detection (skill LOADING ORDER) ─────────────────────────────
 PHASE=""
-if echo "$PROMPT" | grep -qiE "(architecture|design pattern|conception|structur|schema.*archi|trade.?off|ddd|monolithe|microservice|flux.*donnee|diagram|c4|system.?design|choisir.*techno|refonte.*archi|audit.*archi|concevoir)"; then
+if echo "$PROMPT" | grep -qiE "(architecture|design pattern|conception|structur.e?|schema.?archi|trade.?off|decoupage|ddd|monolithe|microservice|flux.*donn.e?|diagram|c4.?model|vision.*technique|plan.*architecture|hld|lld|system.?design|choisir.*techno|compare.*stack|refonte.*archi|audit.*archi|concevoir|designer)"; then
   PHASE="conception"
 elif echo "$PROMPT" | grep -qiE "(fix|bug|error|crash|debug|incident|regression|panic|stack.*trace|root.?cause|ne.*marche|pas.*fonctionn)"; then
   PHASE="debug"

@@ -1,15 +1,16 @@
 // Ciel — OpenCode plugin (v6.2.4)
 // Ciel v5 plugin. Pure TS, no shell dependency.
 //
+// Phase detection (conception/implementation/debug/research) complements
+// depth classification — determines skill LOADING ORDER (conception first).
+//
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
-//   - experimental.chat.system.transform → push depth hint + sticky RELIRE
-//     notice into the system-prompt array each turn. Both are visible to
-//     the model on the following turn.
+//   - experimental.chat.system.transform → push CIEL WORKFLOW + depth+phase
+//     hint + sticky RELIRE notice + META-CRITIQUER into the system-prompt
+//   - experimental.chat.messages.transform → depth + phase classification
 //   - tool.execute.after (write|edit)    → append a per-file FAIRE/RELIRE
-//     reminder to the tool result string so the model reads it on its
-//     next turn attached to that tool call.
-//   - session.created (event)            → console banner only (no
-//     model-visible injection needed at session start).
+//     reminder to the tool result string
+//   - session.created (event)            → console banner only
 //
 // Why not tool.execute.before? Its output shape is { args } only — no way
 // to inject context, and console.log goes to terminal/plugin log, not the
@@ -33,6 +34,48 @@ const IMPL_KEYWORD_RE = /\b(implement|code|coder|ecrire|write|creer|creat|setup|
 const DEBUG_KEYWORD_RE = /\b(fix|bug|error|crash|issue|problem|fail|break|corrig|debug|incident|regression|panic|excep|stack.*trace|MTTR|root.?cause|ne.*marche|pas.*fonctionn)\b/i;
 const RESEARCH_KEYWORD_RE = /\b(what.?is|how.?does|explain|understand|compare.*vs|diff.re?rence|document|doc.*tool|learn|tutoriel|guide|best.?practice|c'est.?quoi|quest.ce.que)\b/i;
 
+// Pipeline instruction injected into every system prompt
+const CIEL_WORKFLOW_INSTRUCTION = `
+Follow the matching pipeline for your depth classification.
+
+CLASSIFY: Trivial / Standard / Critical / Spike
+
+| Depth | Pipeline |
+|-------|----------|
+| Standard/Critical | DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE -> CODEBASE -> EVALUER -> ASK2 -> FAIRE -> ADR -> RELIRE -> PROUVER -> MEMOIRE -> META |
+| Trivial | QUOI -> FAIRE -> META |
+| Spike | QUOI -> ASK -> AVEC QUOI -> DIVERGE -> FAIRE (relaxed) -> META |
+
+PHASE defines skill LOADING ORDER: conception first (system-design, architecture, ha, resilience), then implementation.
+Detect before dispatching. NEVER skip conception for implementation.
+`;
+
+const FAIRE_BEFORE_REMINDER = `
+[CIEL FAIRE GATES -- BEFORE WRITE/EDIT]
+Before executing this write/edit, verify:
+1. TEST-FIRST (RED): Have you written tests FIRST?
+2. ALTERNATIVES: Can you justify X over Y?
+3. IDIOMATIC: Are you using framework idiomatic patterns?
+4. QUALITY: complexity < 15, nesting < 4, functions < 50 lines
+5. REMOVAL: If deleting code, who uses it? What replaces it?
+6. BOY-SCOUT: Did you leave code better than you found it?
+`;
+
+const META_CRITIQUER = `
+[CIEL META-CRITIQUER -- 30s POST-TASK REFLECTION]
+After completing the task, reflect on:
+(1) Depth match -- etait-ce Trivial/Standard/Critical/Spike correct ?
+(2) Failure mode -- nouveau mode d'echec decouvert ?
+(3) User correction -- l'utilisateur a-t-il corrige quelque chose ? -> persist
+(4) Stale branches -- branches a nettoyer ?
+(5) Uncovered issues -- problemes non resolus ?
+(6) Context health -- suggerer /compact si > 50% ?
+(7) Dead code -- code mort introduit ?
+(8) Map update -- la carte du projet (.ciel/map.json) est-elle a jour ?
+(9) Parking -- y a-t-il des decouvertes fortuites a noter dans .ciel/parking.md ?
+(10) Boy-scout -- le code est-il meilleur qu'avant ?
+`;
+
 const ciel: Plugin = async ({ $ }) => {
   // Per-session state. Reset when the plugin module is re-instantiated
   // (once per OpenCode session).
@@ -51,7 +94,7 @@ const ciel: Plugin = async ({ $ }) => {
     event: async ({ event }) => {
       if (event.type === "session.created") {
         // Terminal-only banner. Model context is handled by the transform hook.
-        console.log("[CIEL] Session started — depth-aware reasoning active. Use /ciel, @ciel-researcher, @ciel-explorer, @ciel-critic.");
+        console.log("[CIEL] Session started — depth + phase-aware reasoning active. Use /ciel, @ciel-researcher, @ciel-explorer, @ciel-critic.");
       }
     },
 
@@ -59,15 +102,18 @@ const ciel: Plugin = async ({ $ }) => {
     // so we get a reliable "inject once per turn" surface without having to
     // manage cross-hook message state ourselves.
     "experimental.chat.system.transform": async (_input, output) => {
-      if (lastDepthHint && Array.isArray(output?.system)) {
+      if (!Array.isArray(output?.system)) return;
+      output.system.push(CIEL_WORKFLOW_INSTRUCTION);
+      if (lastDepthHint) {
         output.system.push(lastDepthHint);
       }
-      if (relireSticky && Array.isArray(output?.system)) {
+      if (relireSticky) {
         const changed = Array.from(writtenFiles);
         output.system.push(
           `[CIEL RELIRE REQUIRED] ${changed.length} code files changed this session (${changed.slice(0, 6).join(", ")}${changed.length > 6 ? ", ..." : ""}). Dispatch @ciel-critic MODE=RELIRE — 3 RISQUES + FIX/ACCEPT/DEFER. Do not declare done before verdict.`
         );
       }
+      output.system.push(META_CRITIQUER);
     },
 
     // Full message-list transform — read the most recent user text and
