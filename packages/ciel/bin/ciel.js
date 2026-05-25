@@ -30,9 +30,15 @@ function searchPath(name) {
 }
 
 // ---- Helpers ----
+function ensureDir(path) {
+  // If path is a file, unlink it so mkdirSync can create a directory.
+  try { if (!lstatSync(path).isDirectory()) { try { unlinkSync(path); } catch {} } } catch (e) { if (e.code !== "ENOENT") throw e; }
+}
+
 function copyDir(src, dest) {
   if (!existsSync(src)) return 0;
   let count = 0;
+  ensureDir(dest);
   mkdirSync(dest, { recursive: true });
   for (const entry of readdirSync(src, { withFileTypes: true })) {
     const s = join(src, entry.name), d = join(dest, entry.name);
@@ -74,7 +80,8 @@ function detectPlatforms() {
 
 // ---- Installer une plateforme ----
 function cleanDir(dir) {
-  if (!existsSync(dir)) return;
+  // Handle case where path is a regular file (e.g. corrupted prior install).
+  try { if (!lstatSync(dir).isDirectory()) { try { unlinkSync(dir); } catch {} return; } } catch (e) { if (e.code === "ENOENT") return; throw e; }
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) { try { rmSync(full, { recursive: true, force: true }); } catch {} }
@@ -100,15 +107,6 @@ function installOpenCode() {
   return total;
 }
 
-function cleanDir(dir) {
-  if (!existsSync(dir)) return;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) { try { rmSync(full, { recursive: true, force: true }); } catch {} }
-    else { try { unlinkSync(full); } catch {} }
-  }
-}
-
 function installClaude() {
   let total = 0;
   cleanDir(join(targetDir, ".claude/agents"));
@@ -122,7 +120,8 @@ function installClaude() {
   if (existsSync(join(ASSETS, ".claude/settings.json"))) {
     copyFileSync(join(ASSETS, ".claude/settings.json"), join(targetDir, ".claude/settings.json"));
   }
-  if (existsSync(join(ASSETS, "CLAUDE.md"))) {
+  // Only install CLAUDE.md on first install — never overwrite project-specific content.
+  if (existsSync(join(ASSETS, "CLAUDE.md")) && !existsSync(join(targetDir, "CLAUDE.md"))) {
     copyFileSync(join(ASSETS, "CLAUDE.md"), join(targetDir, "CLAUDE.md"));
   }
   return total;
