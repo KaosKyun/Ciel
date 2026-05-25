@@ -107,74 +107,70 @@ fi
 # ─── Auto-inject compact skills based on phase ──────────────────────────
 # Skipped for Trivial depth (rename, typo, 1-liner)
 SKILL_INJECT=""
+SKILL_BLOCK=""
+SKILL_NAMES=""
 if [ "$DEPTH" != "Trivial" ]; then
 
-build_skill_block() {
-  local out=""
+load_skills() {
   for name in "$@"; do
     local content
     content=$(compact_skill "$name" 2>/dev/null || true)
-    [ -n "$content" ] && out="${out}
+    if [ -n "$content" ]; then
+      SKILL_BLOCK="${SKILL_BLOCK}
 $content"
+      SKILL_NAMES="${SKILL_NAMES}Skill(\"$name\"), "
+    fi
   done
-  [ -n "$out" ] && echo "$out"
 }
 
 case "$PHASE" in
   conception)
-    SKILL_BLOCK=$(build_skill_block "system-design" "architecture")
+    load_skills "system-design" "architecture"
     if prompt_matches "(ha|high.availability|resilience|failover|fallback|disaster|recovery)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "high-availability" "resilience")"
+      load_skills "high-availability" "resilience"
     fi
     if prompt_matches "(ddd|domain|cqrs|event.source|event.driven|message|queue|kafka)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "ddd" "event-driven")"
+      load_skills "ddd" "event-driven"
     fi
     ;;
   implementation)
-    SKILL_BLOCK=$(build_skill_block "testing")
+    load_skills "testing"
     if prompt_matches "(backend|api|route|endpoint|controller|service|server|express|fastify|spring|django|go|rust)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "backend" "api-design")"
+      load_skills "backend" "api-design"
     fi
     if prompt_matches "(frontend|react|vue|svelte|component|ui|css|tailwind|next|nuxt)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "frontend")"
+      load_skills "frontend"
     fi
     if prompt_matches "(database|db|sql|prisma|orm|migration|schema|postgres|mysql|sqlite|mongo)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "database-design")"
+      load_skills "database-design"
     fi
     if prompt_matches "(auth|security|token|oauth|jwt|password|secret|permission)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "appsec")"
+      load_skills "appsec"
     fi
     ;;
   debug)
-    SKILL_BLOCK=$(build_skill_block "logging" "monitoring")
+    load_skills "logging" "monitoring"
     if prompt_matches "(trace|span|opentelemetry|distributed|propagation)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "tracing")"
+      load_skills "tracing"
     fi
     if prompt_matches "(auth|security|token|injection|xss|csrf|vuln|exploit)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "appsec")"
+      load_skills "appsec"
     fi
     if prompt_matches "(slow|perf|performance|leak|memory|cpu|bottleneck|latency)"; then
-      SKILL_BLOCK="$SKILL_BLOCK
-$(build_skill_block "performance")"
+      load_skills "performance"
     fi
     ;;
   *)
-    SKILL_BLOCK=$(build_skill_block "research")
+    load_skills "research"
     ;;
 esac
 
 SKILL_BLOCK=$(echo "$SKILL_BLOCK" | sed '/^$/N;/^\n$/d' 2>/dev/null || true)
+SKILL_NAMES=$(echo "$SKILL_NAMES" | sed 's/, $//')
 if [ -n "$SKILL_BLOCK" ]; then
   SKILL_INJECT="
-[CIEL SKILLS] Auto-loaded for this task:
+[CIEL SKILLS] Compact preview. You MUST now invoke for full anti-patterns + patterns:
+→ $SKILL_NAMES
 $SKILL_BLOCK"
 fi
 
