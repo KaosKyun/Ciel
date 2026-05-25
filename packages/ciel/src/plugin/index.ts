@@ -47,7 +47,7 @@ SKILLS (mandatory — skip = pipeline violation):
 Scan the list of available skills above. Identify every domain skill relevant to this task.
 You MUST call Skill('<name>') for EACH relevant skill before proceeding to FAIRE.
 If no skill matches, state "no matching skill" and continue. Otherwise, invoke them.
-YOU NEVER CODE WITHOUT LOADING THE RELEVANT SKILLS FIRST.
+YOU NEVER RESPOND WITHOUT LOADING THE RELEVANT SKILLS FIRST.
 
 USE the question tool for ASK/ASK2. NEVER skip steps. NEVER code on assumptions.
 `;
@@ -55,7 +55,7 @@ USE the question tool for ASK/ASK2. NEVER skip steps. NEVER code on assumptions.
 const FAIRE_BEFORE_REMINDER = `
 [CIEL FAIRE GATES -- BEFORE WRITE/EDIT]
 Before executing this write/edit, verify:
-0. SKILLS LOADED: Have you called Skill() for EVERY relevant domain skill? Scan the list. If you skipped SKILLS step, go back and load them NOW.
+0. SKILLS LOADED: Have you called Skill() for EVERY relevant domain skill? Scan the list. If you skipped SKILLS step, go back and load them NOW. This applies to ALL tasks — analysis, planning, debugging, not just coding.
 1. TEST-FIRST (RED): Have you written tests FIRST? If this is source code, a corresponding test file must exist or be created first.
 2. ALTERNATIVES: Can you justify X over Y? (comment or commit message)
 3. IDIOMATIC: Are you using the framework's idiomatic pattern? If bypassing, justify why.

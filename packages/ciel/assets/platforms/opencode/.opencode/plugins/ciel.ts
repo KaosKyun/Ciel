@@ -1,4 +1,4 @@
-// Ciel — OpenCode plugin (v6.14.6)
+// Ciel — OpenCode plugin (v6.15.0)
 // Ciel v5 plugin. Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
@@ -57,7 +57,7 @@ const ciel: Plugin = async ({ $ }) => {
       if (!Array.isArray(output?.system)) return;
       // SKILLS (mandatory — every turn). Must precede depth/RELIRE so it's read first.
       output.system.push(
-        "[CIEL SKILL DISPATCH] Before writing ANY code, scan the list of available skills. You MUST call Skill() for EVERY domain skill relevant to this task. Skip = pipeline violation. If no skill matches, state it and continue."
+        "[CIEL SKILL DISPATCH] Before responding to ANY task, scan the list of available skills. You MUST call Skill() for EVERY domain skill relevant to this task — analysis, planning, debugging, or coding. Skip = pipeline violation. If no skill matches, state it and continue."
       );
       if (lastDepthHint) {
         output.system.push(lastDepthHint);

@@ -64,7 +64,7 @@ fi
 	if [ "$PHASE" = "conception" ]; then
 	  SKILL_MSG="Phase CONCEPTION. Tu DOIS appeler Skill() pour system-design, architecture, high-availability, resilience. Puis scanner la liste des skills disponibles et invoquer tout skill technique pertinent. Skip = violation du pipeline."
 	elif [ "$PHASE" = "implementation" ]; then
-	  SKILL_MSG="Phase IMPLEMENTATION. Tu DOIS appeler Skill() pour testing d'abord. Puis scanner la liste des skills disponibles et invoquer chaque skill technique pertinent (backend, database-design, api-design...). Aucun code sans skills charges."
+	  SKILL_MSG="Phase IMPLEMENTATION. Tu DOIS appeler Skill() pour testing d'abord. Puis scanner la liste des skills disponibles et invoquer chaque skill technique pertinent (backend, database-design, api-design...). Aucune reponse sans skills charges."
 	elif [ "$PHASE" = "debug" ]; then
 	  SKILL_MSG="Phase DEBUG. Tu DOIS appeler Skill() pour logging, tracing, monitoring, appsec. Puis scanner la liste et invoquer les skills de correction pertinents. Skip = violation du pipeline."
 	else
