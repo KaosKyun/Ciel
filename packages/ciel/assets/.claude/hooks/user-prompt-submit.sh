@@ -3,6 +3,15 @@
 # Injects: depth hint + cued-recall memory + intervention detection + auto-skill content
 # Never blocks (exit 0 always)
 
+# ─── Defer to project-level hook if this is a global plugin instance ─────
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.sh" ]; then
+  SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  PROJECT_HOOK="$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.sh"
+  if [ "$SCRIPT_PATH" != "$PROJECT_HOOK" ]; then
+    exit 0
+  fi
+fi
+
 INPUT=$(cat 2>/dev/null || echo "{}")
 PROMPT=$(echo "$INPUT" | python3 -c "
 import sys, json
