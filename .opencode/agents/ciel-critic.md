@@ -12,6 +12,8 @@ tools:
   grep: true
   webfetch: false
   websearch: false
+permission:
+  skill: allow
 ---
 
 

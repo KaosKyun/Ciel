@@ -5,6 +5,8 @@ tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 disallowedTools: Write, Edit
 memory: project
 permissionMode: acceptEdits  # read-only — do NOT remove Write/Edit from disallowedTools
+permission:
+  skill: allow
 maxTurns: 20
 ---
 
