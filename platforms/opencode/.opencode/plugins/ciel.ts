@@ -28,6 +28,10 @@ const CODE_EXT_RE = /\.(kt|java|ts|tsx|js|jsx|py|go|rs|rb|php|cs|cpp|c|swift|sca
 const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret)/;
 const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration.*schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
 const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b/i;
+const CONCEPTION_KEYWORD_RE = /\b(architecture|design pattern|conception|structur.e?|schema.?archi|trade.?off|decoupage|ddd|monolithe|microservice|flux.*donn.e?|diagram|c4.?model|vision.*technique|plan.*architecture|hld|lld|system.?design|choisir.*techno|compare.*stack|refonte.*archi|audit.*archi|concevoir|designer)\b/i;
+const IMPL_KEYWORD_RE = /\b(implement|code|coder|ecrire|write|creer|creat|setup|configure|deploy|migrat|refactor|feature|function|method|class|api.*route|endpoint|service|worker|queue|db.*schema|table.*sql|ajout|add.*(route|service|feature))\b/i;
+const DEBUG_KEYWORD_RE = /\b(fix|bug|error|crash|issue|problem|fail|break|corrig|debug|incident|regression|panic|excep|stack.*trace|MTTR|root.?cause|ne.*marche|pas.*fonctionn)\b/i;
+const RESEARCH_KEYWORD_RE = /\b(what.?is|how.?does|explain|understand|compare.*vs|diff.re?rence|document|doc.*tool|learn|tutoriel|guide|best.?practice|c'est.?quoi|quest.ce.que)\b/i;
 
 const ciel: Plugin = async ({ $ }) => {
   // Per-session state. Reset when the plugin module is re-instantiated
@@ -36,6 +40,7 @@ const ciel: Plugin = async ({ $ }) => {
   const remindedFiles = new Set<string>();
   let relireSticky = false; // once true, every turn re-injects the RELIRE notice
   let lastDepthHint: string | null = null;
+  let lastPhaseHint: string | null = null;
 
   // v3.3.0 — dispatch-gate counter removed. The per-call [CIEL COUNTER: N/15]
   // systemMessage was pure noise on every inline tool call. Depth routing
@@ -97,8 +102,23 @@ const ciel: Plugin = async ({ $ }) => {
         depth = "Trivial";
         reason = "rename/typo/docs keyword detected";
       }
-      lastDepthHint = depth
-        ? `[CIEL] Depth: ${depth} (${reason}). Route the pipeline accordingly.`
+      // Phase detection (complements depth — determines skill LOADING ORDER)
+      let phase: string | null = null;
+      if (CONCEPTION_KEYWORD_RE.test(prompt)) {
+        phase = "conception";
+      } else if (DEBUG_KEYWORD_RE.test(prompt)) {
+        phase = "debug";
+      } else if (IMPL_KEYWORD_RE.test(prompt)) {
+        phase = "implementation";
+      } else if (RESEARCH_KEYWORD_RE.test(prompt)) {
+        phase = "research";
+      }
+      lastPhaseHint = phase;
+      const hints: string[] = [];
+      if (depth) hints.push(`Depth: ${depth} (${reason})`);
+      if (phase) hints.push(`Phase: ${phase}`);
+      lastDepthHint = hints.length > 0
+        ? `[CIEL] ${hints.join(". ")}. Route pipeline accordingly.`
         : null;
     },
 

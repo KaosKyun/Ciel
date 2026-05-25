@@ -17,6 +17,16 @@
 
 Doute → Standard. Touche aux donnees utilisateur ou auth → Critical.
 
+## Phase (ordre de chargement des skills)
+Le plugin detecte automatiquement la phase. **Ne JAMAIS sauter la phase conception pour aller directement en implementation.**
+
+| Phase | Declencheur | Ordre de chargement |
+|-------|-------------|---------------------|
+| **Conception** | architecture, design, schema, trade-off, DDD, choix techno | 1. system-design, architecture, ha, resilience 2. Puis skills techniques |
+| **Implementation** | implement, code, add, setup, deploy, migrate, feature | 1. Skills techniques (api-design, backend, database-design...) 2. Si pattern inconnu → charger conception d'abord |
+| **Debug** | fix, bug, error, crash, incident, regression | 1. logging, tracing, monitoring, appsec 2. Puis skills de correction |
+| **Recherche** | what is, explain, compare, docs, understand | 1. research 2. Puis les skills du domaine concerne |
+
 ## Subagents (dispatch en parallele avant tout Write)
 | Agent | Quand | Contrat |
 |-------|-------|---------|
@@ -26,7 +36,7 @@ Doute → Standard. Touche aux donnees utilisateur ou auth → Critical.
 | `ciel-improver` | Uniquement /ciel-improve, /ciel-eval | Analyse + propositions |
 
 ## Skills (~50 skills domaine, invocables via Skill())
-- **Avant d'ecrire du code**, evalue le contexte et invoque tous les skills pertinents avec `Skill()`. Une tache touche souvent plusieurs domaines (DB + langage + testing...). L'IA est assez intelligente pour matcher sans table de keywords.
+- **Avant d'ecrire du code**, evalue la phase (conception/implementation/debug) et invoque les skills pertinents avec `Skill()` **dans l'ordre de la table Phase ci-dessus** : conception d'abord, puis implementation. Une tache touche souvent plusieurs domaines (DB + langage + testing...).
 - Les skills NE s'auto-chargent PAS. Tu dois les invoquer explicitement.
 - **Rules** (`.claude/rules/*.md`) — elles, s'auto-chargent via `paths:`. Mecanisme separe.
 

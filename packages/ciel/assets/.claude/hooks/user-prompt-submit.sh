@@ -50,8 +50,29 @@ if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   echo "$DEPTH" > "$CLAUDE_PROJECT_DIR/.ciel/last-depth" 2>/dev/null || true
 fi
 
+# ─── Phase detection (skill LOADING ORDER) ─────────────────────────────
+PHASE=""
+if echo "$PROMPT" | grep -qiE "(architecture|design pattern|conception|structur|schema.*archi|trade.?off|ddd|monolithe|microservice|flux.*donnee|diagram|c4|system.?design|choisir.*techno|refonte.*archi|audit.*archi|concevoir)"; then
+  PHASE="conception"
+elif echo "$PROMPT" | grep -qiE "(fix|bug|error|crash|debug|incident|regression|panic|stack.*trace|root.?cause|ne.*marche|pas.*fonctionn)"; then
+  PHASE="debug"
+elif echo "$PROMPT" | grep -qiE "(implement|code|write|creer|creat|setup|configure|deploy|migrat|refactor|feature|function|method|class|route|endpoint|service|ajout|add.*route)"; then
+  PHASE="implementation"
+fi
+
+# ─── Phase-aware skill loading instruction ─────────────────────────────
+if [ "$PHASE" = "conception" ]; then
+  SKILL_MSG="Phase CONCEPTION — charger d'abord system-design, architecture, high-availability, resilience. Puis charger les skills techniques selon les mots-cles."
+elif [ "$PHASE" = "implementation" ]; then
+  SKILL_MSG="Phase IMPLEMENTATION — charger les skills techniques (api-design, backend, monitoring, logging, database-design...). Si la conception est encore floue, charger d'abord system-design, architecture."
+elif [ "$PHASE" = "debug" ]; then
+  SKILL_MSG="Phase DEBUG — charger d'abord logging, tracing, monitoring, appsec pour investiguer. Puis charger les skills de correction."
+else
+  SKILL_MSG="Identifier la phase (conception/implementation/debug) — charger les skills en ordre : conception d'abord, puis implementation."
+fi
+
 # ─── Build context injection ────────────────────────────────────────────
-MSG="CIEL depth: $DEPTH. | Dispatch researcher+explorer before writing code.$INTERVENTION_GATE | Load domain skills via paths: matching files."
+MSG="CIEL depth: $DEPTH. | Dispatch researcher+explorer before writing code.$INTERVENTION_GATE | $SKILL_MSG"
 
 MSG_BASE="$MSG" MEMORY_OUTPUT="$MEMORY_OUTPUT" python3 -c "
 import os, json

@@ -23,6 +23,10 @@ const TEST_FILE_RE = /(\.test\.|\.spec\.|_test\.|_spec\.)(ts|tsx|js|jsx|py|go|rs
 const CRITICAL_FILE_RE = /(auth|Auth|security|Security|Route|Service|Controller|Repository|Gateway|Middleware|Proxy|Token|Session|Password|Secret|Payment|Account|Credential)/;
 const CRITICAL_KEYWORD_RE = /\b(auth|authenti|author|jwt|oauth|password|secret|token|session|payment|credit.card|migration.*schema|2fa|mfa|encryption|credential|cookie.*security)\b/i;
 const TRIVIAL_KEYWORD_RE = /\b(rename|typo|copyright|comment|readme|1-line|one.line|fix.typo|spelling)\b/i;
+const CONCEPTION_KEYWORD_RE = /\b(architecture|design pattern|conception|structur.e?|schema.?archi|trade.?off|decoupage|ddd|monolithe|microservice|flux.*donn.e?|diagram|c4.?model|vision.*technique|plan.*architecture|hld|lld|system.?design|choisir.*techno|compare.*stack|refonte.*archi|audit.*archi|concevoir|designer)\b/i;
+const IMPL_KEYWORD_RE = /\b(implement|code|coder|ecrire|write|creer|creat|setup|configure|deploy|migrat|refactor|feature|function|method|class|api.*route|endpoint|service|worker|queue|db.*schema|table.*sql|ajout|add.*(route|service|feature))\b/i;
+const DEBUG_KEYWORD_RE = /\b(fix|bug|error|crash|issue|problem|fail|break|corrig|debug|incident|regression|panic|excep|stack.*trace|MTTR|root.?cause|ne.*marche|pas.*fonctionn)\b/i;
+const RESEARCH_KEYWORD_RE = /\b(what.?is|how.?does|explain|understand|compare.*vs|diff.re?rence|document|doc.*tool|learn|tutoriel|guide|best.?practice|c'est.?quoi|quest.ce.que)\b/i;
 const CIEL_DIR = ".ciel";
 const MAP_FILE = (0, path_1.join)(CIEL_DIR, "map.json");
 const PARKING_FILE = (0, path_1.join)(CIEL_DIR, "parking.md");
@@ -130,6 +134,7 @@ const ciel = async ({ client }) => {
     const MAX_TRACKED_FILES = 100;
     let relireSticky = false;
     let lastDepthHint = null;
+    let lastPhaseHint = null;
     let overlayContent = null;
     let faireBlocked = null;
     let sessionId = "unknown";
@@ -167,6 +172,7 @@ const ciel = async ({ client }) => {
         "shell.env": async (_input, output) => {
             output.env.CIEL_SESSION_ID = sessionId;
             output.env.CIEL_DEPTH = lastDepthHint ?? "unclassified";
+            output.env.CIEL_PHASE = lastPhaseHint ?? "unknown";
             output.env.CIEL_MODE = isSpikeMode() ? "spike" : "standard";
         },
         // ----- EVENTS -----
@@ -213,6 +219,7 @@ const ciel = async ({ client }) => {
                 writtenFiles.clear();
                 relireSticky = false;
                 lastDepthHint = null;
+                lastPhaseHint = null;
                 faireBlocked = null;
                 readDocsAttempted = false;
                 askWindowUsed = false;
@@ -360,8 +367,28 @@ const ciel = async ({ client }) => {
                 depth = "Trivial";
                 reason = "rename/typo/docs keyword detected";
             }
-            lastDepthHint = depth
-                ? `[CIEL] Depth: ${depth} (${reason}). Route the pipeline accordingly.`
+            // Phase detection (complements depth — determines skill LOADING ORDER)
+            let phase = null;
+            if (CONCEPTION_KEYWORD_RE.test(prompt)) {
+                phase = "conception";
+            }
+            else if (DEBUG_KEYWORD_RE.test(prompt)) {
+                phase = "debug";
+            }
+            else if (IMPL_KEYWORD_RE.test(prompt)) {
+                phase = "implementation";
+            }
+            else if (RESEARCH_KEYWORD_RE.test(prompt)) {
+                phase = "research";
+            }
+            lastPhaseHint = phase;
+            let hints = [];
+            if (depth)
+                hints.push(`Depth: ${depth} (${reason})`);
+            if (phase)
+                hints.push(`Phase: ${phase}`);
+            lastDepthHint = hints.length > 0
+                ? `[CIEL] ${hints.join(". ")}. Route pipeline accordingly.`
                 : null;
         },
         // ----- COMPACTING (cross-session memory -- persist automatically) -----
@@ -372,6 +399,7 @@ const ciel = async ({ client }) => {
                 const memory = {
                     sessionId,
                     depthHint: lastDepthHint,
+                    phaseHint: lastPhaseHint,
                     filesChanged: Array.from(writtenFiles).slice(-20),
                     taskCount,
                     timestamp: new Date().toISOString(),
