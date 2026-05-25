@@ -1,4 +1,9 @@
 ---
+description: ---
+subtask: false
+---
+
+---
 description: Scan project for ingestable tribal docs (lessons.md, ciel-overlay.md, .claude/rules/, Claude Code auto-memory at ~/.claude/projects/<slug>/memory/, etc.) and propose ingestion into the cued-recall memory under .ciel/memory/. Reports findings if no sources found. Always confirms each candidate with the user before writing.
 ---
 

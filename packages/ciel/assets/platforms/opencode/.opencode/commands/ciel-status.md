@@ -1,4 +1,9 @@
 ---
+description: ---
+subtask: false
+---
+
+---
 description: Displays current Ciel environment status — version, platform, hooks, skills, agents, commands, memory health. Diagnostic entry point for "is Ciel working?" questions.
 ---
 

@@ -893,10 +893,15 @@ const ciel: Plugin = async ({ \$ }) => {
     // so we get a reliable "inject once per turn" surface without having to
     // manage cross-hook message state ourselves.
     "experimental.chat.system.transform": async (_input, output) => {
-      if (lastDepthHint && Array.isArray(output?.system)) {
+      if (!Array.isArray(output?.system)) return;
+      // SKILLS (mandatory — every turn). Must precede depth/RELIRE so it's read first.
+      output.system.push(
+        "[CIEL SKILL DISPATCH] Before writing ANY code, scan the list of available skills. You MUST call Skill() for EVERY domain skill relevant to this task. Skip = pipeline violation. If no skill matches, state it and continue."
+      );
+      if (lastDepthHint) {
         output.system.push(lastDepthHint);
       }
-      if (relireSticky && Array.isArray(output?.system)) {
+      if (relireSticky) {
         const changed = Array.from(writtenFiles);
         output.system.push(
           \`[CIEL RELIRE REQUIRED] \${changed.length} code files changed this session (\${changed.slice(0, 6).join(", ")}\${changed.length > 6 ? ", ..." : ""}). Dispatch @ciel-critic MODE=RELIRE — 3 RISQUES + FIX/ACCEPT/DEFER. Do not declare done before verdict.\`
@@ -966,8 +971,8 @@ const ciel: Plugin = async ({ \$ }) => {
           remindedFiles.add(filePath);
 
           const reminder = isCritical
-            ? \`\\n\\n[CIEL CRITIQUE] \${filePath} — FAIRE gates + stride-analyzer + flux-narrator + test-first (RED). Dispatch @ciel-critic MODE=RELIRE before declaring done.\`
-            : \`\\n\\n[CIEL] \${filePath} — FAIRE gates: alternatives, idiomatic, test-first. Ensure @ciel-researcher + @ciel-explorer ran.\`;
+            ? \`\\n\\n[CIEL CRITIQUE] \${filePath} — SKILLS loaded? FAIRE gates + stride-analyzer + test-first (RED). Dispatch @ciel-critic MODE=RELIRE before declaring done.\`
+            : \`\\n\\n[CIEL] \${filePath} — SKILLS loaded? FAIRE gates: alternatives, idiomatic, test-first. Ensure @ciel-researcher + @ciel-explorer ran.\`;
 
           if (typeof output?.output === "string") {
             output.output += reminder;

@@ -1,4 +1,9 @@
 ---
+description: ---
+subtask: false
+---
+
+---
 description: Audits the current session for Ciel v7 paradigm violations — dispatch discipline, hook activity, skill coverage, agent quality, memory health. Produces a structured report with Ciel Health Score (0-100). Creates GitHub Issue if score < 90. Hook-independent — works even when Ciel hooks are broken.
 ---
 

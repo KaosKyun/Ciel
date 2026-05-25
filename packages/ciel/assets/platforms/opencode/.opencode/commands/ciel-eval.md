@@ -1,4 +1,12 @@
 ---
+description: ---
+agent: ciel-improver
+subtask: true
+---
+
+> **OpenCode note**: This command requires `claude --print` headless mode for full functionality (binary evals, skill scaffold generation). On OpenCode it runs in degraded mode — the improver agent returns proposals only. For the full harness, use Claude Code.
+
+---
 description: Runs the binary eval dataset for a Ciel skill via headless Claude Code, comparing baseline scores and persisting results.
 ---
 

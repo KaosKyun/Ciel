@@ -61,15 +61,15 @@ elif echo "$PROMPT" | grep -qiE "(implement|code|write|creer|creat|setup|configu
 fi
 
 # ─── Phase-aware skill loading instruction ─────────────────────────────
-if [ "$PHASE" = "conception" ]; then
-  SKILL_MSG="Phase CONCEPTION — charger d'abord system-design, architecture, high-availability, resilience. Puis charger les skills techniques selon les mots-cles."
-elif [ "$PHASE" = "implementation" ]; then
-  SKILL_MSG="Phase IMPLEMENTATION — charger les skills techniques (api-design, backend, monitoring, logging, database-design...). Si la conception est encore floue, charger d'abord system-design, architecture."
-elif [ "$PHASE" = "debug" ]; then
-  SKILL_MSG="Phase DEBUG — charger d'abord logging, tracing, monitoring, appsec pour investiguer. Puis charger les skills de correction."
-else
-  SKILL_MSG="Identifier la phase (conception/implementation/debug) — charger les skills en ordre : conception d'abord, puis implementation."
-fi
+	if [ "$PHASE" = "conception" ]; then
+	  SKILL_MSG="Phase CONCEPTION. Tu DOIS appeler Skill() pour system-design, architecture, high-availability, resilience. Puis scanner la liste des skills disponibles et invoquer tout skill technique pertinent. Skip = violation du pipeline."
+	elif [ "$PHASE" = "implementation" ]; then
+	  SKILL_MSG="Phase IMPLEMENTATION. Tu DOIS appeler Skill() pour testing d'abord. Puis scanner la liste des skills disponibles et invoquer chaque skill technique pertinent (backend, database-design, api-design...). Aucun code sans skills charges."
+	elif [ "$PHASE" = "debug" ]; then
+	  SKILL_MSG="Phase DEBUG. Tu DOIS appeler Skill() pour logging, tracing, monitoring, appsec. Puis scanner la liste et invoquer les skills de correction pertinents. Skip = violation du pipeline."
+	else
+	  SKILL_MSG="Tu DOIS scanner la liste des skills disponibles et invoquer Skill() pour chaque domaine pertinent a cette tache. Aucune exception. Skip = violation du pipeline Ciel."
+	fi
 
 # ─── Build context injection ────────────────────────────────────────────
 MSG="CIEL depth: $DEPTH. | Dispatch researcher+explorer before writing code.$INTERVENTION_GATE | $SKILL_MSG"

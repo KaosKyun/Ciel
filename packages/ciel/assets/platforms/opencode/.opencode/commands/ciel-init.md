@@ -1,29 +1,58 @@
 ---
-description: Bootstrap or repair Ciel wiring for OpenCode. Auto-detects platform and configures plugin, agents, and commands.
+description: ---
+subtask: false
+---
+
+---
+description: Bootstrap or repair Ciel wiring. Auto-detects platform (Claude Code or OpenCode) and configures hooks, agents, and commands. Preserves existing config.
 ---
 
 # /ciel-init — Wire Ciel into Current Project
 
+**Purpose:** Fix the #1 failure mode — hooks not firing because config is missing or has wrong paths.
+
 **Usage:** `/ciel-init [--yes]`
 
-## Steps
+- No flags — interactive, prompts for confirmation
+- `--yes` — skip prompts, run headless (use in CI / Claude sessions)
+
+## Instructions
+
+This is deterministic — NO agent dispatch, NO research, NO pipeline.
+
+### Steps
 
 1. **Run init:**
    ```bash
+   # Global install (default)
+   ciel init --yes
+
+   # Or local install fallback:
    npx @neikyun/ciel init --yes
    ```
-2. **Verify:** `npx @neikyun/ciel check`
-3. **Restart OpenCode** to load the Ciel plugin
+2. **Verify:** `ciel check` or `npx @neikyun/ciel check`
+3. **Restart Claude Code** (`claude .`) or OpenCode after init
 
 ### What init does
 
-- Detects OpenCode from `opencode.json` or `.opencode/`
-- Copies plugin (`ciel.js`), agents, and commands to `.opencode/`
-- Updates `opencode.json` plugin reference
+- Detects platform: Claude Code (`.claude/`) or OpenCode (`opencode.json`)
+- Copies hooks, agents, commands, and skills to your project
+- Writes `.claude/settings.json` with Ciel hooks registered (Claude)
+- Updates `opencode.json` plugin reference (OpenCode)
+- Creates `.ciel/` state directory
+
+### What's preserved
+
+- `ciel-overlay.md` — project-specific rules
+- `.ciel/` — state directory (map.json, memory.json, parking.md)
+- Existing `settings.json` — merged non-destructively
+- Existing `opencode.json` — merged non-destructively
 
 ### Error Handling
 
 | Error | Action |
 |-------|--------|
-| `npx: command not found` | Install Node.js first |
-| Config write fails | Check file permissions |
+| `ciel: command not found` | Run `npm install -g @neikyun/ciel` first, or use `npx @neikyun/ciel` |
+| Config write fails | Show manual instructions |
+| Platform ambiguous | Add `.claude/` or `opencode.json` to project root |
+| Permission denied | Check file permissions |

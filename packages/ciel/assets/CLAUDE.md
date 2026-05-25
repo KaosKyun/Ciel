@@ -36,8 +36,10 @@ Le plugin detecte automatiquement la phase. **Ne JAMAIS sauter la phase concepti
 | `ciel-improver` | Uniquement /ciel-improve, /ciel-eval | Analyse + propositions |
 
 ## Skills (~50 skills domaine, invocables via Skill())
-- **Avant d'ecrire du code**, evalue la phase (conception/implementation/debug) et invoque les skills pertinents avec `Skill()` **dans l'ordre de la table Phase ci-dessus** : conception d'abord, puis implementation. Une tache touche souvent plusieurs domaines (DB + langage + testing...).
-- Les skills NE s'auto-chargent PAS. Tu dois les invoquer explicitement.
+- **Obligatoire : avant d'ecrire du code**, tu DOIS scanner la liste des skills disponibles et invoquer `Skill()` pour chaque domaine pertinent. Skip = violation du pipeline Ciel.
+- Evalue la phase (conception/implementation/debug) et invoque les skills dans l'ordre : conception d'abord, puis implementation.
+- Une tache touche souvent plusieurs domaines (DB + langage + testing...). Invoque TOUS les skills pertinents.
+- Si aucun skill ne correspond, dis-le explicitement et continue.
 - **Rules** (`.claude/rules/*.md`) — elles, s'auto-chargent via `paths:`. Mecanisme separe.
 
 ## Memoire

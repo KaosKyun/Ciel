@@ -1,4 +1,12 @@
 ---
+description: ---
+agent: ciel-improver
+subtask: true
+---
+
+> **OpenCode note**: This command requires `claude --print` headless mode for full functionality (binary evals, skill scaffold generation). On OpenCode it runs in degraded mode — the improver agent returns proposals only. For the full harness, use Claude Code.
+
+---
 description: Generates a valid Ciel v7 SKILL.md scaffold — kebab-case name, YAML frontmatter with triggers.path, 3-section body (Checklist / Anti-patterns / Patterns), max 200 lines.
 ---
 
