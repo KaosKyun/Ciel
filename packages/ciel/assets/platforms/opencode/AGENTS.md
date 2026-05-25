@@ -78,7 +78,14 @@ The `ciel.ts` plugin injects depth classification on every user prompt and RELIR
 Ciel ships a `.mcp.json` template at the repo root with two opt-in servers: `playwright` (visual critique) and `context7` (live official docs). Register them via:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --with-mcp=playwright,context7
+# Install Ciel globally (default)
+npm install -g @neikyun/ciel
+
+# Then init in your project:
+cd /path/to/project && ciel init
+
+# Copy .mcp.json from the Ciel repo:
+curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/.mcp.json -o .mcp.json
 ```
 
 **Important** — OpenCode issue #2319: plugin hooks (`tool.execute.before/after`) do NOT fire for MCP tool calls. The `playwright-visual-critic` skill orchestrates the flow explicitly (navigate → snapshot → dispatch `@ciel-critic`) rather than relying on auto-triggered hooks. When you use a visual-critique workflow, dispatch the critic agent yourself after capture.

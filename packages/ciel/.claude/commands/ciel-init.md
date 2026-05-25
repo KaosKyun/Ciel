@@ -1,78 +1,51 @@
 ---
-description: Bootstrap or repair Ciel v7 wiring. Auto-detects platform (Claude Code or OpenCode) and configures hooks, agents, and commands. Preserves existing config, creates backups.
+description: Bootstrap or repair Ciel wiring. Auto-detects platform (Claude Code or OpenCode) and configures hooks, agents, and commands. Preserves existing config.
 ---
 
 # /ciel-init — Wire Ciel into Current Project
 
 **Purpose:** Fix the #1 failure mode — hooks not firing because config is missing or has wrong paths.
 
-**Usage:** `/ciel-init [--check] [--user] [--platform=claude|opencode]`
+**Usage:** `/ciel-init [--yes]`
 
-- `--check` — Dry-run: show what would change without writing
-- `--user` — Install to user scope (~/.claude/settings.json) instead of project
-- `--platform=NAME` — Force platform (default: auto-detect)
+- No flags — interactive, prompts for confirmation
+- `--yes` — skip prompts, run headless (use in CI / Claude sessions)
 
 ## Instructions
 
 This is deterministic — NO agent dispatch, NO research, NO pipeline.
 
-### Step 1: Detect Platform
+### Steps
 
-Run detection in order (pick FIRST match):
-
-1. **Project files:**
-   - `./opencode.json` or `./.opencode/` → **opencode**
-   - `./.claude/settings.json` or `./.claude/` → **claude**
-
-2. **CLI availability:**
-   - `command -v claude` → **claude**
-   - `command -v opencode` → **opencode**
-
-3. **If ambiguous:** Ask user to specify with `--platform=NAME`
-
-### Step 2: Find Ciel Source
-
-Check in order:
-1. `$CLAUDE_PROJECT_DIR/.claude/hooks/` — project-scoped install (v7 default)
-2. `$HOME/.ciel/` — user-level sentinel
-3. If not found → tell user to install:
+1. **Run init:**
    ```bash
-   bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh)
+   # Global install (default)
+   ciel init --yes
+
+   # Or local install fallback:
+   npx @neikyun/ciel init --yes
    ```
+2. **Verify:** `ciel check` or `npx @neikyun/ciel check`
+3. **Restart Claude Code** (`claude .`) after init
 
-### Step 3: Configure Platform
+### What init does
 
-**Claude Code** — Backup then write `.claude/settings.json` with hooks registered:
-- SessionStart, UserPromptSubmit, PreToolUse (Edit|Write + Bash rm + Agent), PostToolUse (Edit|Write), SubagentStart (ciel-*), Stop, SubagentStop, PreCompact
-- Copy agents from source to `.claude/agents/`
-- Copy commands from source to `.claude/commands/`
-- Copy skills from source to `.claude/skills/`
-- Ensure `CLAUDE.md` references Ciel pipeline
+- Detects platform: Claude Code (`.claude/`) or OpenCode (`opencode.json`)
+- Copies hooks, agents, commands, and skills to your project
+- Writes `.claude/settings.json` with Ciel hooks registered
+- Creates `.ciel/` state directory
 
-**OpenCode** — Backup then ensure `opencode.json`:
-- `plugin` array contains `"./.opencode/plugins/ciel.ts"`
-- `instructions` array contains `"AGENTS.md"`
-- Copy plugin, agents, commands to `.opencode/`
-
-### Step 4: Verify
-
-1. Config file exists at expected path
-2. Hooks are executable: `chmod +x .claude/hooks/*.sh`
-3. Agent definitions present (4 files)
-4. Report summary: platform, config path, hooks count, next steps
-
-## What's preserved
+### What's preserved
 
 - `ciel-overlay.md` — project-specific rules
 - `.ciel/` — state directory (map.json, memory.json, parking.md)
 - Existing `settings.json` — merged non-destructively
-- Existing `opencode.json` — merged non-destructively
 
-## Error Handling
+### Error Handling
 
 | Error | Action |
 |-------|--------|
-| Ciel source not found | Tell user to run install script |
+| `ciel: command not found` | Run `npm install -g @neikyun/ciel` first, or use `npx @neikyun/ciel` |
 | Config write fails | Show manual instructions |
-| Platform ambiguous | Ask user to specify with --platform |
+| Platform ambiguous | Add `.claude/` to project root |
 | Permission denied | Check file permissions |

@@ -1,10 +1,10 @@
 ---
-description: Check GitHub for newer Ciel release and re-install. Preserves project config — ciel-overlay.md, .ciel/, settings.json.
+description: Update Ciel to the latest version via NPM. Preserves project config — ciel-overlay.md, .ciel/, settings.json.
 ---
 
 # /ciel-update — Update Ciel to the latest version
 
-Checks GitHub for a newer release and re-installs if available.
+Updates the NPM package and re-installs Ciel files (hooks, agents, commands, skills) in the current project.
 
 Usage: `/ciel-update [--check]`
 
@@ -13,9 +13,15 @@ Usage: `/ciel-update [--check]`
 
 ## Steps
 
-1. **Check version**: fetch `VERSION` from GitHub, compare with `.ciel/version` or `VERSION`
-2. **Apply update**: re-install all Ciel files (hooks, agents, commands, skills, plugin)
-3. **Verify**: confirm hooks executable, agents present, config valid
+1. **Run update:**
+   ```bash
+   # Global install (default)
+   ciel update --yes
+
+   # Or local install fallback:
+   npx @neikyun/ciel update --yes
+   ```
+2. **Verify:** `ciel check` or `npx @neikyun/ciel check`
 
 ## What's preserved
 
@@ -30,14 +36,14 @@ Usage: `/ciel-update [--check]`
 - `.claude/agents/ciel-*.md` — agent definitions
 - `.claude/commands/ciel-*.md` — command files
 - `.claude/skills/` — domain skills
-- `.opencode/plugins/ciel.ts` — plugin
+- `.opencode/plugins/ciel.js` — plugin
 - `.opencode/agents/ciel-*.md` — OpenCode agents
 - `.opencode/commands/ciel*.md` — OpenCode commands
 
 ## Troubleshooting
 
 | Symptom | Fix |
-|---------|-----|
-| Could not fetch remote version | Check internet or proxy: `https_proxy=...` |
+|---------|------|
+| `ciel: command not found` | Run `npm install -g @neikyun/ciel` first, or use `npx @neikyun/ciel` |
 | Plugin not loaded after update | Restart editor (plugin loaded at session start) |
 | Hook permissions after update | `chmod +x .claude/hooks/*.sh` |

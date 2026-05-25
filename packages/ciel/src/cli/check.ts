@@ -313,7 +313,7 @@ export function checkIntegrity(targetDir: string): IntegrityResult {
   // ── No platform detected ──
   if (!hasOpenCode && !hasClaude) {
     result.errors.push(
-      "No Ciel platform detected. Run 'npx ciel-init' from an OpenCode or Claude Code project."
+      "No Ciel platform detected. Run 'ciel init' from an OpenCode or Claude Code project."
     );
   }
 
@@ -344,7 +344,7 @@ async function checkVersion(): Promise<number> {
     if (cmp < 0) {
       console.log(`  Update available: v${CIEL_VERSION} → v${remoteVersion}`);
       console.log("");
-      console.log("  Run: npx ciel-init update");
+      console.log("  Run: ciel update");
       console.log("  (This updates the npm package + reinstalls project files)");
       return 0;
     }
@@ -380,7 +380,7 @@ function runIntegrityCheck(): number {
       console.log(`    - ${m}`);
     }
     console.log("");
-    say("Run 'npx ciel-init repair' to reinstall missing files.");
+    say("Run 'ciel repair' to reinstall missing files.");
   }
 
   if (result.warnings.length > 0) {

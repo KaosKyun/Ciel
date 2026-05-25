@@ -191,8 +191,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     warn("Make sure you have @ciel/cli properly installed.");
     warn("Or run from the Ciel project root.");
     warn("");
-    warn("Still using curl? Try the legacy installer:");
-    warn("  curl -fsSL https://install.ciel.sh | bash");
+    warn("Install Ciel globally and retry:");
+    warn("  npm install -g @neikyun/ciel && cd <your-project> && ciel init");
     process.exit(1);
   }
 
@@ -226,6 +226,8 @@ export async function runInit(options: InitOptions): Promise<void> {
   if (!existsSync(join(targetDir, ".ciel/parking.md"))) {
     writeFileSync(join(targetDir, ".ciel/parking.md"), "# Ciel Parking Lot -- Decouvertes fortuites\n\n", "utf-8");
   }
+  // Version sentinel — read by hooks/session-start.sh at runtime
+  writeFileSync(join(targetDir, ".ciel/version"), version + "\n", "utf-8");
 
   // Install for each detected platform
   if (hasOpenCode) {
@@ -250,8 +252,8 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   // Summary
   header(`Ciel v${version} — Install Complete`);
-  ok("Run 'npx ciel-init check' to verify installation");
-  ok("Run 'npx ciel-init repair' to fix missing files");
+  ok("Run 'ciel check' to verify installation");
+  ok("Run 'ciel repair' to fix missing files");
   if (hasOpenCode) {
     say("OpenCode: restart OpenCode to load Ciel");
     say("  Test: type a message — should see depth classification");

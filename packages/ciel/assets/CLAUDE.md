@@ -40,6 +40,17 @@ Le plugin detecte automatiquement la phase. **Ne JAMAIS sauter la phase concepti
 - Les skills NE s'auto-chargent PAS. Tu dois les invoquer explicitement.
 - **Rules** (`.claude/rules/*.md`) — elles, s'auto-chargent via `paths:`. Mecanisme separe.
 
+## Memoire
+- **Ecriture** — META Q2. Si une decouverte merite d'etre sauvegardee → ecris dans `.ciel/memory/` et rebuild l'index.
+- **Lecture** — Consulte `.ciel/memory/index.json` ou les fichiers dans `episodes/` quand le contexte le merite. Les triggers :
+  * Nouvelle tache ou changement de sujet
+  * Decision d'architecture ou de design irreversible
+  * Avant d'ecrire du code critique (auth, DB, securite, payment)
+  * Bug ou comportement inattendu
+  * Pattern ou symbole inconnu dans le codebase
+
+  Ne compte pas sur l'auto-injection par path matching. **C'est a toi de decider** si une lecon passee s'applique.
+
 ## META (thinking uniquement, jamais visible)
 1. Qu'ai-je manque que l'utilisateur va me demander ensuite ?
 2. Quelle decision ou decouverte merite d'etre sauvegardee en memoire ?

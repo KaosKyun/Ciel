@@ -92,6 +92,16 @@ INTENT_KEYWORDS = [
     ("hook", "hook"),
     ("refactor", "refactor"),
     ("rename", "rename"),
+    ("architecture", "architecture-decision"),
+    ("system.design", "architecture-decision"),
+    ("ddd", "architecture-decision"),
+    ("trade.off", "architecture-decision"),
+    ("hld", "architecture-decision"),
+    ("lld", "architecture-decision"),
+    ("monolithe", "architecture-decision"),
+    ("microservice.?architecture", "architecture-decision"),
+    ("conception", "architecture-decision"),
+    ("adr", "architecture-decision"),
 ]
 
 # ─── Cue extraction ─────────────────────────────────────────────────────────

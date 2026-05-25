@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Ciel CLI — @ciel/cli
-// Usage: npx ciel-init [command] [options]
+// Ciel CLI
+// Usage: ciel [command] [options]
 //
 // Commands:
 //   init        Install Ciel in the current project (default)
-//   update      Force reinstall / update
+//   update      Update Ciel + reinstall project files
 //   uninstall   Remove Ciel from the current project
 //   check       Check version + verify installation integrity
 
@@ -25,11 +25,12 @@ Auto-detects OpenCode or Claude Code and installs plugins, agents,
 hooks, and commands into your project.
 
 USAGE:
-  npx ciel-init [command] [options]
+  ciel [command] [options]
+  npx @neikyun/ciel [command] [options]   (if not installed globally)
 
 COMMANDS:
-  init          Install Ciel in the current project (default)
-  update        Force reinstall (run after npm update -g @neikyun/ciel)
+  init          Install Ciel in the current project (interactive)
+  update        Update Ciel + reinstall project files
   repair        Repair missing/broken Ciel files (alias for update)
   uninstall     Remove all Ciel files from the project
   check         Check version + verify all Ciel files are installed
@@ -44,15 +45,13 @@ OPTIONS:
   --version     Show version
 
 EXAMPLES:
-  npx ciel-init                   Install interactively
-  npx ciel-init -y                Install in CI without prompt
-  npx ciel-init update            Force reinstall
-  npx ciel-init update --check    Check for newer version only
-  npx ciel-init uninstall         Remove Ciel
-  npx ciel-init check             Check version + installation integrity
-  npx ciel-init check --integrity  Verify installation files only
-  npx ciel-init check --version-only  Check NPM version only
-  npx ciel-init repair            Reinstall missing/broken files
+  ciel init                   Install interactively in this project
+  ciel init -y                Install headless (CI / Claude session)
+  ciel update                 Update Ciel to latest version
+  ciel update --check         Check for newer version only
+  ciel check                  Verify installation integrity
+  ciel uninstall               Remove Ciel from this project
+  ciel repair                 Reinstall missing/broken files
 `);
 }
 
@@ -105,10 +104,14 @@ async function main(): Promise<void> {
         if (updated) {
           // Re-exec with the freshly updated binary to run init
           const passthrough = [...process.argv.slice(1).filter(a => a !== "update" && a !== "repair"), "update", "--skip-npm-update", "--yes"];
+          // Prefer `ciel` (global install), fallback to npx
+          const runner = (() => {
+            try { execSync("which ciel 2>/dev/null || where ciel 2>nul", { stdio: "pipe" }); return "ciel"; } catch { return `npx @neikyun/ciel`; }
+          })();
           try {
-            execSync(`npx @neikyun/ciel ${passthrough.map(a => `"${a}"`).join(" ")}`, { stdio: "inherit" });
+            execSync(`${runner} ${passthrough.map(a => `"${a}"`).join(" ")}`, { stdio: "inherit" });
           } catch {
-            warn("npx re-exec failed, falling back to in-process init");
+            warn(`${runner} re-exec failed, falling back to in-process init`);
             await runInit({ ...options, force: true, yes: true });
           }
           process.exit(0);
@@ -130,7 +133,7 @@ async function main(): Promise<void> {
       break;
     default:
       console.error(`Unknown command: ${command}`);
-      console.error(`Run 'npx ciel-init --help' for usage.`);
+      console.error(`Run 'ciel --help' for usage.`);
       process.exit(1);
   }
 }

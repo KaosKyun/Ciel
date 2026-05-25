@@ -24,8 +24,22 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 ---
 
-## 10-step pipeline (condensed)
+## Phase gauge — detect BEFORE dispatching skills
 
+| Phase | Trigger | Skill loading order |
+|-------|---------|---------------------|
+| **Conception** | "design archi", "choose between X/Y", "trade-off" | system-design, architecture, ha, resilience → then technical skills |
+| **Implementation** | "add X", "implement Y", "setup Z" | Technical skills directly (check if conception phase needed first) |
+| **Debug** | "fix bug", "error in X", "incident" | logging, tracing, monitoring, appsec → then correction skills |
+| **Research** | "what is X", "how does Y", "docs" | research → then domain skills |
+
+Doute → Conception d'abord, puis implementation. Ne JAMAIS sauter la conception.
+
+---
+
+## 11-step pipeline (condensed)
+
+0. **PHASE** — detect conception/implementation/debug/research → load skills in phase order (conception d'abord)
 1. **QUOI** — 1-sentence goal + NOT-X + definition of done
 2. **AVEC QUOI** — read installed versions (not memory), load overlay
 3. **RECHERCHE** — `@ciel-researcher` (Standard+Critical): official docs + anti-patterns + version changelog
@@ -69,7 +83,7 @@ Dispatch `@ciel-researcher` + `@ciel-explorer` **IN PARALLEL** before writing co
 
 ## Automatic context injection (plugin hooks)
 
-The `ciel.ts` plugin injects depth classification on every user prompt and RELIRE reminders after every `Write`/`Edit` on code files. You don't need to remember to invoke Ciel — the plugin fires on the right events.
+The `ciel.ts` plugin injects depth + phase classification on every user prompt and RELIRE reminders after every `Write`/`Edit` on code files. You don't need to remember to invoke Ciel — the plugin fires on the right events.
 
 ---
 
@@ -78,7 +92,14 @@ The `ciel.ts` plugin injects depth classification on every user prompt and RELIR
 Ciel ships a `.mcp.json` template at the repo root with two opt-in servers: `playwright` (visual critique) and `context7` (live official docs). Register them via:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/scripts/install.sh) --with-mcp=playwright,context7
+# Install Ciel globally (default)
+npm install -g @neikyun/ciel
+
+# Then init in your project:
+cd /path/to/project && ciel init
+
+# Copy .mcp.json from the Ciel repo:
+curl -fsSL https://raw.githubusercontent.com/KaosKyun/Ciel/main/.mcp.json -o .mcp.json
 ```
 
 **Important** — OpenCode issue #2319: plugin hooks (`tool.execute.before/after`) do NOT fire for MCP tool calls. The `playwright-visual-critic` skill orchestrates the flow explicitly (navigate → snapshot → dispatch `@ciel-critic`) rather than relying on auto-triggered hooks. When you use a visual-critique workflow, dispatch the critic agent yourself after capture.

@@ -143,9 +143,31 @@ function installClaude(targetDir, assets) {
   return count;
 }
 
+// ---- Global install detection ----
+function isGlobalInstall() {
+  return process.env.npm_config_global === 'true';
+}
+
 // ---- MAIN ----
 async function main() {
   if (process.env.CI || process.env.NO_CIEL_POSTINSTALL) return;
+
+  // Toujours écrire la version globale dans ~/.ciel/version
+  try {
+    const userCielDir = join(require("os").homedir(), ".ciel");
+    mkdirSync(userCielDir, { recursive: true });
+    writeFileSync(join(userCielDir, "version"), CIEL_VERSION + "\n", "utf-8");
+  } catch {}
+
+  console.error(`\n  ${bold("✦ Ciel v" + CIEL_VERSION)}`);
+
+  // INSTALL GLOBAL — message léger, pas de configuration projet
+  if (isGlobalInstall()) {
+    console.error(`  ${green("✓")} Installé globalement.`);
+    console.error(`    → Lancez ${cyan("ciel init")} dans votre projet pour configurer Ciel.`);
+    console.error(`    → Lancez ${cyan("ciel update")} depuis un projet pour mettre à jour les fichiers.\n`);
+    return;
+  }
 
   // INIT_CWD = répertoire où l'utilisateur a lancé npm install
   // (npm lance les lifecycle scripts dans node_modules/<pkg>/, pas dans le projet)
@@ -172,9 +194,6 @@ async function main() {
   const hasOpenCodeCLI = detectCLI("opencode");
   if (hasClaudeCLI && !platforms.includes("Claude Code")) platforms.push("Claude Code");
   if (hasOpenCodeCLI && !platforms.includes("OpenCode")) platforms.push("OpenCode");
-
-  // Toujours afficher le message Ciel (sur stderr pour être visible via npm)
-  console.error(`\n  ${bold("✦ Ciel v" + CIEL_VERSION)}`);
 
   if (!assetsDir) {
     console.error(`  ${yellow("~")} Templates non trouvés (package corrompu ?)\n`);
@@ -227,11 +246,6 @@ async function main() {
   writeFileSync(join(targetDir, ".ciel/memory.json"), JSON.stringify({ cielVersion: CIEL_VERSION, lastUpdated: new Date().toISOString() }, null, 2), "utf-8");
   // Version sentinel — read by hooks/session-start.sh at runtime (no hardcoded MSG to drift).
   writeFileSync(join(targetDir, ".ciel/version"), CIEL_VERSION + "\n", "utf-8");
-  try {
-    const userCielDir = join(require("os").homedir(), ".ciel");
-    mkdirSync(userCielDir, { recursive: true });
-    writeFileSync(join(userCielDir, "version"), CIEL_VERSION + "\n", "utf-8");
-  } catch {}
 
   console.error(`\n  ${green("✓")} Ciel v${CIEL_VERSION} installé !`);
   if (platforms.includes("OpenCode")) console.error(`    → plugin ${cyan("@neikyun/ciel")} ajouté à opencode.json`);
