@@ -50,7 +50,7 @@ if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   echo "$DEPTH" > "$CLAUDE_PROJECT_DIR/.ciel/last-depth" 2>/dev/null || true
 fi
 
-# ─── Phase detection (skill LOADING ORDER) ─────────────────────────────
+# ─── Phase detection ────────────────────────────────────────────────────
 PHASE=""
 if echo "$PROMPT" | grep -qiE "(architecture|design pattern|conception|structur.e?|schema.?archi|trade.?off|decoupage|ddd|monolithe|microservice|flux.*donn.e?|diagram|c4.?model|vision.*technique|plan.*architecture|hld|lld|system.?design|choisir.*techno|compare.*stack|refonte.*archi|audit.*archi|concevoir|designer)"; then
   PHASE="conception"
@@ -60,16 +60,15 @@ elif echo "$PROMPT" | grep -qiE "(implement|code|write|creer|creat|setup|configu
   PHASE="implementation"
 fi
 
-# ─── Phase-aware skill loading instruction ─────────────────────────────
-	if [ "$PHASE" = "conception" ]; then
-	  SKILL_MSG="Phase CONCEPTION. Tu DOIS appeler Skill() pour system-design, architecture, high-availability, resilience. Puis scanner la liste des skills disponibles et invoquer tout skill technique pertinent. Skip = violation du pipeline."
-	elif [ "$PHASE" = "implementation" ]; then
-	  SKILL_MSG="Phase IMPLEMENTATION. Tu DOIS appeler Skill() pour testing d'abord. Puis scanner la liste des skills disponibles et invoquer chaque skill technique pertinent (backend, database-design, api-design...). Aucune reponse sans skills charges."
-	elif [ "$PHASE" = "debug" ]; then
-	  SKILL_MSG="Phase DEBUG. Tu DOIS appeler Skill() pour logging, tracing, monitoring, appsec. Puis scanner la liste et invoquer les skills de correction pertinents. Skip = violation du pipeline."
-	else
-	  SKILL_MSG="Tu DOIS scanner la liste des skills disponibles et invoquer Skill() pour chaque domaine pertinent a cette tache. Aucune exception. Skip = violation du pipeline Ciel."
-	fi
+# ─── Phase-aware skill loading order ────────────────────────────────────
+SKILL_MSG=""
+if [ "$PHASE" = "conception" ]; then
+  SKILL_MSG="Phase CONCEPTION — charge les skills conception d'abord (system-design, architecture), puis skills techniques."
+elif [ "$PHASE" = "implementation" ]; then
+  SKILL_MSG="Phase IMPLEMENTATION — charge les skills techniques d'abord, puis implementation."
+elif [ "$PHASE" = "debug" ]; then
+  SKILL_MSG="Phase DEBUG — charge d'abord logging, tracing, monitoring, appsec pour investiguer."
+fi
 
 # ─── Build context injection ────────────────────────────────────────────
 MSG="CIEL depth: $DEPTH. | Dispatch researcher+explorer before writing code.$INTERVENTION_GATE | $SKILL_MSG"
