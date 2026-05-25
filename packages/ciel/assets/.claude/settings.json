@@ -2,7 +2,7 @@
   "autoMemoryEnabled": false,
   "permissions": {
     "allow": [
-      "Bash(npx ciel-init *)",
+      "Bash(ciel *)",
       "Bash(npm update *)",
       "Bash(npm install *)",
       "Bash(npm test *)",
