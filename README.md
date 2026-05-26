@@ -1,186 +1,173 @@
-# Ciel v6
+# Ciel v9
 
 [![CI](https://github.com/KaosKyun/Ciel/workflows/CI/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/ci.yml)
-[![Release](https://github.com/KaosKyun/Ciel/workflows/Release/badge.svg)](https://github.com/KaosKyun/Ciel/actions/workflows/release.yml)
 [![npm](https://img.shields.io/npm/v/@neikyun/ciel?color=blue)](https://www.npmjs.com/package/@neikyun/ciel)
 
 > *Named after the Primordial Sage from Tensura — the advisor who reasons at infinite speed before Rimuru acts.*
 
-Deep-reasoning framework for LLM-assisted development. Pipeline 16 etapes, dual harness (OpenCode + Claude Code), 63 skills, 5 agents, anti-rationalization tables, memory persistante.
+Deep-reasoning framework for LLM-assisted development. A **thin shell**: a small set
+of hard rules and deterministic hooks that constrain an LLM coding agent to
+understand before it generates and to prove a change works before claiming it done.
+Dual harness (Claude Code + OpenCode), ~50 on-demand domain skills, 4 forked
+subagents, cued-recall memory.
 
 Principle: **"Understand before generating. Verify before claiming done."**
+
+> **Versioning** — "v9" is the paradigm generation (the conceptual model). The npm
+> package follows semver (the badge above); the two are different axes.
 
 ---
 
 ## The problem it solves
 
-| LLM default behavior | Ciel v6 solution |
+The point is not to *ask* the LLM to behave — it's to make good behavior the path of
+least resistance, enforced by hooks the model cannot skip.
+
+| LLM default behavior | Ciel mechanism |
 |---|---|
-| Skip research ("I already know this") | `research/` skills + `@ciel-researcher` in forked context |
-| Code on assumptions ("I'll fix it later") | **ASK window**: question tool (OpenCode) / plan mode (Claude Code) |
-| First approach bias ("this should work") | **DIVERGE**: 2-3 approaches before choosing |
-| No persistence between sessions | **MEMOIRE**: .ciel/map.json, .ciel/learnings.md persistants |
-| Self-critique in same context = same blind spots | `@ciel-critic` in fresh fork — 5 modes (RELIRE/CRITIQUER/RCA/FEEDBACK/INVESTIGATE) |
-| "Done" = code written | 6 quality gates + PROUVER (AVANT/APRES evidence) |
-| Skip process for "simple" tasks | Depth-aware pipeline (Trivial/Standard/Critical/Spike) |
-| Prototype code becomes permanent | **SPIKE mode**: explication avec gates assouplies, FIXME obligatoire |
-| No feedback loop | META-CRITIQUER (10 items) + .ciel/learnings.md |
-| Excuses to skip steps | **Anti-rationalization tables** dans 7 skills |
+| Skip research ("I already know this") | Dispatch gate blocks reading source until `@ciel-researcher` + `@ciel-explorer` run in a forked context |
+| Code on assumptions | Hard rules auto-injected by path (`.claude/rules/`) — the reliable channel; non-negotiable |
+| Self-critique in the same context = same blind spots | `@ciel-critic` in a fresh fork — RELIRE / CRITIQUER / RCA / FEEDBACK / INVESTIGATE |
+| "Done" = code written | **Verification gate**: the Stop hook blocks completion until edited code has a test run with a *positive* signal observed |
+| No persistence between sessions | Cued-recall memory under `.ciel/memory/` (recalled by prompt cues) |
+| Process drift over time | A single canonical `src/` + a deterministic build + a consistency **doctor** gated in CI |
 
 ---
 
 ## Quick install
 
 ```bash
-npm install -g @neikyun/ciel   # global, 1 fois
+npm install -g @neikyun/ciel   # once, globally
 cd /path/to/your/project
-ciel init                        # installe dans le projet
+ciel init                       # install into the project
 ```
 
-Zero-config. Auto-detecte OpenCode et/ou Claude Code. **Ne touche pas `node_modules`.**
-
-### Update
+Zero-config. Auto-detects Claude Code and/or OpenCode. **Never touches `node_modules`.**
 
 ```bash
-ciel check                       # vérifie NPM
-npm update -g @neikyun/ciel     # update binaire
-ciel update                      # réinstalle dans le projet
-```
-
-### Uninstall
-
-```bash
-ciel uninstall                   # retire tout
-npm uninstall -g @neikyun/ciel  # retire le binaire
+ciel check        # verify installation + version
+ciel doctor       # health check (hooks, memory, rules)
+ciel update       # reinstall after upgrading the binary
+ciel uninstall    # remove from the project
 ```
 
 ---
 
-## Pipeline 16 etapes
+## The model
+
+**4 hard rules** (`CLAUDE.md`): test first (RED→GREEN→REFACTOR) · zero secrets in code ·
+no placeholders · "no error in the logs" is never proof — trigger the scenario and see a
+positive signal.
+
+**Autonomous loop** (default for dev tasks; the human only steps in on a problem or an
+irreversible decision):
 
 ```
-DOCS -> QUOI -> ASK -> AVEC QUOI -> DIVERGE -> RECHERCHE -> SECURITE
--> CODEBASE -> EVALUER -> ASK2 -> FAIRE -> ADR -> RELIRE
--> PROUVER -> MEMOIRE -> META
+Understand → RED (failing test) → GREEN → VERIFY (positive signal)
+→ CRITIQUE (fork the critic if 3+ files) → iterate or ship
 ```
 
-Chaque etape s'adapte a la profondeur (Trivial/Standard/Critical/Spike).
+The **Stop hook blocks completion** until modified code has been verified — that guard
+is what makes the autonomy safe.
+
+**Depth** adapts rigor automatically: `Trivial` (no dispatch) · `Standard` (dispatch
+researcher+explorer before writing) · `Critical` (auth/DB/security/payment → STRIDE +
+mandatory critic).
+
+---
+
+## Knowledge: push (rules) vs pull (skills)
+
+Two channels, two roles:
+
+- **Rules** (`.claude/rules/*.md`, 17) — **hard constraints**, auto-injected by the
+  harness on `paths:` match. The reliable channel: what must always apply lives here
+  (never a secret, test first, cursor pagination, …).
+- **Skills** (`Skill()`, ~50 domains) — **deep reference on demand**. Anti-patterns,
+  playbooks, examples. Pulled when depth helps, not by ritual.
+
+---
+
+## Deterministic enforcement (hooks)
+
+Hooks wired on 6 events (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`,
+`Stop`, `PreCompact`). They classify depth, route skills, gate dispatch, track file edits
+and test runs, and block "done" without proof. A universal defer-guard prevents a global
+install and a project install from double-firing.
+
+---
+
+## Single source of truth
+
+One canonical `src/` feeds every target — no more hand-maintained copies that drift:
+
+```
+src/skills (103)   → .claude/skills, .opencode/skills, packages/ciel/assets/skills
+src/hooks  (13)    → .claude/hooks,  packages/ciel/assets/.claude/hooks
+src/rules  (17)    → .claude/rules,  packages/ciel/assets/.claude/rules
+```
+
+- `scripts/build.mjs` — deterministic, byte-faithful, mode-preserving, idempotent.
+- `scripts/doctor.mjs` — gates version sync (everything == `VERSION`), src↔mirror parity
+  (byte + executable bit), and stale generation labels. The committed npm assets are
+  re-checked in CI with `git diff --exit-code`, so a `src/` edit that isn't rebuilt fails
+  the build. See [ADR 0002](docs/adrs/0002-canonical-src-distribution.md).
 
 ---
 
 ## Dual harness
 
-| Harness | Implementation | Forces |
-|---------|---------------|--------|
-| **OpenCode** | Plugin TypeScript (.opencode/) | question tool, LSP experimental, websearch, permissions granulaires, fork isolation via Task() |
-| **Claude Code** | Hooks + agents (.claude/) | auto memory, fork mode, agent teams, isolation worktree, 7 hooks dont prompt type |
+| Harness | Implementation | Strengths |
+|---------|---------------|-----------|
+| **Claude Code** | hooks + agents (`.claude/`) | auto memory, fork subagents, worktree isolation, deterministic hook gates |
+| **OpenCode** | TypeScript plugin (`.opencode/`) | question tool, LSP, websearch, granular permissions, fork isolation via `Task()` |
 
-Meme philosophie, implementation native a chaque harness.
-
----
-
-## Architecture
-
-```
-ciel/
-├── .opencode/              # OpenCode harness
-│   ├── plugins/ciel.ts     # Plugin principal (562 lignes)
-│   ├── agents/             # 5 agents (ciel + 4 subagents)
-│   ├── commands/           # 8 commandes slash
-│   └── skills/             # 63 skills discoverables
-├── .claude/                # Claude Code harness
-│   ├── agents/             # 4 subagents avec memory/isolation/maxTurns
-│   ├── hooks/              # 4 hooks shell (test-first, block-destructive, track-file, meta-critiquer)
-│   ├── settings.json       # 7 hooks configures (PreToolUse, PostToolUse, SubagentStart/Stop, etc.)
-│   ├── rules/              # 3 path-scoped (security, testing, api)
-│   └── skills/             # 63 skills discoverables
-├── .ciel/                  # Etat persistant (map.json, memory.json, learnings.md, parking.md)
-├── skills/                 # 63 skills source (workflow 26, domain 11, research 6, utility 8, meta 6, autres 6)
-│   ├── workflow/           # Pipeline v5: quoi-framer, ask-window, diverge, evaluer-sizer, faire-gatekeeper, adr-auto, relire-critic, meta-critiquer, spike-mode...
-│   ├── domain/             # frontend-mastery, backend-mastery, database-mastery, security-hardening...
-│   ├── research/           # research-web-sources, research-github-issues, fact-check-claims...
-│   ├── utility/            # commit-writer, pr-opener, issue-creator, changelog-updater...
-│   └── meta/               # ciel-improve, learnings-capture, skill-creator, skill-freshness-auditor...
-├── agents/                 # 5 agents OpenCode
-├── commands/               # 8 commandes slash
-├── docs/                   # Documentation (Diataxis)
-├── scripts/                # Install zero-config (256 lignes .sh, 129 .ps1)
-├── evals/                  # Self-improvement harness
-├── CLAUDE.md               # Instructions Claude Code
-├── AGENTS.md               # Workflow complet
-└── platforms/              # Build multi-platforms
-```
+Same philosophy, native implementation per harness.
 
 ---
 
-## 5 Agents
+## Agents (4 forked subagents)
 
-| Agent | Mode | Role | Particularites v6 |
-|-------|------|------|-------------------|
-| `ciel` | primary | Orchestrateur pipeline 16 etapes | ASK window, intentions partagees, depth gauge SPIKE |
-| `ciel-researcher` | subagent | Recherche docs + version changelog | Waterfall, anti-hallucination, skills prechargees |
-| `ciel-explorer` | subagent | Exploration + scent-following + git history | LSP tool, stop condition, intentions partagees |
-| `ciel-critic` | subagent | 5 modes: RELIRE/CRITIQUER/RCA/FEEDBACK/INVESTIGATE | Feedback processor (D2), investigation (D5) |
-| `ciel-improver` | subagent | Meta-analyse, evals, patch-sets | Ne modifie jamais sans approbation |
+| Agent | Role |
+|-------|------|
+| `ciel-researcher` | Official docs, anti-patterns, versions, changelogs |
+| `ciel-explorer` | Codebase patterns, data-flow tracing, git history — reports facts, not judgments |
+| `ciel-critic` | Hostile review before commit: 4 risks + FIX/ACCEPT/DEFER, 5 modes |
+| `ciel-improver` | Self-improvement analysis (only on `/ciel-improve`, `/ciel-eval`) — never rewrites autonomously |
 
-**Sur Claude Code** : les subagents ont `memory: user/project/local`, `isolation: worktree` (explorer), `permissionMode`, `maxTurns`, `skills` preloading.
-
----
-
-## 63 Skills
-
-Les skills sont organisees en 6 categories. Les workflow skills sont liees explicitement au pipeline v6 et incluent des tables d'anti-rationalization.
-
-| Categorie | Nb | Exemples |
-|-----------|----|----------|
-| workflow | 26 | quoi-framer, ask-window, diverge, evaluer-sizer, faire-gatekeeper, adr-auto, memoire, spike-mode, relire-critic, meta-critiquer |
-| domain | 11 | frontend-mastery, backend-mastery, database-mastery, security-hardening |
-| research | 6 | research-web-sources, research-github-issues, fact-check-claims |
-| utility | 8 | commit-writer, pr-opener, issue-creator, changelog-updater |
-| meta | 6 | ciel-improve, learnings-capture, skill-creator |
-| autres | 6 | ciel, ci-watcher, pr-merger, release-publisher |
+On Claude Code the subagents carry `memory`, `isolation: worktree`, and `maxTurns`.
 
 ---
 
-## New in v6
+## Skills (103)
 
-- **Harness enrichment**: agents OpenCode (48→107 lignes) et Claude Code (CLAUDE.md 7→90+ lignes) avec pipeline complet, Top 10 Guards, subagent dispatch rules
-- **NPM distribution**: `npm install -D @neikyun/ciel` + `npx ciel init`
-- **Version aligned**: v{{VERSION}} across GitHub, NPM, VERSION file
-- **Dependency pinned**: `@opencode-ai/plugin` exact version, no caret
-- **Tests renforces**: 31 tests (15→31, +16 behavioral)
-- **ciel-plan.md**: nettoye (merge dans l'agent primaire)
+| Category | Count | Discoverable | Examples |
+|----------|-------|--------------|----------|
+| domain | 52 | yes (top-level) | api-design, backend, frontend, database-design, appsec, system-design, environments, github |
+| workflow | 29 | no (internal) | diverge, quoi-framer, ask-window, evaluer-sizer, faire-gatekeeper, adr-auto |
+| utility | 9 | no | commit/PR/issue/changelog helpers |
+| meta | 7 | no | skill-creator, freshness/variant auditors |
+| research | 6 | no | research-web-sources, fact-check-claims, validate-source-credibility |
 
-## Legacy v5 features
-
-- **Pipeline 16 etapes** (vs 10): DOCS, ASK, DIVERGE, ADR, MEMOIRE, SPIKE
-- **ASK window**: question tool (OpenCode) / plan mode (Claude Code) — ne codez pas sur des assumptions
-- **DIVERGE**: 2-3 approches radicalement differentes avant d'en choisir une
-- **ADR auto**: documentation des decisions architecturales dans docs/adrs/
-- **MEMOIRE**: .ciel/map.json + .ciel/learnings.md persistants entre sessions
-- **SPIKE mode**: .ciel/exploration.active pour prototypes, gates assouplies
-- **Boy-scout rule**: gate 6 dans FAIRE
-- **Parking lot**: .ciel/parking.md pour decouvertes fortuites
-- **Claude Code support complet**: subagents, hooks, rules, fork mode, agent teams
-- **Anti-rationalization tables**: 7 skills avec tables d'excuses
-- **Install zero-config**: 256 lignes (vs 691), 129 lignes PS1 (vs 744)
+Claude Code discovers skills at the top level only; nested categories are internal
+(OpenCode / reference). Some workflow skills still describe an earlier pipeline and are
+slated for modernization.
 
 ---
 
 ## Self-improvement
 
-Ciel peut analyser ses propres performances et proposer des ameliorations :
-- `/ciel-improve` : analyse sessions, propose patch-set
-- `/ciel-refresh` : verify URLs, pins, citations
-- `/ciel-eval` : execute eval sur un skill
+- `/ciel-improve` — analyze recent sessions, propose a patch-set (with approval)
+- `/ciel-eval` — run the binary eval dataset for a skill
+- `/ciel-audit` — audit the current session for paradigm violations (health score)
 
 ---
 
 ## Research basis
 
 - Anthropic Skills-first paradigm (Barry Zhang / Mahesh Murag)
-- CriticBench 2024 : self-critique is the hardest critique mode for LLMs
-- Process debt research (planally.com)
+- CriticBench 2024 — self-critique is the hardest critique mode for LLMs
+- Process-debt research (planally.com)
 
 ---
 
