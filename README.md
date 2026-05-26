@@ -102,7 +102,7 @@ install and a project install from double-firing.
 One canonical `src/` feeds every target — no more hand-maintained copies that drift:
 
 ```
-src/skills (103)   → .claude/skills, .opencode/skills, packages/ciel/assets/skills
+src/skills (93)    → .claude/skills, .opencode/skills, packages/ciel/assets/skills
 src/hooks  (13)    → .claude/hooks,  packages/ciel/assets/.claude/hooks
 src/rules  (17)    → .claude/rules,  packages/ciel/assets/.claude/rules
 ```
@@ -139,12 +139,12 @@ On Claude Code the subagents carry `memory`, `isolation: worktree`, and `maxTurn
 
 ---
 
-## Skills (103)
+## Skills (93)
 
 | Category | Count | Discoverable | Examples |
 |----------|-------|--------------|----------|
 | domain | 52 | yes (top-level) | api-design, backend, frontend, database-design, appsec, system-design, environments, github |
-| workflow | 29 | no (internal) | diverge, quoi-framer, ask-window, evaluer-sizer, faire-gatekeeper, adr-auto |
+| workflow | 19 | no (internal) | depth-classifier, stride-analyzer, debug-reasoning-rca, relire-critic, critiquer-auditor, memoire |
 | utility | 9 | no | commit/PR/issue/changelog helpers |
 | meta | 7 | no | skill-creator, freshness/variant auditors |
 | research | 6 | no | research-web-sources, fact-check-claims, validate-source-credibility |
