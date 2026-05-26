@@ -517,7 +517,7 @@ jobs:
       # what src/ produces. If src changed without rebuilding+committing assets,
       # this fails. (Gitignored local mirrors can't be diffed — build.test covers them.)
       - name: Gate — committed assets match canonical src/
-        run: git diff --exit-code -- packages/ciel/assets/.claude/hooks packages/ciel/assets/.claude/rules
+        run: git diff --exit-code -- packages/ciel/assets/skills packages/ciel/assets/.claude/hooks packages/ciel/assets/.claude/rules
 
       # Hard gate: version files == VERSION, and every mirror matches src/ (byte + exec-bit).
       - name: Consistency doctor

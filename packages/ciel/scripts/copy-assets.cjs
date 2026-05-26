@@ -51,56 +51,17 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-memory.md", dest: "commands/ciel-memory.md" },
   { src: "commands/ciel-compile.md", dest: "commands/ciel-compile.md" },
 
-  // Ciel skill files (for Claude Code)
-  { src: "skills/ciel/SKILL.md", dest: "skills/ciel/SKILL.md" },
-  { src: "skills/ciel/reference.md", dest: "skills/ciel/reference.md" },
+  // Skills (incl. the ciel skill) are owned by scripts/build.mjs
+  // (canonical src/skills → assets/skills, committed + gated in CI).
 
   // Compiled plugin JS (for local reference, no node_modules needed)
   { src: "packages/ciel/dist/plugin/index.js", dest: "dist/plugin/index.js" },
 ];
 
-// Auto-discover workflow skills (skills/workflow/<name>/SKILL.md). Avoids the
-// 28-entry hardcoded list — every new workflow skill gets shipped automatically.
-const workflowDir = join(REPO_ROOT, "skills", "workflow");
-if (existsSync(workflowDir)) {
-  for (const entry of readdirSync(workflowDir)) {
-    const skillPath = join("skills", "workflow", entry, "SKILL.md");
-    if (existsSync(join(REPO_ROOT, skillPath))) {
-      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
-    }
-    // Some workflow skills carry a reference.md sidecar.
-    const refPath = join("skills", "workflow", entry, "reference.md");
-    if (existsSync(join(REPO_ROOT, refPath))) {
-      TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
-    }
-  }
-}
-
-// Auto-discover meta skills (skills/meta/<name>/SKILL.md).
-const metaDir = join(REPO_ROOT, "skills", "meta");
-if (existsSync(metaDir)) {
-  for (const entry of readdirSync(metaDir)) {
-    const skillPath = join("skills", "meta", entry, "SKILL.md");
-    if (existsSync(join(REPO_ROOT, skillPath))) {
-      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
-    }
-  }
-}
-
-// Auto-discover domain skills (.claude/skills/*/SKILL.md) and their sidecars.
-const domainSkillsDir = join(REPO_ROOT, ".claude", "skills");
-if (existsSync(domainSkillsDir)) {
-  for (const entry of readdirSync(domainSkillsDir)) {
-    const skillPath = join(".claude", "skills", entry, "SKILL.md");
-    if (existsSync(join(REPO_ROOT, skillPath))) {
-      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
-    }
-    const refPath = join(".claude", "skills", entry, "reference.md");
-    if (existsSync(join(REPO_ROOT, refPath))) {
-      TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
-    }
-  }
-}
+// Skills (domain + workflow + meta + the ciel skill) are owned by scripts/build.mjs
+// (canonical src/skills → assets/skills, committed + gated in CI). copy-assets no
+// longer reads the gitignored .claude/skills here — that was the non-reproducible
+// build input (a clean clone produced a different package).
 
 // Rules are owned by scripts/build.mjs (canonical src/rules → assets/.claude/rules,
 // committed + gated in CI). Not auto-discovered here anymore.

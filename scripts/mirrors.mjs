@@ -4,7 +4,9 @@
 // a divergence would let the doctor silently gate a different set than the build
 // produces (the exact drift this lever exists to kill).
 export const MIRRORS = [
-  { src: "src/skills", targets: [".claude/skills", ".opencode/skills"] },
+  // skills also feed the COMMITTED npm assets (the single tree both installers
+  // ship); gated by `git diff --exit-code` in CI like hooks/rules.
+  { src: "src/skills", targets: [".claude/skills", ".opencode/skills", "packages/ciel/assets/skills"] },
   // hooks + rules also feed the COMMITTED npm assets (packages/ciel/assets/…),
   // which are gated by `git diff --exit-code` in CI — the real published-content
   // drift gate. copy-assets.cjs no longer owns these (build.mjs does).
