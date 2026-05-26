@@ -105,14 +105,6 @@ Test level: [unit | integration | E2E] — [justification]
 
 ---
 
-## Skills invoked (bundled inline)
-
-> The following skills are referenced in the process above but do not exist
-> as platform-native primitives. Each skill below is a complete procedure;
-> follow its steps inline to execute the skill.
-
----
-
 ### Skill: `pattern-fitness-check`
 
 
