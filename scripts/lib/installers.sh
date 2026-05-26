@@ -91,7 +91,7 @@ install_claude_code() {
     info "Downloading Claude Code components..."
     
     # Hooks
-    for hook in session-start.sh stop.sh pre-tool-write.sh post-tool-write.sh pre-compact.sh user-prompt-submit.sh memory-bootstrap.sh memory-engine.py session-version-check.sh pre-agent-gate.sh subagent-stop.sh; do
+    for hook in session-start.sh stop.sh pre-tool-write.sh track-file.sh track-verification.sh check-dispatch-gate.sh user-prompt-submit.sh memory-bootstrap.sh memory-engine.py block-destructive.sh pre-agent-gate.sh subagent-stop.sh ciel_stats.py; do
       curl -fsSL "$GITHUB_BASE/hooks/$hook" -o "$plugin_dir/$hook" 2>/dev/null && ok "Hook: $hook" || warn "Missing: $hook"
     done
     chmod +x "$plugin_dir"/*.sh "$plugin_dir"/memory-engine.py 2>/dev/null || true

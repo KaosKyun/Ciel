@@ -135,12 +135,12 @@ jobs:
             fi
           done
 
-          echo "Checking Claude Code hook files exist..."
-          for hook in check-test-first block-destructive track-file meta-critiquer; do
-            if [ -f ".claude/hooks/${hook}.sh" ]; then
-              echo "✓ .claude/hooks/${hook}.sh exists"
+          echo "Checking Ciel hook files exist (canonical hooks/ — .claude/hooks/ is gitignored)..."
+          for hook in block-destructive track-file track-verification check-dispatch-gate pre-agent-gate pre-tool-write stop session-start user-prompt-submit memory-bootstrap; do
+            if [ -f "hooks/${hook}.sh" ]; then
+              echo "✓ hooks/${hook}.sh exists"
             else
-              echo "✗ .claude/hooks/${hook}.sh missing"
+              echo "✗ hooks/${hook}.sh missing"
               exit 1
             fi
           done

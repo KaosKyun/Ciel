@@ -1,7 +1,7 @@
-# Test des hooks Ciel
-# Déclencheur: push sur hooks/** ou .claude/hooks/** + PR
-# Note: le dossier hooks/ est legacy (contient seulement check-test-first.sh)
-# Les hooks actifs sont dans .claude/hooks/ (block-destructive, check-test-first, track-file, meta-critiquer)
+# Test des hooks Ciel (v9)
+# Déclencheur: push sur hooks/** + PR
+# Note: les hooks canoniques vivent dans hooks/ (tracké). .claude/hooks/ est
+# gitignoré (install local), donc absent du checkout CI — on teste hooks/.
 
 name: Test Hooks
 
@@ -9,11 +9,9 @@ on:
   push:
     paths:
       - 'hooks/**'
-      - '.claude/hooks/**'
   pull_request:
     paths:
       - 'hooks/**'
-      - '.claude/hooks/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,8 +21,8 @@ permissions:
   contents: read
 
 jobs:
-  test-claude-hooks:
-    name: Test Claude Code Hooks (.claude/hooks/)
+  test-ciel-hooks:
+    name: Test Ciel Hooks (hooks/)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -33,42 +31,17 @@ jobs:
 
       - name: Setup test environment
         run: |
-          # Install jq — required by all hooks for JSON input parsing
+          # jq — required by track-file.sh for JSON input parsing
           sudo apt-get update -qq && sudo apt-get install -y -qq jq
           echo "CIEL_TEST_DIR=/tmp/ciel-hooks-test" >> $GITHUB_ENV
-          mkdir -p /tmp/ciel-hooks-test/.ciel /tmp/ciel-hooks-test/src/hooks
+          mkdir -p /tmp/ciel-hooks-test/.ciel /tmp/ciel-hooks-test/src
           echo "[]" > /tmp/ciel-hooks-test/.ciel/tracked-files.json
-
-      - name: Test check-test-first.sh (source without test → warns)
-        run: |
-          echo "=== check-test-first: source file without test ==="
-          echo '{"tool_input": {"filePath": "/tmp/ciel-hooks-test/src/index.ts"}}' | \
-            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
-            echo "✓ Warns on source without test" || \
-            (echo "✗ Should have warned about missing test" && exit 1)
-
-      - name: Test check-test-first.sh (test exists → silent)
-        run: |
-          echo "=== check-test-first: source file WITH test ==="
-          touch /tmp/ciel-hooks-test/src/index.test.ts
-          echo '{"tool_input": {"filePath": "/tmp/ciel-hooks-test/src/index.ts"}}' | \
-            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
-            (echo "✗ Should NOT have warned when test exists" && exit 1) || \
-            echo "✓ Silent when test exists"
-
-      - name: Test check-test-first.sh (non-source → silent)
-        run: |
-          echo "=== check-test-first: non-source file ==="
-          echo '{"tool_input": {"filePath": "/tmp/ciel-hooks-test/config.json"}}' | \
-            bash .claude/hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
-            (echo "✗ Should NOT have warned on non-source file" && exit 1) || \
-            echo "✓ Silent on non-source file"
 
       - name: Test block-destructive.sh (rm -rf → blocked)
         run: |
           echo "=== block-destructive: rm -rf ==="
           echo '{"tool_input": {"command": "rm -rf /important"}}' | \
-            bash .claude/hooks/block-destructive.sh 2>&1 | grep -q "blocked" && \
+            bash hooks/block-destructive.sh 2>&1 | grep -q "blocked" && \
             echo "✓ Blocks rm -rf" || \
             (echo "✗ Should have blocked rm -rf" && exit 1)
 
@@ -76,82 +49,55 @@ jobs:
         run: |
           echo "=== block-destructive: safe command ==="
           echo '{"tool_input": {"command": "ls -la"}}' | \
-            bash .claude/hooks/block-destructive.sh 2>/dev/null && \
+            bash hooks/block-destructive.sh 2>/dev/null && \
             echo "✓ Allows safe command" || \
             (echo "✗ Should have allowed safe command" && exit 1)
 
-      - name: Test block-destructive.sh (force push → blocked)
+      - name: Test track-file.sh (tracks + deduplicates)
         run: |
-          echo "=== block-destructive: force push ==="
-          echo '{"tool_input": {"command": "git push --force origin main"}}' | \
-            bash .claude/hooks/block-destructive.sh 2>&1 | grep -q "blocked" && \
-            echo "✓ Blocks force push" || \
-            (echo "✗ Should have blocked force push" && exit 1)
-
-      - name: Test track-file.sh (tracks modified files)
-        run: |
-          echo "=== track-file: track new file ==="
-          echo '{"tool_input": {"filePath": "src/hooks/useWebSocket.ts"}}' | \
-            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash .claude/hooks/track-file.sh
-          COUNT=$(python3 -c "import json; d=json.load(open('/tmp/ciel-hooks-test/.ciel/tracked-files.json')); print(len(d))")
-          [ "$COUNT" -ge 1 ] && echo "✓ Tracks file (count: $COUNT)" || \
-            (echo "✗ Did not track file" && exit 1)
-
-      - name: Test track-file.sh (deduplicates)
-        run: |
-          echo "=== track-file: deduplicate ==="
-          echo '{"tool_input": {"filePath": "src/hooks/useWebSocket.ts"}}' | \
-            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash .claude/hooks/track-file.sh
-          COUNT=$(python3 -c "import json; d=json.load(open('/tmp/ciel-hooks-test/.ciel/tracked-files.json')); print(len(d))")
-          [ "$COUNT" -eq 1 ] && echo "✓ Deduplicates (count: $COUNT)" || \
-            (echo "✗ Should have deduplicated (count: $COUNT)" && exit 1)
-
-      - name: Test track-file.sh (count triggers RELIRE threshold)
-        run: |
-          echo "=== track-file: RELIRE threshold ==="
-          # Track 5+ files to trigger standard RELIRE
-          for i in 1 2 3 4 5; do
-            echo "{\"tool_input\": {\"filePath\": \"file${i}.ts\"}}" | \
-              CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash .claude/hooks/track-file.sh
+          echo "=== track-file: track + dedup ==="
+          for _ in 1 2; do
+            echo '{"tool_input": {"file_path": "src/useWebSocket.ts"}}' | \
+              CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash hooks/track-file.sh
           done
-          if grep -q "standard" /tmp/ciel-hooks-test/.ciel/relire-required 2>/dev/null; then
-            echo "✓ RELIRE threshold triggered at 5+ files"
-          else
-            echo "⚠ RELIRE threshold not triggered (count may be off)"
-          fi
+          COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/ciel-hooks-test/.ciel/tracked-files.json'))))")
+          [ "$COUNT" -eq 1 ] && echo "✓ Tracks + deduplicates (count: $COUNT)" || \
+            (echo "✗ Expected count 1, got $COUNT" && exit 1)
 
-      - name: Test meta-critiquer.sh (subagent logging)
+      - name: Test track-file.sh (logic edit writes last-code-edit)
         run: |
-          echo "=== meta-critiquer: subagent stop ==="
-          echo '{}' | CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test \
-            SUBAGENT_TYPE="ciel-researcher" \
-            bash .claude/hooks/meta-critiquer.sh
-          if [ -f /tmp/ciel-hooks-test/.ciel/subagent-log.md ]; then
-            echo "✓ Creates subagent-log.md"
-            cat /tmp/ciel-hooks-test/.ciel/subagent-log.md
-          else
-            echo "⚠ No log needed (no RELIRE required)"
-          fi
+          echo "=== track-file: last-code-edit marker ==="
+          echo '{"tool_input": {"file_path": "src/service.ts"}}' | \
+            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash hooks/track-file.sh
+          [ -f /tmp/ciel-hooks-test/.ciel/last-code-edit ] && \
+            echo "✓ Wrote .ciel/last-code-edit" || \
+            (echo "✗ Should have written last-code-edit for a .ts edit" && exit 1)
 
-  test-legacy-hook:
-    name: Test Legacy Hook (hooks/check-test-first.sh)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Test legacy check-test-first.sh
+      - name: Test track-verification.sh (test run writes last-verification)
         run: |
-          echo "=== Legacy hook: hooks/check-test-first.sh ==="
-          if [ -f hooks/check-test-first.sh ]; then
-            chmod +x hooks/check-test-first.sh
-            echo "Testing with source file..."
-            echo '{"tool_input": {"filePath": "/tmp/test.ts"}}' | \
-              bash hooks/check-test-first.sh 2>&1 | grep -q "CIEL REMINDER" && \
-              echo "✓ Legacy hook works" || echo "⚠ Legacy hook may need updates"
-          else
-            echo "⚠ hooks/check-test-first.sh not found (may have been removed)"
-          fi
+          echo "=== track-verification: records test run ==="
+          echo '{"tool_input": {"command": "npm test"}}' | \
+            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash hooks/track-verification.sh
+          [ -f /tmp/ciel-hooks-test/.ciel/last-verification ] && \
+            echo "✓ Wrote .ciel/last-verification on a test run" || \
+            (echo "✗ Should have recorded verification" && exit 1)
 
+      - name: Test track-verification.sh (non-test command → no marker)
+        run: |
+          echo "=== track-verification: ignores non-test ==="
+          rm -f /tmp/ciel-hooks-test/.ciel/last-verification
+          echo '{"tool_input": {"command": "ls -la"}}' | \
+            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash hooks/track-verification.sh
+          [ ! -f /tmp/ciel-hooks-test/.ciel/last-verification ] && \
+            echo "✓ Silent on non-test command" || \
+            (echo "✗ Should NOT have recorded verification" && exit 1)
 
+      - name: Test pre-agent-gate.sh (research dispatch writes .ciel/dispatched)
+        run: |
+          echo "=== pre-agent-gate: dispatch marker ==="
+          rm -f /tmp/ciel-hooks-test/.ciel/dispatched
+          echo '{"tool_input": {"subagent_type": "ciel-researcher", "prompt": "x"}}' | \
+            CLAUDE_PROJECT_DIR=/tmp/ciel-hooks-test bash hooks/pre-agent-gate.sh
+          [ -f /tmp/ciel-hooks-test/.ciel/dispatched ] && \
+            echo "✓ Wrote .ciel/dispatched for ciel-researcher" || \
+            (echo "✗ Should have written dispatch marker" && exit 1)
