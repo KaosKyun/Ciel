@@ -274,8 +274,10 @@ jobs:
           echo "=== Checking for env var typos in hooks ==="
           failed=0
 
-          # Check .claude/hooks/ for CLAUD_PROJECT_DIR (typo — missing E)
-          for file in .claude/hooks/*.sh hooks/*.sh; do
+          # Check the CANONICAL tracked hooks for CLAUD_PROJECT_DIR (typo — missing E).
+          # (.claude/hooks/ is gitignored → absent on a fresh checkout, so globbing it
+          # validated nothing; the canonical source lives in hooks/.)
+          for file in hooks/*.sh; do
             if [ ! -f "$file" ]; then continue; fi
             if grep -q 'CLAUD_PROJECT_DIR' "$file"; then
               echo "✗ $file: contains CLAUD_PROJECT_DIR (typo — should be CLAUDE_PROJECT_DIR)"
@@ -284,7 +286,7 @@ jobs:
           done
 
           # Check all hook files use $CLAUDE_PROJECT_DIR (not hardcoded paths)
-          for file in .claude/hooks/*.sh; do
+          for file in hooks/*.sh; do
             if [ ! -f "$file" ]; then continue; fi
             # Allow shebang and comments, check for hardcoded /Users/ or /home/ paths
             hardcoded=$(grep -c '/Users/\|/home/' "$file" 2>/dev/null || true)
