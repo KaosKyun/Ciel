@@ -590,7 +590,7 @@ emit_opencode_agent() {
       # Haiku 4.5: retrieval + synthesis is its sweet spot, structured
       # output (≤500 tokens target) doesn't benefit from Sonnet's deeper
       # reasoning. Override to sonnet-4-6 if you see hallucinated findings.
-      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: false\n  read: true\n  glob: false\n  grep: false\n  webfetch: true\n  websearch: true'
+      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  read: true\n  glob: false\n  grep: false\n  webfetch: true\n  websearch: true'
       model_id="anthropic/claude-haiku-4-5-20251001"
       ;;
     explorer)
@@ -600,7 +600,7 @@ emit_opencode_agent() {
       # for highly abstract/dynamic codebases where flux-narrator produces
       # wrong boundary inference.
       model_id="anthropic/claude-haiku-4-5-20251001"
-      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: false\n  read: true\n  glob: true\n  grep: true\n  webfetch: false\n  websearch: false'
+      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  read: true\n  glob: true\n  grep: true\n  webfetch: false\n  websearch: false'
       ;;
     critic)
       # Audit-only: read+grep changed files. Bash for git diff / log.
@@ -608,7 +608,7 @@ emit_opencode_agent() {
       ;;
     improver)
       # Long-running meta-agent: reads session logs + web docs for benchmarks.
-      tools_block=$'tools:\n  write: false\n  edit: false\n  bash: true\n  read: true\n  glob: true\n  grep: true\n  webfetch: true\n  websearch: true'
+      tools_block=$'tools:\n  write: true\n  edit: true\n  bash: true\n  read: true\n  glob: true\n  grep: true\n  webfetch: true\n  websearch: true'
       ;;
   esac
 
@@ -619,19 +619,13 @@ emit_opencode_agent() {
     echo "model: $model_id"
     echo "temperature: 0.2"
     echo "$tools_block"
+    echo "permission:"
+    echo "  skill: allow"
     echo "---"
     echo ""
     strip_yaml "$src"
-    echo ""
-    echo "---"
-    echo ""
-    echo "## Skills invoked (bundled inline)"
-    echo ""
-    echo "> The following skills are bundled here because OpenCode has no native 'skills' primitive."
-    echo "> Each skill below is a complete procedure you invoke by following its \"process\" section."
-    echo "> These bundles replace the skill references in the process above — same semantics, inline."
 
-    # Shared skill-bundle emitter (see _emit_agent_bundled_skills above).
+    # Shared skill-bundle emitter — emits its own single "Skills invoked" header.
     # Note: improver gets an extra OpenCode-specific note appended below.
     _emit_agent_bundled_skills "$role"
 

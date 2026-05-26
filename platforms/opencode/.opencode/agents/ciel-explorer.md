@@ -6,12 +6,14 @@ temperature: 0.2
 tools:
   write: false
   edit: false
-  bash: false
+  bash: true
   read: true
   glob: true
   grep: true
   webfetch: false
   websearch: false
+permission:
+  skill: allow
 ---
 
 
@@ -92,14 +94,6 @@ Test level: [unit | integration | E2E] — [justification]
 - **Domain skill parallel**: when stack is clearly detected, dispatching a domain skill in parallel adds expert pattern library. Don't dispatch if the stack is unclear — confirm it first.
 - **Return ONLY the structured report** — no preamble.
 - **Do not re-read files the main session already read** — rely on grep + first-reads.
-
----
-
-## Skills invoked (bundled inline)
-
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
 
 ---
 
