@@ -34,19 +34,8 @@ const TEMPLATE_PATTERNS = [
   { src: ".claude/agents/ciel-explorer.md", dest: ".claude/agents/ciel-explorer.md" },
   { src: ".claude/agents/ciel-critic.md", dest: ".claude/agents/ciel-critic.md" },
   { src: ".claude/agents/ciel-improver.md", dest: ".claude/agents/ciel-improver.md" },
-  { src: "hooks/block-destructive.sh", dest: ".claude/hooks/block-destructive.sh" },
-  { src: "hooks/track-file.sh", dest: ".claude/hooks/track-file.sh" },
-  { src: "hooks/track-verification.sh", dest: ".claude/hooks/track-verification.sh" },
-  { src: "hooks/pre-tool-write.sh", dest: ".claude/hooks/pre-tool-write.sh" },
-  { src: "hooks/pre-agent-gate.sh", dest: ".claude/hooks/pre-agent-gate.sh" },
-  { src: "hooks/check-dispatch-gate.sh", dest: ".claude/hooks/check-dispatch-gate.sh" },
-  { src: "hooks/stop.sh", dest: ".claude/hooks/stop.sh" },
-  { src: "hooks/subagent-stop.sh", dest: ".claude/hooks/subagent-stop.sh" },
-  // Cued-recall memory hooks
-  { src: "hooks/session-start.sh", dest: ".claude/hooks/session-start.sh" },
-  { src: "hooks/user-prompt-submit.sh", dest: ".claude/hooks/user-prompt-submit.sh" },
-  { src: "hooks/memory-bootstrap.sh", dest: ".claude/hooks/memory-bootstrap.sh" },
-  { src: "hooks/memory-engine.py", dest: ".claude/hooks/memory-engine.py" },
+  // Hooks are owned by scripts/build.mjs (canonical src/hooks → assets/.claude/hooks,
+  // committed + gated by `git diff --exit-code` in CI). Not copied here anymore.
   { src: ".claude/settings.json", dest: ".claude/settings.json" },
   { src: "CLAUDE.md", dest: "CLAUDE.md" },
   { src: "AGENTS.md", dest: "AGENTS.md" },
@@ -113,18 +102,8 @@ if (existsSync(domainSkillsDir)) {
   }
 }
 
-// Auto-discover domain rules (.claude/rules/*.md).
-const rulesDir = join(REPO_ROOT, ".claude", "rules");
-if (existsSync(rulesDir)) {
-  for (const entry of readdirSync(rulesDir)) {
-    if (entry.endsWith(".md")) {
-      const rulePath = join(".claude", "rules", entry);
-      if (existsSync(join(REPO_ROOT, rulePath))) {
-        TEMPLATE_PATTERNS.push({ src: rulePath, dest: rulePath });
-      }
-    }
-  }
-}
+// Rules are owned by scripts/build.mjs (canonical src/rules → assets/.claude/rules,
+// committed + gated in CI). Not auto-discovered here anymore.
 
 let count = 0;
 let errors = 0;

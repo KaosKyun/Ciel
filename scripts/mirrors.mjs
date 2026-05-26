@@ -5,8 +5,11 @@
 // produces (the exact drift this lever exists to kill).
 export const MIRRORS = [
   { src: "src/skills", targets: [".claude/skills", ".opencode/skills"] },
-  { src: "src/hooks", targets: [".claude/hooks"] },
-  { src: "src/rules", targets: [".claude/rules"] },
+  // hooks + rules also feed the COMMITTED npm assets (packages/ciel/assets/…),
+  // which are gated by `git diff --exit-code` in CI — the real published-content
+  // drift gate. copy-assets.cjs no longer owns these (build.mjs does).
+  { src: "src/hooks", targets: [".claude/hooks", "packages/ciel/assets/.claude/hooks"] },
+  { src: "src/rules", targets: [".claude/rules", "packages/ciel/assets/.claude/rules"] },
 ];
 
 export function excluded(name) {

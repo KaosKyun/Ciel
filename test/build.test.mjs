@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -129,5 +129,28 @@ test("build is idempotent (two runs produce an identical mirror tree)", () => {
   const first = snap();
   execFileSync("node", [BUILD], { cwd: ROOT, stdio: "pipe" });
   assert.deepEqual(snap(), first, "build output changed between two runs");
+});
+
+// Build OWNS the committed npm assets for hooks/rules: plant a stale file, rebuild,
+// it must be wiped — proving build.mjs (not copy-assets) regenerates the dir. The
+// committed assets/ is what users receive, so this is the real drift gate.
+function assertOwnsAsset(srcSub, assetTarget) {
+  const stale = join(ROOT, assetTarget, "__ciel_stale_test__");
+  writeFileSync(stale, "stale\n");
+  try {
+    execFileSync("node", [BUILD], { cwd: ROOT, stdio: "pipe" });
+    assert.ok(!existsSync(stale), `build must wipe+regenerate ${assetTarget} (stale survived → copy-assets still owns it)`);
+    assertMirror(srcSub, assetTarget);
+  } finally {
+    rmSync(stale, { force: true });
+  }
+}
+
+test("build owns committed assets/.claude/hooks (regenerated from src)", () => {
+  assertOwnsAsset("src/hooks", "packages/ciel/assets/.claude/hooks");
+});
+
+test("build owns committed assets/.claude/rules (regenerated from src)", () => {
+  assertOwnsAsset("src/rules", "packages/ciel/assets/.claude/rules");
 });
 

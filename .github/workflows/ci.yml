@@ -513,6 +513,12 @@ jobs:
       - name: Regenerate mirrors from canonical src/
         run: node scripts/build.mjs
 
+      # REAL drift gate: the COMMITTED npm assets owned by build.mjs must match
+      # what src/ produces. If src changed without rebuilding+committing assets,
+      # this fails. (Gitignored local mirrors can't be diffed — build.test covers them.)
+      - name: Gate — committed assets match canonical src/
+        run: git diff --exit-code -- packages/ciel/assets/.claude/hooks packages/ciel/assets/.claude/rules
+
       # Hard gate: version files == VERSION, and every mirror matches src/ (byte + exec-bit).
       - name: Consistency doctor
         run: node scripts/doctor.mjs
