@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.16.2](https://github.com/KaosKyun/Ciel/compare/v6.16.1...v6.16.2) (2026-05-26)
+
+
+### Bug Fixes
+
+* **ci:** validate canonical hooks/ in env-var check, not gitignored .claude/hooks ([#92](https://github.com/KaosKyun/Ciel/issues/92)) ([a15a2a9](https://github.com/KaosKyun/Ciel/commit/a15a2a9876c43c5dadc28f7c01360277faccbb87))
+
 ## [6.16.1](https://github.com/KaosKyun/Ciel/compare/v6.16.0...v6.16.1) (2026-05-26)
 
 
