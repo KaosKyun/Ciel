@@ -9,7 +9,10 @@
   "scripts": {
     "build": "npm run build -w ciel",
     "test": "npm run test -w ciel",
-    "clean": "npm run clean -w ciel"
+    "clean": "npm run clean -w ciel",
+    "build:src": "node scripts/build.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "test:consistency": "node --test test/build.test.mjs test/doctor.test.mjs test/memory-save.test.mjs"
   },
   "engines": {
     "node": ">=18.0.0"

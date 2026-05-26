@@ -201,9 +201,9 @@ export function memorySave(
   ];
   if (opts.symbols?.length) args.push("--symbols", opts.symbols.join(","));
   if (opts.intents?.length) args.push("--intents", opts.intents.join(","));
-  if (opts.paths?.length) args.push("--path_patterns", opts.paths.join(","));
+  if (opts.paths?.length) args.push("--path-patterns", opts.paths.join(","));
   if (opts.languages?.length) args.push("--languages", opts.languages.join(","));
-  if (opts.capturedFrom) args.push("--captured_from", opts.capturedFrom);
+  if (opts.capturedFrom) args.push("--captured-from", opts.capturedFrom);
   if (opts.source) args.push("--source", opts.source);
   if (opts.type) args.push("--type", opts.type);
   return py(args, cwd);
@@ -271,17 +271,16 @@ export async function memoryMain(args: string[]): Promise<void> {
           warn("Usage: ciel memory save --title <title> [--symbols a,b] [--intents a,b] [--paths a,b] [--languages a,b] [--from X] [--source X] < content.md");
           process.exit(1);
         }
-        // Read content from stdin
+        // Read the whole body from stdin (fd 0). readFileSync blocks until EOF;
+        // the previous process.stdin.read() loop returned null before data was
+        // buffered and silently produced empty content (the write path was dead).
         let content = "";
         if (!process.stdin.isTTY) {
-          const chunks: Buffer[] = [];
-          process.stdin.resume();
-          for (;;) {
-            const chunk = process.stdin.read() as Buffer | null;
-            if (!chunk) break;
-            chunks.push(chunk);
+          try {
+            content = readFileSync(0, "utf8").trim();
+          } catch {
+            content = "";
           }
-          content = Buffer.concat(chunks).toString("utf8").trim();
         }
         if (!content) {
           warn("No content provided on stdin. Pipe memory body into 'ciel memory save'.");
