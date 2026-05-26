@@ -135,8 +135,8 @@ describe("CLI — Integrity check", () => {
       writeFileSync(join(dir, ".claude/agents", agent), "# agent");
     }
     for (const hook of [
-      "block-destructive.sh", "track-file.sh",
-      "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
+      "block-destructive.sh", "track-file.sh", "track-verification.sh",
+      "pre-tool-write.sh", "pre-agent-gate.sh",
       "check-dispatch-gate.sh", "stop.sh",
       "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
     ]) {
@@ -251,8 +251,8 @@ describe("CLI — Integrity check", () => {
     }));
     // Write hook files without exec bit
     for (const hook of [
-      "block-destructive.sh", "track-file.sh",
-      "session-version-check.sh", "pre-tool-write.sh", "pre-agent-gate.sh",
+      "block-destructive.sh", "track-file.sh", "track-verification.sh",
+      "pre-tool-write.sh", "pre-agent-gate.sh",
       "check-dispatch-gate.sh", "stop.sh",
       "session-start.sh", "user-prompt-submit.sh", "memory-bootstrap.sh", "memory-engine.py",
     ]) {
@@ -323,7 +323,7 @@ describe("CLI — Claude install merge", () => {
           SessionStart: [{
             hooks: [{
               type: "command",
-              command: '"$CLAUDE_PROJECT_DIR"/hooks/session-version-check.sh',
+              command: '"$CLAUDE_PROJECT_DIR"/hooks/session-start.sh',
             }],
           }],
         },
@@ -340,11 +340,11 @@ describe("CLI — Claude install merge", () => {
     assert.equal(sessionStart.length, 1, "expected exactly one SessionStart wrapper after merge");
     const cmds = (sessionStart[0].hooks ?? []).map((h: any) => String(h.command ?? ""));
     assert.ok(
-      cmds.some((c: string) => c.includes(".claude/hooks/session-version-check.sh")),
+      cmds.some((c: string) => c.includes(".claude/hooks/session-start.sh")),
       "expected migrated path to .claude/hooks/"
     );
     assert.ok(
-      !cmds.some((c: string) => /\/hooks\/session-version-check\.sh/.test(c) && !c.includes(".claude/")),
+      !cmds.some((c: string) => /\/hooks\/session-start\.sh/.test(c) && !c.includes(".claude/")),
       "legacy hooks/ path must not remain"
     );
     cleanupTempProject(targetDir);

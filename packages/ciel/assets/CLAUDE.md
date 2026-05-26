@@ -8,6 +8,17 @@
 3. Pas de placeholder — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
 4. Pas de "no error in logs" = preuve — declenche le scenario, vois un signal positif.
 
+## Boucle autonome (mode par defaut)
+Pour toute tache de dev, opere en boucle **sans attendre l'humain**. L'humain n'intervient que s'il observe un probleme ou pour une decision irreversible.
+1. **Comprendre** — lire le contexte ; en Standard+, dispatch researcher+explorer avant d'ecrire.
+2. **RED** — ecrire le test qui echoue d'abord.
+3. **GREEN** — implementer jusqu'au passage.
+4. **VERIFIER** — executer les tests, observer un signal POSITIF (jamais "pas d'erreur" = preuve).
+5. **CRITIQUER** — relire ; dispatch ciel-critic si 3+ fichiers ou Critical.
+6. **Iterer ou livrer** — recommencer la boucle, ou conclure.
+
+Le hook Stop **BLOQUE** la completion tant que du code modifie n'a pas ete verifie (etape 4). Ne declare pas "fini" sans preuve d'execution — c'est le garde-fou qui rend l'autonomie sure.
+
 ## Depth (le systeme adapte la rigueur automatiquement)
 | Niveau | Declencheur | Comportement |
 |--------|-------------|--------------|
@@ -35,12 +46,11 @@ Le plugin detecte automatiquement la phase. **Ne JAMAIS sauter la phase concepti
 | `ciel-critic` | Apres le code, avant le commit | 4 risques + FIX/ACCEPT/DEFER |
 | `ciel-improver` | Uniquement /ciel-improve, /ciel-eval | Analyse + propositions |
 
-## Skills (~50 skills domaine, invocables via Skill())
-- **Obligatoire : avant de repondre a TOUTE tache**, tu DOIS scanner la liste des skills disponibles et invoquer `Skill()` pour chaque domaine pertinent. Analyse, planification, debug, ou code — sans exception. Skip = violation du pipeline Ciel.
-- Evalue la phase (conception/implementation/debug) et invoque les skills dans l'ordre : conception d'abord, puis implementation.
-- Une tache touche souvent plusieurs domaines (DB + langage + testing...). Invoque TOUS les skills pertinents.
-- Si aucun skill ne correspond, dis-le explicitement et continue.
-- **Rules** (`.claude/rules/*.md`) — elles, s'auto-chargent via `paths:`. Mecanisme separe.
+## Connaissance : push (rules) vs pull (skills)
+Deux canaux, deux roles. Ne traite pas `Skill()` comme la seule source.
+- **Rules** (`.claude/rules/*.md`) — contraintes **dures**, auto-injectees par le harness sur match de `paths:`. Tu ne les invoques pas, elles s'appliquent. **C'est le canal fiable** : ce qui doit toujours s'appliquer vit ici (jamais de secret, test d'abord, pagination cursor, etc.).
+- **Skills** (`Skill()`, ~50 domaines) — **reference profonde a la demande**. Anti-patterns, playbooks, exemples. Invoque quand tu as besoin de profondeur sur un domaine, pas par rituel.
+- Le hook UserPromptSubmit suggere des skills pertinents (`Skill(...)`). Invoque-les si la profondeur aide ; les contraintes non-negociables, elles, arrivent deja par les rules.
 
 ## Memoire
 - **Ecriture** — META Q2. Si une decouverte merite d'etre sauvegardee → ecris dans `.ciel/memory/` et rebuild l'index.
@@ -57,4 +67,3 @@ Le plugin detecte automatiquement la phase. **Ne JAMAIS sauter la phase concepti
 1. Qu'ai-je manque que l'utilisateur va me demander ensuite ?
 2. Quelle decision ou decouverte merite d'etre sauvegardee en memoire ?
 3. Si je devais refaire cette tache, que ferais-je differemment ?
-test

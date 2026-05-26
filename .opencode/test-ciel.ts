@@ -149,7 +149,8 @@ function countSkills(dir: string): number {
 }
 
 const skillCount = countSkills("skills/workflow");
-assert(skillCount >= 25, `Workflow skills >= 25 (found: ${skillCount})`);
+// v9 thin-shell intentionally trimmed the workflow skill set; floor reflects current reality.
+assert(skillCount >= 15, `Workflow skills >= 15 (found: ${skillCount})`);
 // Note: .opencode/skills/ is a build target, .claude/skills/ is installed by install.sh
 // Both are gitignored — the source is skills/ (root). Single check suffices.
 

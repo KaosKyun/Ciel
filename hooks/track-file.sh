@@ -13,6 +13,12 @@ fi
 # Create .ciel dir if needed
 mkdir -p "$CLAUDE_PROJECT_DIR/.ciel"
 
+# Record a code-edit timestamp for the Stop verification gate (logic files only —
+# docs/config are not test-verifiable the same way). Compared by mtime in stop.sh.
+if echo "$FILE_PATH" | grep -qE '\.(sh|ts|tsx|js|jsx|mjs|cjs|py|go|rs|rb|php|java|kt|swift|scala|vue|svelte|c|h|cpp|cs|sql)$'; then
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$CLAUDE_PROJECT_DIR/.ciel/last-code-edit" 2>/dev/null || true
+fi
+
 # Load existing tracking
 TRACKED="[]"
 if [ -f "$TRACK_FILE" ]; then

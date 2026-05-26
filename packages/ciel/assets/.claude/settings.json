@@ -31,10 +31,6 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\""
-          },
-          {
-            "type": "command",
-            "command": "{ ! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-version-check.sh\"; }"
           }
         ]
       }
@@ -85,6 +81,15 @@
           {
             "type": "command",
             "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-file.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "! [ -x \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-verification.sh\" ] || \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-verification.sh\""
           }
         ]
       }

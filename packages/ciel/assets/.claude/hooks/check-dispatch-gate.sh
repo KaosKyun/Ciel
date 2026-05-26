@@ -22,7 +22,8 @@ if echo "$INPUT" | grep -q '\[CIEL_GATE_BYPASS\]'; then
 fi
 
 # ── Dispatch check ──
-if ls /tmp/ciel_dispatched.* >/dev/null 2>&1; then
+# Marker written by pre-agent-gate.sh on research dispatch, cleared at SessionStart.
+if [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/.ciel/dispatched" ]; then
   exit 0
 fi
 

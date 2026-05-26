@@ -133,23 +133,18 @@ done
 
 # ─── Shared hooks (canonical source = hooks/) — BYTE-EQUAL ──────────────────
 
-SHARED_HOOKS=(user-prompt-submit.sh memory-bootstrap.sh session-start.sh memory-engine.py)
+# All canonical hooks live in hooks/ and are mirrored to assets/ by copy-assets.cjs.
+# .claude/hooks/ is gitignored (local install), so it is NOT a CI-checkable mirror —
+# the real invariant is hooks/ (source) == assets/.claude/hooks/ (shipped).
+SHARED_HOOKS=(
+  block-destructive.sh track-file.sh track-verification.sh check-dispatch-gate.sh
+  pre-agent-gate.sh pre-tool-write.sh stop.sh session-start.sh
+  user-prompt-submit.sh memory-bootstrap.sh memory-engine.py
+)
 
-echo "Group: shared hooks (hooks/ -> .claude/hooks/, assets) — byte-equal"
+echo "Group: shared hooks (hooks/ -> assets) — byte-equal"
 for hook in "${SHARED_HOOKS[@]}"; do
-  src="hooks/${hook}"
-  require_byte_equal "$src" ".claude/hooks/${hook}"
-  require_byte_equal "$src" "packages/ciel/assets/.claude/hooks/${hook}"
-done
-
-# ─── Claude-only hooks (canonical source = .claude/hooks/) — BYTE-EQUAL ─────
-
-CLAUDE_ONLY_HOOKS=(check-test-first.sh block-destructive.sh track-file.sh meta-critiquer.sh)
-
-echo "Group: Claude-only hooks (.claude/hooks/ -> assets) — byte-equal"
-for hook in "${CLAUDE_ONLY_HOOKS[@]}"; do
-  src=".claude/hooks/${hook}"
-  require_byte_equal "$src" "packages/ciel/assets/.claude/hooks/${hook}"
+  require_byte_equal "hooks/${hook}" "packages/ciel/assets/.claude/hooks/${hook}"
 done
 
 # ─── Orchestrator skill — BYTE-EQUAL ────────────────────────────────────────

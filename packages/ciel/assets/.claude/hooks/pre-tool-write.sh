@@ -37,8 +37,10 @@ if echo "$FILE_PATH" | grep -qE '\.(test|spec)\.|_test\.|_spec\.|/test/|/tests/|
 fi
 
 # ── Dispatch gate — the core enforcement ──────────────────────────────────
+# Marker is .ciel/dispatched (written by pre-agent-gate.sh on a ciel-researcher/
+# explorer dispatch, cleared by session-start.sh). Session- and project-scoped.
 DISPATCHED=0
-if ls /tmp/ciel_dispatched.* >/dev/null 2>&1; then
+if [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/.ciel/dispatched" ]; then
   DISPATCHED=1
 fi
 
