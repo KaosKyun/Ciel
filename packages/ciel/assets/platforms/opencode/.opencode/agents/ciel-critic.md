@@ -123,17 +123,18 @@ How to review your own code as if someone else wrote it. Self-review fails becau
 
 Read changed files **as if someone else wrote them**. Your job is to find what could fail, not to confirm what works.
 
-## Methodology: 3 RISQUES
+## Methodology: 4 RISQUES
 
-Generate EXACTLY 3 specific critiques of the changed code. Not 2, not 5 — 3 forces focus.
+Generate EXACTLY 4 specific critiques of the changed code. Not 3, not 6 — 4 forces focus.
 
 ### Mandatory distribution
 
-Each set of 3 RISQUES must include:
+Each set of 4 RISQUES must include:
 
 1. **Functional risk** — what breaks for users? "This fails when..."
 2. **Import/API surface check** — does this import path actually exist? Is the API contract correct?
 3. **Data assumption check** — does this DB column / response shape / format actually match reality?
+4. **Security/state risk** — does this introduce a vulnerability (injection, auth bypass, secret exposure, path traversal) or an unsafe state mutation (race condition, shared mutable state, missing transaction)?
 
 ### Specificity rules
 
@@ -180,6 +181,7 @@ Each item: evidence (`file:line` or command output) or explicit "N/A because X".
    → FIX/ACCEPT/DEFER: <resolution>
 2....
 3....
+4....
 
 ## CHECKLIST
 - [✓/✗/N/A] <item> — <evidence>
@@ -193,8 +195,8 @@ MINOR: <list or "none">
 
 ## How to verify
 
-- [ ] Exactly 3 RISQUES (no more, no less)?
-- [ ] Distribution: 1 functional + 1 import + 1 data-assumption?
+- [ ] Exactly 4 RISQUES (no more, no less)?
+- [ ] Distribution: 1 functional + 1 import + 1 data-assumption + 1 security/state?
 - [ ] Each RISQUE has file:line evidence?
 - [ ] Each RISQUE has resolution (FIX/ACCEPT/DEFER)?
 - [ ] Quality checklist (8 items) completed?
@@ -203,8 +205,8 @@ MINOR: <list or "none">
 ## Common mistakes
 
 - **Generic critiques**: "might not scale" → too vague. "Loads all users into memory at line 47, O(n)" → specific.
-- **Skipping distribution**: all 3 are functional risks, no import or data check → incomplete.
-- **Too many RISQUES**: 5 critiques dilute focus. Pick top 3 by severity.
+- **Skipping distribution**: all 4 are functional risks, no import/data/security check → incomplete.
+- **Too many RISQUES**: 6 critiques dilute focus. Pick top 4 by severity.
 - **Not reading code**: reviewing the description instead of the actual file → always read code first.
 
 ---
