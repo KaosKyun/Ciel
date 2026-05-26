@@ -1,5 +1,64 @@
 # Ciel — Changelog
 
+## [6.14.0](https://github.com/KaosKyun/Ciel/compare/v6.13.0...v6.14.0) (2026-05-26)
+
+
+### Features
+
+* add ciel memory CLI — query, list, show, stats, save, rebuild ([cd792be](https://github.com/KaosKyun/Ciel/commit/cd792befc37c4b4acbeee4eaa419caae1ed4f328))
+* add conception-phase check to FAIRE gates and META-CRITIQUER ([38941b4](https://github.com/KaosKyun/Ciel/commit/38941b4c0fd4fd09c1032f9fb7fedd9bc3eee0f7))
+* add environments domain skill — dev/staging/prod separation ([ee67364](https://github.com/KaosKyun/Ciel/commit/ee67364c096c23677a3f5e0240cd29d28025b951))
+* add github + research domain skills, rules, and /ciel-memory command ([5dc2a8a](https://github.com/KaosKyun/Ciel/commit/5dc2a8ada295cac84db4963d50e3060e42b102d8))
+* add skill: allow to all OpenCode subagent templates + memory read triggers ([86744f0](https://github.com/KaosKyun/Ciel/commit/86744f0d403ce505e9cd648777d3a00c2e0e554f))
+* add work-phase detection to Ciel skill dispatch pipeline ([a995835](https://github.com/KaosKyun/Ciel/commit/a9958350455d60b65bafd6fdd0a61b380ab47ee9))
+* **build:** single canonical src/ — deterministic build, consistency doctor, real CI gate ([#73](https://github.com/KaosKyun/Ciel/issues/73)) ([36e6bf6](https://github.com/KaosKyun/Ciel/commit/36e6bf6696a0f36d66a2bd439ba92de748700d46))
+* ciel doctor — project health check (4 categories, score 0-100) ([863b55e](https://github.com/KaosKyun/Ciel/commit/863b55e39170e8d2411f941f4b2944090d5523b4))
+* Ciel v9 thin shell — 4 gates replace 18-step pipeline ([ea4ffb7](https://github.com/KaosKyun/Ciel/commit/ea4ffb7b937f5563d0690dfe207721c3f4adb467))
+* **cli:** add --check flag to update command ([a3c4887](https://github.com/KaosKyun/Ciel/commit/a3c488756a21496cf0d5b61462f4aa567dad7493))
+* deterministic Ciel enforcement + complete v9 migration ([#71](https://github.com/KaosKyun/Ciel/issues/71)) ([12e047f](https://github.com/KaosKyun/Ciel/commit/12e047f33c894dea188acfd52d8d8189b0ef8a6d))
+* extend phase detection to memory engine, orchestrator, and TS plugin source ([a011fc6](https://github.com/KaosKyun/Ciel/commit/a011fc632bd02229ea84556e7452d8f1a3d19e6e))
+* **hooks:** universal defer-guard prevents global+project double-fire ([#72](https://github.com/KaosKyun/Ciel/issues/72)) ([a08a497](https://github.com/KaosKyun/Ciel/commit/a08a497250dfbf709c6f3a8564c3754ac8722178))
+* make Skill() invocation mandatory in the Ciel pipeline ([ee03132](https://github.com/KaosKyun/Ciel/commit/ee0313293360ad62ab827d55090ad4721c11b494))
+* NPM-first distribution — global install default, ciel init/update in projects ([1239268](https://github.com/KaosKyun/Ciel/commit/123926837996e48c930a1e8316eca08a7c13f2a2))
+* pipeline state tracker — PostToolUse hook on Skill|Agent (v6.14.0) ([315b1d6](https://github.com/KaosKyun/Ciel/commit/315b1d6df73d59a09ae37db2bcb1d7f55d7a2b8d))
+* savoir-compiler — Karpathy-inspired knowledge compilation layer ([01717fc](https://github.com/KaosKyun/Ciel/commit/01717fc13f9f1bc9da4b2da2e55c2fad7af121d2))
+* **skills:** add ciel-dev-process skill — dev & release workflow reference ([1b5c661](https://github.com/KaosKyun/Ciel/commit/1b5c661c56ee2cd85cb7c461b4a3e3adc2972181))
+* **skills:** relire-critic 3→4 RISQUES — add security/state risk category ([#82](https://github.com/KaosKyun/Ciel/issues/82)) ([eda2425](https://github.com/KaosKyun/Ciel/commit/eda2425ffc362b01ccd1ce7f55a816a5fd3f59d8))
+
+
+### Bug Fixes
+
+* add missing readdirSync import in claude.ts ([ffafd0a](https://github.com/KaosKyun/Ciel/commit/ffafd0a57a1837321de2e16f1201bcf62c8f59ae))
+* add SKILLS reminder to user-prompt-submit.sh (v6.13.3) ([c5bf42b](https://github.com/KaosKyun/Ciel/commit/c5bf42bb547ae045f5522b3aaa923ed7a183185d))
+* auto-inject compact skill content via hook instead of relying on LLM to call Skill() ([156bcb0](https://github.com/KaosKyun/Ciel/commit/156bcb0b8992d76f5716d00b70135c8eabf94ec3))
+* bootstrap cleanDir/copyDir crash when skills/ is a file, CLAUDE.md overwrite ([aa9dbdc](https://github.com/KaosKyun/Ciel/commit/aa9dbdced1156f387dcdf771678d41e71528ece0))
+* broaden SKILL dispatch scope from "code only" to "ALL tasks" ([00cb529](https://github.com/KaosKyun/Ciel/commit/00cb52993d1e14104f404c90f0ce30dfd37c7413))
+* **build-platforms:** make the OpenCode agent generator CI-faithful [agent-consolidation inc.1] ([#80](https://github.com/KaosKyun/Ciel/issues/80)) ([34160e1](https://github.com/KaosKyun/Ciel/commit/34160e12737a6fbcdaa42bd16466c178e7ce6864))
+* ciel update now runs npm update -g before reinit ([efd9630](https://github.com/KaosKyun/Ciel/commit/efd9630c7ba4792dd09adc9bb0c0b7ca9b27cd44))
+* **ci:** keep registry-url — setup-node v4 handles OIDC natively ([f15aa42](https://github.com/KaosKyun/Ciel/commit/f15aa42b2c7b9b9de168f6410784a47074d5f8e1))
+* **ci:** manually sync all version files to 6.13.0 ([10b5946](https://github.com/KaosKyun/Ciel/commit/10b5946cef06d884f64021c2b88b8f95e8414d10))
+* **ci:** pure OIDC — remove NODE_AUTH_TOKEN and registry-url ([322a706](https://github.com/KaosKyun/Ciel/commit/322a706c19089fb7f2f465a7f91db2216f7caf15))
+* **ci:** restore NODE_AUTH_TOKEN for npm authentication ([ec3860a](https://github.com/KaosKyun/Ciel/commit/ec3860a0a8a8521b8969b669a6c791c886c01152))
+* **ci:** strip empty _authToken from .npmrc to enable OIDC ([42a6248](https://github.com/KaosKyun/Ciel/commit/42a62488493f29cdb0eba8e039a7924a250ef75e))
+* **ci:** sync release-please manifest to 6.13.0 ([46d2986](https://github.com/KaosKyun/Ciel/commit/46d298654da18de9793f21014b53bacd6a569865))
+* **ci:** upgrade npm + empty NODE_AUTH_TOKEN for OIDC ([59604ca](https://github.com/KaosKyun/Ciel/commit/59604ca77a1abff1c4a8f190b8b620778e599ca8))
+* **cli:** fix all stale file lists — hooks, commands, and copy-assets sources ([1e56fd2](https://github.com/KaosKyun/Ciel/commit/1e56fd23a8f81c8e3bb451fcc2f726a39deb0624))
+* critic RELIRE — pending indicator dead code, ASK2 gap, cross-task contamination ([cc0abec](https://github.com/KaosKyun/Ciel/commit/cc0abecd26bc170d5178a59730dcec745b3687f7))
+* enforce dispatch gate (D1) + META reflection (D4) ([fdca824](https://github.com/KaosKyun/Ciel/commit/fdca8244283b8c9a3e55eab1f96c8cbbf3a8e9d6))
+* global hook defers to project hook to prevent duplicate injection ([10700c4](https://github.com/KaosKyun/Ciel/commit/10700c404d509137298e748c2850dc90f01820d2))
+* hook prompts LLM to call Skill() + refactor subshell→globals ([57b7f83](https://github.com/KaosKyun/Ciel/commit/57b7f83630331b9b12c68505461bbb5ab4ef913b))
+* **hooks:** guard depth file write against empty CLAUDE_PROJECT_DIR, sync ciel-dev-process skill paths ([050d71a](https://github.com/KaosKyun/Ciel/commit/050d71a73dd7de40def742ea06a209907e1ffb53))
+* include Python tests in npm test pipeline ([a59ce0f](https://github.com/KaosKyun/Ciel/commit/a59ce0f192b804b95641255b4e8282af83ac63bb))
+* **installer:** add ciel-dev-process to curl-mode workflow skills ([848cf2f](https://github.com/KaosKyun/Ciel/commit/848cf2f4b7b7b1ae1fbc05d0920b006f18840c93))
+* **installer:** bump CIEL_VERSION to 6.13.0 ([4f2913d](https://github.com/KaosKyun/Ciel/commit/4f2913dab0bd1868584e800bf74995214b1173dd))
+* npx ciel-init → npx @neikyun/ciel in update re-exec path ([ab9cf21](https://github.com/KaosKyun/Ciel/commit/ab9cf21db09ccae431783491ced54abc73b1d847))
+* RELIRE audit — guard empty PROJECT_DIR, printf escaping, trivial depth skip, dedup grep ([c93c35a](https://github.com/KaosKyun/Ciel/commit/c93c35aaa50cdb6d9db36475babad44bc019b890))
+* remove stale assets/rules/ duplicates (use assets/.claude/rules/) ([1b7e379](https://github.com/KaosKyun/Ciel/commit/1b7e379d47689cbd7655ef6bab9c9c8df518d711))
+* rewrite SKILL dispatch with LLM communication research ([2da7b57](https://github.com/KaosKyun/Ciel/commit/2da7b573ca781144ee83479bf13d54f945e2eed1))
+* sync package.json version to 6.14.6 for npm publish ([2edeca3](https://github.com/KaosKyun/Ciel/commit/2edeca3739857db071a1667f240db76c5c0c8400))
+* **test:** align plugin.test.ts agent assertions with v9 orchestrator ([#84](https://github.com/KaosKyun/Ciel/issues/84)) ([d784791](https://github.com/KaosKyun/Ciel/commit/d7847919570ced9cf7427a82c5ab0d5e554e7f69))
+* update settings.json template — npx ciel-init → ciel ([adb9f23](https://github.com/KaosKyun/Ciel/commit/adb9f23994b96c03716881167463236197b3dbdb))
+
 ## [6.16.0](https://github.com/KaosKyun/Ciel/compare/v6.15.5...v6.16.0) (2026-05-26)
 
 
