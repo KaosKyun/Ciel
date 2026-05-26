@@ -97,6 +97,7 @@ if [ "$DEPTH" != "Trivial" ]; then
       route_skill "system-design" "architecture"
       prompt_matches "(ha|high.availability|resilience|failover|fallback|disaster|recovery)" && route_skill "high-availability" "resilience"
       prompt_matches "(ddd|domain|cqrs|event.source|event.driven|message|queue|kafka)" && route_skill "ddd" "event-driven"
+      prompt_matches "(network|reseau|r.?seau|\bvpc\b|\bvnet\b|subnet|sous.?reseau|\bcidr\b|subnetting|spine.?leaf|hub.?(and.?)?spoke|transit.?gateway|vpc.?peering|network.?segmentation|network.?topolog|adressage|ip.?plan)" && route_skill "network-architecture"
       ;;
     implementation)
       route_skill "testing"
@@ -112,6 +113,10 @@ if [ "$DEPTH" != "Trivial" ]; then
       prompt_matches "(serverless|lambda|cloud.?function|\bfaas\b|cold.?start|step.?function)" && route_skill "serverless"
       prompt_matches "(nosql|dynamo|cassandra)" && route_skill "nosql"
       prompt_matches "(event.?driven|kafka|rabbitmq|\bsqs\b|pub.?sub|message.*queue|outbox)" && route_skill "event-driven"
+      prompt_matches "(\bvpc\b|\bvnet\b|\bcidr\b|subnetting|sous.?reseau|spine.?leaf|transit.?gateway|vpc.?peering|ip.?plan|adressage.*reseau)" && route_skill "network-architecture"
+      prompt_matches "(\btcp\b|\budp\b|http/?2|http/?3|\bquic\b|\bdns\b|\bbgp\b|\bospf\b|\bmtu\b|nat.?(gateway|traversal|table|rule)|network.?address.?translat|\bsnat\b|\bdnat\b|ipv6|ipv4|\bosi\b.?(model|layer|couche)|handshake|paquet.?ip|routing.?protocol)" && route_skill "network-protocols"
+      prompt_matches "(firewall|pare.?feu|zero.?trust|\bmtls\b|spiffe|spire|micro.?segmentation|security.?group|\bnacl\b|\bddos\b|reseau.*s.?curit|s.?curit.*reseau|network.*security)" && route_skill "network-security"
+      prompt_matches "(load.?balanc|reverse.?proxy|tls.?termination|\bingress\b|connectivit.*reseau|reseau.*config|configure.*network)" && route_skill "networking"
       ;;
     debug)
       route_skill "logging" "monitoring"
@@ -119,6 +124,7 @@ if [ "$DEPTH" != "Trivial" ]; then
       prompt_matches "(auth|security|token|injection|xss|csrf|vuln|exploit)" && route_skill "appsec"
       prompt_matches "(slow|perf|performance|leak|memory|cpu|bottleneck|latency)" && route_skill "performance"
       prompt_matches "(circuit|retry|timeout|cascading|outage|flaky|intermittent)" && route_skill "resilience"
+      prompt_matches "(connectivit|connexion|connection|network|reseau|r.?seau|\bdns\b|\bmtu\b|traceroute|packet.?loss|perte.*paquet|unreachable|refused|resolv|firewall|\btls\b.*(fail|expire|handshake))" && route_skill "network-troubleshooting"
       ;;
     *)
       route_skill "research"
