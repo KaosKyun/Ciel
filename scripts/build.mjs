@@ -19,21 +19,9 @@ import {
 } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MIRRORS, excluded } from "./mirrors.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-
-// canonical src subdir → harness target dirs that receive a faithful copy.
-// Skills are harness-agnostic, so both harnesses get the same bytes. Hooks and
-// rules are Claude-only (OpenCode drives behaviour through its plugin).
-const MIRRORS = [
-  { src: "src/skills", targets: [".claude/skills", ".opencode/skills"] },
-  { src: "src/hooks", targets: [".claude/hooks"] },
-  { src: "src/rules", targets: [".claude/rules"] },
-];
-
-// Never mirror these into a target — they are local build artifacts, not source.
-const EXCLUDE = new Set(["__pycache__", ".DS_Store"]);
-const excluded = (name) => EXCLUDE.has(name) || name.endsWith(".pyc");
 
 // Byte-faithful recursive mirror: wipe the target, then copy src verbatim in
 // sorted order. Buffers (not strings) so line endings/encoding are preserved.

@@ -117,3 +117,17 @@ test("build mirrors src/rules → .claude/rules byte-faithful", () => {
   assertMirror("src/rules", ".claude/rules");
 });
 
+// Determinism: two consecutive builds must produce a byte-identical tree, or the
+// doctor's regenerate-and-compare gate would be flaky. readdirSync().sort() is
+// code-point ordered (not locale-aware), so order is stable cross-OS.
+test("build is idempotent (two runs produce an identical mirror tree)", () => {
+  const snap = () => {
+    const dir = join(ROOT, ".claude", "skills");
+    return walkFiles(dir).map((f) => f + ":" + readFileSync(join(dir, f)).toString("hex"));
+  };
+  execFileSync("node", [BUILD], { cwd: ROOT, stdio: "pipe" });
+  const first = snap();
+  execFileSync("node", [BUILD], { cwd: ROOT, stdio: "pipe" });
+  assert.deepEqual(snap(), first, "build output changed between two runs");
+});
+

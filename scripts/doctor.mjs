@@ -9,15 +9,9 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MIRRORS, excluded } from "./mirrors.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
-
-// Canonical src → generated mirrors. Mirrors build.mjs MIRRORS by design.
-export const MIRRORS = [
-  { src: "src/skills", targets: [".claude/skills", ".opencode/skills"] },
-  { src: "src/hooks", targets: [".claude/hooks"] },
-  { src: "src/rules", targets: [".claude/rules"] },
-];
 
 // Tracked files whose version must equal the authoritative VERSION file.
 // .ciel/version is gitignored (local sentinel) so it is not checked here.
@@ -26,8 +20,6 @@ const VERSION_CONSUMERS = [
   "package.json",
   "packages/ciel/.ciel/version",
 ];
-
-const excluded = (n) => n === "__pycache__" || n === ".DS_Store" || n.endsWith(".pyc");
 
 function walk(dir) {
   const out = [];
