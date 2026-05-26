@@ -1,4 +1,17 @@
 #!/bin/bash
+
+# CIEL-DEFER-GUARD — a global plugin instance no-ops when the project ships AND
+# wires its own copy of this hook. Paths are canonicalized (pwd -P) on BOTH sides
+# so a symlinked or trailing-slash CLAUDE_PROJECT_DIR cannot make the project's
+# own instance wrongly defer (which would disable Ciel entirely in the project).
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  _ciel_name="$(basename "${BASH_SOURCE[0]}")"
+  _ciel_self="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)"
+  _ciel_proj="$(cd "$CLAUDE_PROJECT_DIR/.claude/hooks" 2>/dev/null && pwd -P)"
+  if [ -n "$_ciel_proj" ] && [ -f "$_ciel_proj/$_ciel_name" ] && [ "$_ciel_self" != "$_ciel_proj" ]; then
+    exit 0
+  fi
+fi
 # Ciel v9 — SessionStart hook
 # Prints version banner + loads overlay context.
 # Never blocks (exit 0 always). Stdout is added to Claude's context.

@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Ciel — SubagentStop hook
 # Trigger: subagent finishes
 # Purpose: log agent report size to eval log; warn if < 200 tokens on Standard/Critical task
