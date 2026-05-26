@@ -1,5 +1,23 @@
 # Ciel — Changelog
 
+## [6.16.0](https://github.com/KaosKyun/Ciel/compare/v6.15.5...v6.16.0) (2026-05-26)
+
+
+### Features
+
+* **build:** single source of truth — canonical `src/` → deterministic `build.mjs` → committed mirrors (`.claude/`, `.opencode/`, `packages/ciel/assets/`), gated by `git diff --exit-code` ([#73](https://github.com/KaosKyun/Ciel/issues/73))
+* **doctor:** consistency checker (`scripts/doctor.mjs`) — version sync, mirror drift, stale generation labels — wired into CI ([#73](https://github.com/KaosKyun/Ciel/issues/73))
+* **agents:** single source `.claude/agents` → generate `.opencode/agents` + `platforms/*` via `build-platforms.sh`, with a CI parity gate ([#80](https://github.com/KaosKyun/Ciel/issues/80))
+* **skills:** `relire-critic` 3→4 RISQUES — add mandatory security/state risk category (injection, auth bypass, secret exposure, path traversal, race/shared-state) ([#82](https://github.com/KaosKyun/Ciel/issues/82))
+
+
+### Bug Fixes
+
+* unify versioning on a single semver source of truth (VERSION) with a truthful banner; purge stale v5/v7/v8 generation labels and migrate agents/skills to v9
+* **cli:** `ciel memory save` reads the body from stdin (`readFileSync(0)`) instead of a broken `process.stdin.read()` loop
+* **build:** preserve the executable bit on mirrored hooks (`chmodSync`), fixing a "Permission denied" regression
+* remove 10 legacy v5-pipeline workflow skills; `src/skills` is the only source
+
 ## [6.11.3](https://github.com/KaosKyun/Ciel/compare/v6.11.2...v6.11.3) (2026-05-16)
 
 
