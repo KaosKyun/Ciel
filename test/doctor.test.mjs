@@ -50,6 +50,70 @@ test("checkVersions reports every file that drifts from VERSION", () => {
   }
 });
 
+test("checkVersions catches drift in ALL release-please-managed files", () => {
+  // Regression guard: plugin.json + marketplace.json (×2 fields) + install.sh
+  // silently drifted (6.14.1 / 6.13.0) while VERSION was 6.16.0 because the
+  // doctor only tracked 3 files. The doctor's set must equal release-please's.
+  const f = fixture();
+  try {
+    f.write("VERSION", "6.16.0\n");
+    f.write("package.json", JSON.stringify({ version: "6.16.0" }));
+    f.write("packages/ciel/package.json", JSON.stringify({ version: "6.16.0" }));
+    f.write(".claude-plugin/plugin.json", JSON.stringify({ version: "6.14.1" })); // drift
+    f.write(
+      ".claude-plugin/marketplace.json",
+      JSON.stringify({ version: "6.14.1", plugins: [{ version: "6.13.0" }] }), // 2 drifts
+    );
+    f.write(
+      "scripts/install.sh",
+      'CIEL_VERSION="6.13.0" # x-release-please-version\nURL="${CIEL_VERSION}"\n', // 1 drift (marker line)
+    );
+    const failures = checkVersions(f.dir);
+    assert.equal(failures.length, 4, `expected 4 drifts, got ${failures.length}: ${failures.join(" | ")}`);
+    assert.ok(failures.some((x) => x.includes("plugin.json")), "must flag plugin.json");
+    assert.ok(failures.some((x) => x.includes("plugins[0]")), "must flag marketplace plugins[0].version");
+    assert.ok(failures.some((x) => x.includes("install.sh")), "must flag install.sh");
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("checkVersions reads install.sh from the x-release-please-version marker line only", () => {
+  // release-please's generic updater bumps ONLY the marked line; ${CIEL_VERSION}
+  // interpolations and stray version literals must NOT be read as drift.
+  const f = fixture();
+  try {
+    f.write("VERSION", "6.16.0\n");
+    f.write(
+      "scripts/install.sh",
+      'CIEL_VERSION="6.16.0" # x-release-please-version\nRAW="https://example/v6.13.0/${CIEL_VERSION}"\n',
+    );
+    assert.deepEqual(checkVersions(f.dir), [], "marker line matches VERSION → no drift despite unmarked 6.13.0");
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("checkVersions passes when the full release-please set matches VERSION", () => {
+  const f = fixture();
+  try {
+    f.write("VERSION", "6.16.0\n");
+    f.write("package.json", JSON.stringify({ version: "6.16.0" }));
+    f.write("packages/ciel/package.json", JSON.stringify({ version: "6.16.0" }));
+    f.write("packages/ciel/.ciel/version", "6.16.0");
+    f.write(".claude-plugin/plugin.json", JSON.stringify({ version: "6.16.0" }));
+    f.write(
+      ".claude-plugin/marketplace.json",
+      JSON.stringify({ version: "6.16.0", plugins: [{ version: "6.16.0" }] }),
+    );
+    f.write("scripts/install.sh", 'CIEL_VERSION="6.16.0" # x-release-please-version\n');
+    f.write(".github/.release-please-manifest.json", JSON.stringify({ ".": "6.16.0" }));
+    assert.deepEqual(checkVersions(f.dir), []);
+  } finally {
+    f.cleanup();
+  }
+});
+
 test("checkMirrors passes when target equals canonical source", () => {
   const f = fixture();
   try {
