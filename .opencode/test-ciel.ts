@@ -148,11 +148,10 @@ function countSkills(dir: string): number {
   return count;
 }
 
-const skillCount = countSkills("skills/workflow");
+const skillCount = countSkills("src/skills/workflow");
 // v9 thin-shell intentionally trimmed the workflow skill set; floor reflects current reality.
 assert(skillCount >= 15, `Workflow skills >= 15 (found: ${skillCount})`);
-// Note: .opencode/skills/ is a build target, .claude/skills/ is installed by install.sh
-// Both are gitignored — the source is skills/ (root). Single check suffices.
+// Canonical source is src/skills/ (build.mjs mirrors to .claude/ + .opencode/ + assets).
 
 // ----- Summary -----
 console.log(`\n${"=".repeat(40)}`);

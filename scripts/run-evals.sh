@@ -34,7 +34,7 @@ fi
 if [[ -n "${1:-}" ]]; then
   # Single-skill mode
   SKILL_NAME="$1"
-  SKILL_PATH=$(find "$ROOT/skills" -name SKILL.md -path "*/$SKILL_NAME/*" | head -1)
+  SKILL_PATH=$(find "$ROOT/src/skills" -name SKILL.md -path "*/$SKILL_NAME/*" | head -1)
   if [[ -z "$SKILL_PATH" ]]; then
     echo "Error: skill '$SKILL_NAME' not found under skills/" >&2
     exit 1
@@ -62,7 +62,7 @@ for ds in "$DATASETS"/*.jsonl; do
   # Find matching skill — try a few variations
   SKILL_PATH=""
   for candidate_name in "$name" "$(echo "$name" | sed 's/-gate$//')" "$(echo "$name" | sed 's/-narration$//')" "$(echo "$name" | sed 's/-3-risques$//' | sed 's/$/-critic/')"; do
-    found=$(find "$ROOT/skills" -name SKILL.md -path "*/$candidate_name/*" 2>/dev/null | head -1)
+    found=$(find "$ROOT/src/skills" -name SKILL.md -path "*/$candidate_name/*" 2>/dev/null | head -1)
     if [[ -n "$found" ]]; then
       SKILL_PATH="$found"
       break
