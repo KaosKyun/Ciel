@@ -1,13 +1,13 @@
 ---
 name: evaluer-sizer
-description: How to size and assess risk before coding — back-of-envelope sizing, pre-mortem (2 failure modes), recent-churn check, diverged alternatives (v5), and counterfactual ("what if we do nothing?"). For Ciel pipeline step 9 (EVALUER). Use after DIVERGE and RECHERCHE, before ASK2.
+description: How to size and assess risk before coding — back-of-envelope sizing, pre-mortem (2 failure modes), recent-churn check, alternatives comparison, and counterfactual ("what if we do nothing?"). Use before committing to an approach.
 ---
 
 # Pre-Implementation Sizing — 5 Cheap Gates (Ciel)
 
 ## What this covers
 
-How to sanity-check an approach before committing to it. In v5, this step follows DIVERGE (etape 5) which explored 2-3 approaches. Here we evaluate the selected approach. These 5 gates take 2 minutes and prevent hours of wasted work.
+How to sanity-check the selected approach before committing to it. These 5 gates take 2 minutes and prevent hours of wasted work.
 
 ## Core principle
 
@@ -44,7 +44,7 @@ If 2+ commits in the last week touched the same module:
 
 ## Gate 4: Diverged approach comparison (v5)
 
-Compare the approaches explored during DIVERGE (etape 5):
+Compare the approaches explored earlier:
 - Approach A (from DIVERGE): <summary>
 - Approach B (from DIVERGE): <summary>
 - Selected: <A or B> because <reason>

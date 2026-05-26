@@ -1,17 +1,17 @@
 ---
 name: diverge
-description: How to explore 2-3 radically different approaches before choosing one (Ciel etape 5). Used after AVEC QUOI, before RECHERCHE. Prevents single-approach bias and premature convergence. Use when the task is non-trivial and there are multiple valid approaches.
+description: How to explore 2-3 radically different approaches before choosing one. Prevents single-approach bias and premature convergence. Use when a non-trivial task has multiple valid approaches.
 ---
 
 # Divergent Exploration — 2-3 Approaches Before Choosing (Ciel)
 
 ## What this covers
 
-How to explore multiple approaches before committing to one. In Ciel, this is etape 5 (DIVERGE). The goal is to avoid premature convergence on the first viable approach that comes to mind.
+How to explore multiple approaches before committing to one. The goal is to avoid premature convergence on the first viable approach that comes to mind.
 
 ## Core principle
 
-**Generate 2-3 approaches before evaluating any of them.** The first approach that works is rarely the best. In v5, DIVERGE happens after AVEC QUOI (versions checked) and before RECHERCHE (external research).
+**Generate 2-3 approaches before evaluating any of them.** The first approach that works is rarely the best.
 
 ## When to use
 
@@ -40,7 +40,7 @@ Approaches should be GENUINELY different. Not "use React vs use React with hooks
 
 ### Step 2: Let them compete (not you decide)
 
-Generate approaches WITHOUT evaluating them. Evaluation happens in EVALUER (etape 9), after RECHERCHE has gathered external data about each approach.
+Generate approaches WITHOUT evaluating them. Evaluation happens later, after research has gathered external data about each approach.
 
 Common trap: generating 2 approaches but immediately choosing the first one without research.
 
@@ -88,4 +88,4 @@ Risk: <low/medium/high>
 - [ ] Trade-offs documented for each?
 - [ ] Effort estimated?
 - [ ] Risk assessed?
-- [ ] Evaluation deferred to next phase (EVALUER)?
+- [ ] Evaluation deferred to the next step (not done while generating)?

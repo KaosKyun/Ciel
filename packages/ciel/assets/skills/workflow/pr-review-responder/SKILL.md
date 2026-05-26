@@ -21,7 +21,7 @@ MODE: [interactive | batch — default interactive; in batch, only respond to ac
 
 ### Auto-inference sources
 
-- **PR_NUMBER** → `gh pr view --json number --jq .number`
+- **PR_NUMBER** → `gh pr view --json number --jq.number`
 - **REVIEWER** → latest reviewer from `gh pr view --json reviews --jq '.reviews[-1].author.login'`
 
 ---
@@ -30,11 +30,11 @@ MODE: [interactive | batch — default interactive; in batch, only respond to ac
 
 ```bash
 gh auth status 2>&1 | grep -q "Logged in" || exit 1
-PR_NUMBER=${PR_NUMBER:-$(gh pr view --json number --jq .number)}
+PR_NUMBER=${PR_NUMBER:-$(gh pr view --json number --jq.number)}
 [ -z "$PR_NUMBER" ] && { echo "No PR for current branch"; exit 1; }
 
 # Must be on the PR's head branch to push fixes
-HEAD=$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)
+HEAD=$(gh pr view "$PR_NUMBER" --json headRefName --jq.headRefName)
 CURRENT=$(git rev-parse --abbrev-ref HEAD)
 [ "$HEAD" = "$CURRENT" ] || { echo "Checkout the PR branch first: gh pr checkout $PR_NUMBER"; exit 1; }
 ```
@@ -48,8 +48,8 @@ CURRENT=$(git rev-parse --abbrev-ref HEAD)
 GitHub's REST API doesn't expose thread-resolution state directly — use GraphQL:
 
 ```bash
-OWNER=$(gh repo view --json owner --jq .owner.login)
-REPO=$(gh repo view --json name --jq .name)
+OWNER=$(gh repo view --json owner --jq.owner.login)
+REPO=$(gh repo view --json name --jq.name)
 
 gh api graphql -f query="
   query {

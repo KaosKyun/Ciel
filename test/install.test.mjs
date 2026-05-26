@@ -31,8 +31,9 @@ test("ciel init -y installs the canonical skill set into the project", () => {
 
   const skillsDir = join(proj, ".claude", "skills");
   assert.ok(existsSync(skillsDir), ".claude/skills must exist after init");
-  // Domain skills + the three that only lived in the old flat tree (regression guard).
-  for (const s of ["api-design", "backend", "environments", "github", "research", "ciel"]) {
+  // Domain skills + the three recovered + a NESTED workflow skill (full-tree parity
+  // with npm postinstall — both installers must produce the same project layout).
+  for (const s of ["api-design", "backend", "environments", "github", "research", "ciel", "workflow/diverge"]) {
     assert.ok(
       existsSync(join(skillsDir, s, "SKILL.md")),
       `init must install .claude/skills/${s}/SKILL.md`,

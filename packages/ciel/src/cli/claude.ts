@@ -204,27 +204,28 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     }
   }
 
-  // .claude/skills/ — skills (v9), invoked via Skill() by rules Dispatch.
-  // Read from the unified canonical asset tree (assets/skills, src-derived).
-  // The top-level loop ships discoverable skills (domain + ciel + the three
-  // recovered: environments/github/research); nested workflow/meta dirs have no
-  // root SKILL.md so they are skipped — Claude discovery is top-level only.
+  // .claude/skills/ — the full canonical tree (domain at top + nested
+  // workflow/meta/utility/research). Recurse so `ciel init` and npm install
+  // (postinstall, full tree) produce the SAME project layout. Claude discovers
+  // top-level skills; nested ones ship as internal reference, matching the repo.
   const skillsSrcDir = skillsRoot;
   const skillsDestDir = join(targetDir, ".claude/skills");
   if (existsSync(skillsSrcDir)) {
-    for (const entry of readdirSync(skillsSrcDir)) {
-      const skillMd = join(skillsSrcDir, entry, "SKILL.md");
-      if (!existsSync(skillMd)) continue;
-      const entryDestDir = join(skillsDestDir, entry);
-      mkdirSafe(entryDestDir, targetDir);
-      const action = copyIfNewer(skillMd, join(entryDestDir, "SKILL.md"), force);
-      if (action === "copied") installed.push(`.claude/skills/${entry}/SKILL.md`);
-      const ref = join(skillsSrcDir, entry, "reference.md");
-      if (existsSync(ref)) {
-        const refAction = copyIfNewer(ref, join(entryDestDir, "reference.md"), force);
-        if (refAction === "copied") installed.push(`.claude/skills/${entry}/reference.md`);
+    const walkSkills = (dir: string, rel: string) => {
+      for (const ent of readdirSync(dir, { withFileTypes: true })) {
+        if (ent.name === "__pycache__" || ent.name === ".DS_Store") continue;
+        const childRel = rel ? `${rel}/${ent.name}` : ent.name;
+        if (ent.isDirectory()) {
+          walkSkills(join(dir, ent.name), childRel);
+        } else if (ent.name === "SKILL.md" || ent.name === "reference.md") {
+          const destFile = join(skillsDestDir, childRel);
+          mkdirSafe(join(destFile, ".."), targetDir);
+          const action = copyIfNewer(join(dir, ent.name), destFile, force);
+          if (action === "copied") installed.push(`.claude/skills/${childRel}`);
+        }
       }
-    }
+    };
+    walkSkills(skillsSrcDir, "");
   }
 
   // .claude/settings.json

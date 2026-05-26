@@ -1,6 +1,6 @@
 ---
 name: memoire
-description: Persists project knowledge in Ciel via cued-recall memory (etape 15 MEMOIRE). Captures interventions and decisions into .ciel/memory/{episodes,concepts,guards}/ with index.json mapping cues (paths, symbols, intents) to memories. Replayed automatically when matching cues fire. Replaces the legacy free-recall .ciel/learnings.md blob.
+description: Persists project knowledge in Ciel via cued-recall memory. Captures interventions and decisions into.ciel/memory/{episodes,concepts,guards}/ with index.json mapping cues (paths, symbols, intents) to memories. Replayed automatically when matching cues fire. Replaces the legacy free-recall.ciel/learnings.md blob.
 ---
 
 # Persist Project Knowledge — Cued-Recall Memory (Ciel v6.5+)
@@ -33,7 +33,7 @@ path_patterns:
 symbols: [AdminGuard, useAdminGuard]
 intents: [new-route, admin]
 captured_at: 2026-05-08T14:32:00Z
-captured_from: user-intervention  # or: incident, decision, bootstrap
+captured_from: user-intervention # or: incident, decision, bootstrap
 trigger_count: 0
 last_triggered: null
 stale_after_days: 90
@@ -177,7 +177,7 @@ SKIP (don't pollute the corpus):
 - Anything trivially derivable by reading the file
 - Personal style preferences (those go in `ciel-overlay.md`)
 
-## How to verify (etape MEMOIRE)
+## How to verify
 
 - [ ] Did this session contain a user intervention/correction? If yes, was it captured?
 - [ ] Did this session document a new pattern, foot-gun, or convention? If yes, episode created?

@@ -65,9 +65,9 @@ Once supported, write the diff between expected and actual:
 
 ```
 EXPECTED: <behavior that should happen>
-ACTUAL:   <behavior that happens>
-GAP:      <precise mechanism>
-ROOT:     <why the gap exists — not "because of the bug", the underlying why>
+ACTUAL: <behavior that happens>
+GAP: <precise mechanism>
+ROOT: <why the gap exists — not "because of the bug", the underlying why>
 ```
 
 If ROOT reads like "because the code is buggy" — you've only found the symptom. Ask "why" again.

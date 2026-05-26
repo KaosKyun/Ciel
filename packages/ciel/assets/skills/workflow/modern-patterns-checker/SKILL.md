@@ -104,15 +104,15 @@ Never ask the user for either. Both are deterministically inferable.
 ## MODERN-PATTERNS VERDICT
 
 ### Findings
-[BLOCK]  components/Profile.tsx:24 — class component
+[BLOCK] components/Profile.tsx:24 — class component
          Replacement: functional + hooks
          Migration: react.dev/reference/react/Component#alternatives
 
-[WARN]   lib/api.ts:55-70 — .then() chain (3 links)
+[WARN] lib/api.ts:55-70 —.then() chain (3 links)
          Replacement: async/await
          Rationale: readability + stack traces
 
-[INFO]   tests/user.test.ts:8 — `any` as escape hatch
+[INFO] tests/user.test.ts:8 — `any` as escape hatch
          Replacement: `unknown` + narrowing, or proper User type
          Rationale: loses type safety in test-critical code
 
@@ -122,9 +122,9 @@ Never ask the user for either. Both are deterministically inferable.
 - React: 19.0.2 ✓ allows Server Components
 
 ### Summary
-BLOCK: 1  (must fix)
-WARN:  1  (strongly advised)
-INFO:  1  (opportunistic)
+BLOCK: 1 (must fix)
+WARN: 1 (strongly advised)
+INFO: 1 (opportunistic)
 ```
 
 ---

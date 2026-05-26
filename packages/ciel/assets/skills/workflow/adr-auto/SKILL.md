@@ -1,13 +1,13 @@
 ---
 name: adr-auto
-description: How to document architectural decisions automatically in Ciel (etape 12). After FAIRE but before RELIRE, if the task involved a significant architectural decision, write an ADR (Architecture Decision Record) to docs/adrs/. Prevents knowledge loss.
+description: How to capture a significant architectural decision as an ADR (Architecture Decision Record) in docs/adrs/ while it's fresh. Use right after making a non-trivial design choice, so the rationale isn't lost.
 ---
 
 # Automatic ADR — Document Decisions in Real Time (Ciel)
 
 ## What this covers
 
-How to document architectural decisions during the Ciel pipeline (etape 12: ADR). After FAIRE but before RELIRE, if the task involved a significant architectural decision, write an ADR. The decision is documented while fresh, not months later.
+How to document architectural decisions while they're fresh. When a task involves a significant architectural decision, write an ADR to docs/adrs/ — capturing the rationale now, not months later.
 
 ## Core principle
 
@@ -64,7 +64,7 @@ Start at 001 and increment.
 
 ## How to trigger (Ciel)
 
-In the Ciel pipeline (etape 12), during ADR:
+When writing the ADR:
 1. Check if the task involved a significant decision (see list above)
 2. If yes -> write `docs/adrs/<NNN>-<title>.md`
 3. Update `.ciel/map.json` to reference the new ADR

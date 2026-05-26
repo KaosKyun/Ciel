@@ -1,13 +1,13 @@
 ---
 name: quoi-framer
-description: How to frame a task before starting — forces explicit goal, NOT-X constraint, intention partagee, and measurable definition of done. For Ciel pipeline step 2 (QUOI). Use after DOCS phase, before ASK phase.
+description: How to frame a task before starting — forces explicit goal, NOT-X constraint, shared intention, and a measurable definition of done. Use at the start of any non-trivial task to prevent scope drift.
 ---
 
 # Task Framing — Define Before You Start (Ciel)
 
 ## What this covers
 
-How to define a task clearly before doing any work. This is the first step of the Ciel pipeline (etape 2: QUOI). Applied after DOCS phase (etape 1) and before ASK (etape 3). Prevents scope drift, wasted research, and "I thought you meant..." conversations.
+How to define a task clearly before doing any work. Prevents scope drift, wasted research, and "I thought you meant..." conversations.
 
 ## Core principle
 
@@ -53,7 +53,7 @@ Before framing, verify that documentation has been read:
 - README.md (project overview and conventions)
 - ADRs if they exist (architecture decisions)
 - Tickets/specs (requirements context)
-- .ciel/map.json (existing project map)
+-.ciel/map.json (existing project map)
 - ciel-overlay.md (project overlay)
 
 ## Output format
@@ -86,6 +86,6 @@ Docs read: <yes — README, ADRs, map, tickets>
 
 ## When to re-frame
 
-- Start of any task (before research, after DOCS)
+- Start of any task (before research)
 - When scope drift is detected (3+ files touched without re-checking goal)
 - When the user changes direction mid-task

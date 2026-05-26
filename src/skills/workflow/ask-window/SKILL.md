@@ -1,13 +1,13 @@
 ---
 name: ask-window
-description: How to use the ASK window in Ciel — before coding, clarify ambiguities using the question tool (OpenCode) or plan mode (Claude Code). Covers etapes 3 (ASK) and 10 (ASK2) of the pipeline. Prevents coding on assumptions.
+description: How to use the ASK window — before coding, clarify ambiguities using the question tool (OpenCode) or plan mode (Claude Code) instead of coding on assumptions. Use when a task has unresolved ambiguity.
 ---
 
 # ASK Window — Clarify Before You Code (Ciel)
 
 ## What this covers
 
-How to use the ASK window in the Ciel pipeline. Before coding, the agent must ask clarifying questions rather than assuming. This skill covers etapes 3 (ASK after QUOI) and 10 (ASK2 after EVALUER).
+How to use the ASK window. Before coding, the agent surfaces ambiguities and asks clarifying questions rather than assuming — then implements once the answers are in.
 
 ## Core principle
 
@@ -16,8 +16,8 @@ How to use the ASK window in the Ciel pipeline. Before coding, the agent must as
 ## Two modes — when to use which
 
 ```
-MODE ASK  (step 3)   → "What should I build?"     → after QUOI, before research
-MODE ASK2 (step 10)  → "Should I build this way?"  → after EVALUER, before coding
+MODE ASK (step 3) → "What should I build?" → after QUOI, before research
+MODE ASK2 (step 10) → "Should I build this way?" → after EVALUER, before coding
 ```
 
 ASK is about **requirements** — clarify what to build. ASK2 is about **the plan** — validate how to build it.
@@ -88,7 +88,7 @@ Options:
 - Things you can discover yourself (read the code, check package.json)
 - Trivial preferences that don't affect the design (naming, formatting)
 - The same question twice (check your previous answers)
-- Questions you already have the answer to (check .ciel/memory.json, overlay)
+- Questions you already have the answer to (check.ciel/memory.json, overlay)
 
 ## Output format
 
