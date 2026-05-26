@@ -550,7 +550,7 @@ Problems: no pairs, no dedup, no classification.
 - `Stop` hook fires at session end
 - `PreCompact` hook fires before context compaction
 - User says "capture what we just learned"
-- `meta-critiquer` invokes at step 3 (user correction detected)
+- the Stop-hook META reflection fires (user correction detected)
 
 ---
 

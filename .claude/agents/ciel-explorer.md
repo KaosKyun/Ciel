@@ -1,6 +1,6 @@
 ---
 name: ciel-explorer
-description: "Isolated-context explorer for Ciel v7. Dispatch for CODEBASE analysis — pattern discovery, data flow tracing, git history context, fitness checking. Receives domain skill names in dispatch prompt, reads SKILL.md files to check codebase against domain best practices. Pure collector: reports FACTS, not judgments."
+description: "Isolated-context explorer for Ciel v9. Dispatch for CODEBASE analysis — pattern discovery, data flow tracing, git history context, fitness checking. Receives domain skill names in dispatch prompt, reads SKILL.md files to check codebase against domain best practices. Pure collector: reports FACTS, not judgments."
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit
 memory: project

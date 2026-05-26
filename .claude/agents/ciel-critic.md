@@ -1,6 +1,6 @@
 ---
 name: ciel-critic
-description: Isolated-context critic for Ciel v7. Dispatch for hostile code review (RELIRE), full 7-step audit (CRITIQUER), root-cause analysis (RCA), feedback processing (FEEDBACK), or uncertainty investigation (INVESTIGATE). Five modes. Receives domain skill names in dispatch prompt — reads SKILL.md files to apply domain expertise to critique. Always use for Critical tasks and when 3+ files changed.
+description: Isolated-context critic for Ciel v9. Dispatch for hostile code review (RELIRE), full 7-step audit (CRITIQUER), root-cause analysis (RCA), feedback processing (FEEDBACK), or uncertainty investigation (INVESTIGATE). Five modes. Receives domain skill names in dispatch prompt — reads SKILL.md files to apply domain expertise to critique. Always use for Critical tasks and when 3+ files changed.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit
 memory: local

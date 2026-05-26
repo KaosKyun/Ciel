@@ -742,8 +742,8 @@ Ciel is installed as OpenCode-native primitives:
 | Level | Example | Pipeline |
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-line fix | `QUOI` → `FAIRE` → `META` |
-| **Standard** | hook, route, component, service | Full pipeline, dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
-| **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + `@ciel-critic` mandatory |
+| **Standard** | hook, route, component, service | Dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
+| **Critical** | auth, DB schema, security, payment | STRIDE threat model + `@ciel-critic` mandatory |
 
 Unsure → Standard. Touching user data or auth → Critical.
 
@@ -783,7 +783,7 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 | Agent | When | Context | Permissions |
 |-------|------|---------|-------------|
-| `@ciel-researcher` | RECHERCHE step (Standard + Critical) | Isolated fork — no session bias | webfetch allowed, no edit |
+| `@ciel-researcher` | research (Standard + Critical) | Isolated fork — no session bias | webfetch allowed, no edit |
 | `@ciel-explorer` | CODEBASE + FLUX (Standard + Critical) | Isolated fork — reads codebase fresh | bash/read, no edit |
 | `@ciel-critic` | RELIRE after FAIRE / CRITIQUER on diff | Isolated fork — different blind spots | bash/read, no edit |
 | `@ciel-improver` | On `/ciel-improve` only | Extended token budget | webfetch allowed, no edit |
@@ -1250,7 +1250,7 @@ Ciel is installed as Codex-native primitives:
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-line fix | QUOI → FAIRE → META |
 | **Standard** | hook, route, component, service | Full pipeline, spawn @ciel-researcher + @ciel-explorer in parallel before coding |
-| **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + @ciel-critic mandatory |
+| **Critical** | auth, DB schema, security, payment | STRIDE threat model + @ciel-critic mandatory |
 
 Unsure → Standard. Touching user data or auth → Critical.
 
@@ -1400,9 +1400,9 @@ Ciel is installed as Kilo Code-native primitives:
 
 | Level | Example | Pipeline |
 |-------|---------|----------|
-| **Trivial** | rename, typo, 1-line fix | quoi-framer → pattern-fitness-check → inline review → push |
-| **Standard** | hook, route, component | Full pipeline, dispatch @ciel-researcher + @ciel-explorer in parallel |
-| **Critical** | auth, DB schema, security | Full pipeline + STRIDE + @ciel-critic mandatory |
+| **Trivial** | rename, typo, 1-line fix | implement directly (test-first), no subagent dispatch |
+| **Standard** | hook, route, component | Dispatch @ciel-researcher + @ciel-explorer in parallel |
+| **Critical** | auth, DB schema, security | STRIDE + @ciel-critic mandatory |
 
 ---
 
