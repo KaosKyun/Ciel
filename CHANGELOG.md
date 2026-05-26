@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.16.1](https://github.com/KaosKyun/Ciel/compare/v6.16.0...v6.16.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* **doctor:** track ALL release-please-managed version files ([#88](https://github.com/KaosKyun/Ciel/issues/88)) ([9690066](https://github.com/KaosKyun/Ciel/commit/96900665c706cdcacba3e4ece853bc6e52853954))
+
 ## [6.16.0](https://github.com/KaosKyun/Ciel/compare/v6.15.5...v6.16.0) (2026-05-26)
 
 
