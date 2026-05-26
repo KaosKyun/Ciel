@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.17.0](https://github.com/KaosKyun/Ciel/compare/v6.16.3...v6.17.0) (2026-05-26)
+
+
+### Features
+
+* **skills:** add network architecture, protocols, security & troubleshooting skills ([#96](https://github.com/KaosKyun/Ciel/issues/96)) ([b6c1f84](https://github.com/KaosKyun/Ciel/commit/b6c1f8497aa862c23f91e19b400f340d31701fab))
+
 ## [6.16.3](https://github.com/KaosKyun/Ciel/compare/v6.16.2...v6.16.3) (2026-05-26)
 
 
