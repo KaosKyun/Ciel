@@ -519,6 +519,14 @@ jobs:
       - name: Gate — committed assets match canonical src/
         run: git diff --exit-code -- packages/ciel/assets/skills packages/ciel/assets/.claude/hooks packages/ciel/assets/.claude/rules
 
+      # Agents: .claude/agents is the canonical source; .opencode/agents (root) and
+      # platforms/* are GENERATED from it by build-platforms.sh. Regenerate and fail
+      # if a .claude/agents edit wasn't propagated (or .opencode/platforms hand-edited).
+      - name: Gate — generated agents match canonical .claude/agents
+        run: |
+          bash scripts/build-platforms.sh
+          git diff --exit-code -- .opencode/agents platforms
+
       # Hard gate: version files == VERSION, and every mirror matches src/ (byte + exec-bit).
       - name: Consistency doctor
         run: node scripts/doctor.mjs

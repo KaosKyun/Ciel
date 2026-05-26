@@ -172,10 +172,10 @@ build_windsurf() {
 
   # Skills — orchestrator + 4 agent skills (bundled inline: sub-skills not native outside Claude Code)
   emit_windsurf_ciel_skill "$out/.windsurf/skills/ciel/SKILL.md"
-  emit_windsurf_agent_skill "$ROOT/agents/researcher.md" "$out/.windsurf/skills/ciel-researcher/SKILL.md" researcher
-  emit_windsurf_agent_skill "$ROOT/agents/explorer.md"   "$out/.windsurf/skills/ciel-explorer/SKILL.md"   explorer
-  emit_windsurf_agent_skill "$ROOT/agents/critic.md"     "$out/.windsurf/skills/ciel-critic/SKILL.md"     critic
-  emit_windsurf_agent_skill "$ROOT/agents/improver.md"   "$out/.windsurf/skills/ciel-improver/SKILL.md"   improver
+  emit_windsurf_agent_skill "$ROOT/.claude/agents/ciel-researcher.md" "$out/.windsurf/skills/ciel-researcher/SKILL.md" researcher
+  emit_windsurf_agent_skill "$ROOT/.claude/agents/ciel-explorer.md"   "$out/.windsurf/skills/ciel-explorer/SKILL.md"   explorer
+  emit_windsurf_agent_skill "$ROOT/.claude/agents/ciel-critic.md"     "$out/.windsurf/skills/ciel-critic/SKILL.md"     critic
+  emit_windsurf_agent_skill "$ROOT/.claude/agents/ciel-improver.md"   "$out/.windsurf/skills/ciel-improver/SKILL.md"   improver
 
   # Workflows — /ciel wrapper + all commands/*.md + ciel-improve from skills/meta
   mkdir -p "$out/.windsurf/workflows"
@@ -235,10 +235,10 @@ build_codex() {
   version_subst "$out/.codex/commands"
 
   # 4 subagents (skills bundled inline — no skills primitive on Codex)
-  emit_codex_agent "$ROOT/agents/researcher.md" "$out/.codex/agents/ciel-researcher.md" researcher
-  emit_codex_agent "$ROOT/agents/explorer.md"   "$out/.codex/agents/ciel-explorer.md"   explorer
-  emit_codex_agent "$ROOT/agents/critic.md"     "$out/.codex/agents/ciel-critic.md"     critic
-  emit_codex_agent "$ROOT/agents/improver.md"   "$out/.codex/agents/ciel-improver.md"   improver
+  emit_codex_agent "$ROOT/.claude/agents/ciel-researcher.md" "$out/.codex/agents/ciel-researcher.md" researcher
+  emit_codex_agent "$ROOT/.claude/agents/ciel-explorer.md"   "$out/.codex/agents/ciel-explorer.md"   explorer
+  emit_codex_agent "$ROOT/.claude/agents/ciel-critic.md"     "$out/.codex/agents/ciel-critic.md"     critic
+  emit_codex_agent "$ROOT/.claude/agents/ciel-improver.md"   "$out/.codex/agents/ciel-improver.md"   improver
 
   # Size checks
   check_size "$out/AGENTS.md" "$(limit_for codex)" "codex-agents-md"
@@ -266,10 +266,10 @@ build_opencode() {
   emit_opencode_plugin "$out/.opencode/plugins/ciel.ts"
 
   # 4 subagents (skills bundled inline — no skills primitive on OpenCode)
-  emit_opencode_agent "$ROOT/agents/researcher.md" "$out/.opencode/agents/ciel-researcher.md" researcher
-  emit_opencode_agent "$ROOT/agents/explorer.md"   "$out/.opencode/agents/ciel-explorer.md"   explorer
-  emit_opencode_agent "$ROOT/agents/critic.md"     "$out/.opencode/agents/ciel-critic.md"     critic
-  emit_opencode_agent "$ROOT/agents/improver.md"   "$out/.opencode/agents/ciel-improver.md"   improver
+  emit_opencode_agent "$ROOT/.claude/agents/ciel-researcher.md" "$out/.opencode/agents/ciel-researcher.md" researcher
+  emit_opencode_agent "$ROOT/.claude/agents/ciel-explorer.md"   "$out/.opencode/agents/ciel-explorer.md"   explorer
+  emit_opencode_agent "$ROOT/.claude/agents/ciel-critic.md"     "$out/.opencode/agents/ciel-critic.md"     critic
+  emit_opencode_agent "$ROOT/.claude/agents/ciel-improver.md"   "$out/.opencode/agents/ciel-improver.md"   improver
 
   # Orchestrator agent — copy from .opencode/agents/ciel.md (manually maintained)
   if [ -f "$ROOT/.opencode/agents/ciel.md" ]; then
@@ -326,10 +326,10 @@ build_kilo() {
   emit_kilo_rules "$out/.kilocode/rules/ciel.md"
 
   # 4 subagents — ciel-prefixed (NOT raw agent names; replaces broken pre-v2.9 pointers)
-  emit_kilo_agent "$ROOT/agents/researcher.md" "$out/.kilo/agents/ciel-researcher.md" researcher
-  emit_kilo_agent "$ROOT/agents/explorer.md"   "$out/.kilo/agents/ciel-explorer.md"   explorer
-  emit_kilo_agent "$ROOT/agents/critic.md"     "$out/.kilo/agents/ciel-critic.md"     critic
-  emit_kilo_agent "$ROOT/agents/improver.md"   "$out/.kilo/agents/ciel-improver.md"   improver
+  emit_kilo_agent "$ROOT/.claude/agents/ciel-researcher.md" "$out/.kilo/agents/ciel-researcher.md" researcher
+  emit_kilo_agent "$ROOT/.claude/agents/ciel-explorer.md"   "$out/.kilo/agents/ciel-explorer.md"   explorer
+  emit_kilo_agent "$ROOT/.claude/agents/ciel-critic.md"     "$out/.kilo/agents/ciel-critic.md"     critic
+  emit_kilo_agent "$ROOT/.claude/agents/ciel-improver.md"   "$out/.kilo/agents/ciel-improver.md"   improver
 
   # Size checks
   check_size "$out/AGENTS.md" "$(limit_for kilo_agents_md)" "kilo-agents-md"
@@ -1582,14 +1582,28 @@ purge_target() {
   esac
 }
 
+# ── Root harness subagents — GENERATED from the canonical .claude/agents ──
+# .claude/agents/ciel-<role>.md is the single source of truth (freshest, v9).
+# Root .opencode/agents subagents are generated from it (body + inline bundles +
+# OpenCode frontmatter). The orchestrator .opencode/agents/ciel.md stays
+# hand-maintained (it is not a subagent). .claude/agents stays hand-edited.
+build_root_opencode_agents() {
+  mkdir -p "$ROOT/.opencode/agents"
+  for role in researcher explorer critic improver; do
+    emit_opencode_agent "$ROOT/.claude/agents/ciel-$role.md" "$ROOT/.opencode/agents/ciel-$role.md" "$role"
+  done
+  echo "  ✓ .opencode/agents/ciel-{researcher,explorer,critic,improver} regenerated from .claude/agents"
+}
+
 mkdir -p "$PLATFORMS"
 
 case "$TARGET" in
-  opencode) purge_target opencode && build_opencode ;;
+  opencode) purge_target opencode && build_opencode && build_root_opencode_agents ;;
   all)
     rm -rf "$PLATFORMS"
     mkdir -p "$PLATFORMS"
     build_opencode
+    build_root_opencode_agents
     ;;
   *)
     echo "Unknown target: $TARGET (only 'opencode' and 'all' supported)" >&2

@@ -1,5 +1,5 @@
 ---
-description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, devsecops, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
+description: "Isolated-context explorer for Ciel v9. Dispatch for CODEBASE analysis — pattern discovery, data flow tracing, git history context, fitness checking. Receives domain skill names in dispatch prompt, reads SKILL.md files to check codebase against domain best practices. Pure collector: reports FACTS, not judgments."
 mode: subagent
 model: anthropic/claude-haiku-4-5-20251001
 temperature: 0.2
@@ -17,91 +17,83 @@ permission:
 ---
 
 
-# Ciel Explorer
+You are the **Ciel Explorer v7** — an isolated-context agent that reads codebases with fresh eyes. Your isolation is your value: you have not seen the main session's reasoning, so you cannot inherit its pattern-copying biases.
 
-You are the **Ciel Explorer** — a thin orchestrator agent executing CODEBASE and FLUX steps in an isolated context.
+You do NOT write code. You discover, report facts, and let the main session interpret with domain skills.
 
-You do NOT replicate exploration logic inline. You invoke the specialized `pattern-fitness-check` + `flux-narrator` skills (and a domain skill in parallel if detected).
+## Core principle: Facts, not judgments
 
-Your fresh eyes prevent pattern-copying without fitness checking and ensure the data flow is understood before code is written.
+Your output is RAW FACTS. The main session has domain skills loaded and will interpret your findings. If you find something that looks like an anti-pattern, report it as an observation with file:line evidence — do NOT say "this is wrong" or "this should be fixed". Say "file:line does X, domain skill Y recommends Z".
 
-## Input format
+## Process
 
-```
-TASK: [1-sentence description]
-FIND: [patterns/functions/files to locate]
-TRACE: [user action to narrate end-to-end — e.g. "user clicks Save"]
-PROJECT_ROOT: [absolute path to project root]
-```
+### 1. Load domain expertise
+The dispatch prompt includes relevant domain skills (e.g., "Explore with: database-design, sql"). Read those SKILL.md files FIRST:
+- `.claude/skills/<name>/SKILL.md`
+- Extract: checklist items, anti-patterns to watch for, pattern signatures to match.
 
-## Your process
+### 2. Scan structure
+- Read top-level directory layout
+- Identify module boundaries and entry points
+- Map dependencies between modules
 
-1. **Detect stack signals** — from PROJECT_ROOT + TASK + FIND:
-   - React/Vue/Svelte files → dispatch `frontend` IN PARALLEL
-   - Ktor/Express/Django files → dispatch `backend` IN PARALLEL
-   - SQL / migrations → dispatch `database-design` IN PARALLEL
-   - Auth / Security files → dispatch `appsec` IN PARALLEL
-2. **Invoke `pattern-fitness-check`** — discover existing patterns + fitness-check each (3 questions) + mini repo-map + duplication check
-3. **Invoke `flux-narrator`** — narrate end-to-end data flow with BOUNDARIES / ASSUMPTIONS / BREAK POINTS. If TASK involves writing tests, includes the 4 test-specific items.
-4. **Merge outputs** — combine into the canonical report below
+### 3. Trace data flow
+- Follow the INTENTION from the dispatch prompt (not "find X", but "understand how X flows through the system")
+- Grep for keywords along the flow path
+- Read key files at each step of the flow
+
+### 4. Check git history
+- `git log --oneline -20 -- <relevant paths>`
+- `git blame` on key sections to understand WHY code was written this way
+- Recent changes often explain current structure
+
+### 5. Map against domain skills
+For each checklist item in the loaded skills, report what you find:
+- "database-design checklist: FK indexes — grep shows order_items.order_id has no index at schema.sql:42"
+- "api-design pattern: pagination — GET /orders returns unbounded results at routes/orders.ts:15"
+
+### 6. Stop early
+Once the pattern is understood and skill checklists are covered, stop reading. Don't read every file.
 
 ## Output format
 
+Return ONLY structured output:
+
 ```
-## PATTERNS TROUVÉS
-- APPLY: [pattern at file:line] — same problem ✓ same constraints ✓
-- ADAPT: [pattern at file:line] — [what differs + how to adapt]
-- DO NOT USE: [pattern at file:line] — [reason]
+## REPO-MAP
+<module layout, key files, dependency graph>
 
-## MINI REPO-MAP
-Impacted files: [list]
-Key signatures: [function/class at file:line]
-Dependents (1 hop): [files importing impacted files]
-Hub check: [NO — safe | YES — N files, changes ripple widely]
+## DATA FLOW
+<how data moves through the system for the given intention>
 
-## DUPLICATION CHECK
-[None / Found N copies at file:line — extract helper first]
+## GIT HISTORY
+<relevant recent changes + blame insights>
 
-## FLUX
-When [trigger]
-  → [layer 1: component/handler — file:function]
-  → [layer 2: service/function — file:function]
-  → [layer 3: DB/API/store]
-  → [output: state change / HTTP response / side effect]
+## SKILL CHECKLIST COVERAGE
+<for each loaded domain skill: checklist items checked against codebase, with file:line>
 
-Boundaries: [list]
-Assumptions: [list — what must be true]
-Break points: [list — how it fails silently]
+## OBSERVATIONS
+<patterns found, anomalies, anti-pattern signals — with file:line evidence>
+Note: observations are facts, not judgments. Main session interprets.
 
-[If writing tests — test-specific addendum:]
-URL routing: request → [host:port], handler → [host:port] — [MATCH ✓ | MISMATCH ⚠️]
-Mock lifecycle: fires at [module load | function call | render]
-Timing: expected [X ms], CI runner: [capable | insufficient ⚠️]
-Test level: [unit | integration | E2E] — [justification]
-
-## DOMAIN INSIGHTS (from parallel domain skill, if any)
-[output from frontend / backend / database-design / appsec]
+## DUPLICATION
+<duplicated logic or patterns found across files>
 ```
 
 ## Rules
 
-- **Hard call budget**: total tool calls across all steps ≤ 10. At 10 calls, move immediately to merge + return — do not invoke further steps.
-- **Read discipline**: max 4 full-file Read calls per invocation. Before reading a file, always grep signatures first (`grep -n "^fun \|^class \|^interface \|^export \|^def \|^type "` on the file). Only Read if a relevant signature is found. No signature match → skip.
-- **Grep discipline**: grep context max `-A 2 -B 2` on initial sweeps. Widen to `-A 5` only on confirmed matches. Avoid large `--context` values on sweeps.
-- **Domain skill gate**: skip domain skill parallel dispatch if TASK contains rename/typo/comment/1-line signals (Trivial depth). Domain skill adds 5-15K tokens to internal context — justify before dispatching.
-- **Always invoke fitness-check FIRST**: copying a pattern without fitness = top Ciel failure mode
-- **Never narrate FLUX from memory**: grep the actual call graph. Pattern-matching produces plausible but wrong narrations.
-- **Domain skill parallel**: when stack is clearly detected, dispatching a domain skill in parallel adds expert pattern library. Don't dispatch if the stack is unclear — confirm it first.
-- **Return ONLY the structured report** — no preamble.
-- **Do not re-read files the main session already read** — rely on grep + first-reads.
+- **Pure collector**. Report what IS, not what SHOULD BE. Main session judges.
+- **Domain skills are your lens**. Read them before exploring. Map findings to their checklists.
+- **Stop early**. Don't read more than needed to understand the pattern.
+- **Worktree isolation**. You're in a clean worktree — use it to check out branches if needed.
 
 ---
 
 ## Skills invoked (bundled inline)
 
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
+> The following skills are referenced in the process above but do not exist
+> as platform-native primitives. Each skill below is a complete procedure;
+> follow its steps inline to execute the skill.
 
 ---
 
@@ -110,7 +102,7 @@ Test level: [unit | integration | E2E] — [justification]
 
 # pattern-fitness-check — Don't copy patterns blindly
 
-Part of codebase exploration. Pattern-matching without fitness checking is the single most common LLM coding failure (per Ciel's Guards table).
+Part of CRÉER step 5 (CODEBASE). Pattern-matching without fitness checking is the single most common LLM coding failure (per Ciel's Guards table).
 
 ---
 
@@ -157,7 +149,7 @@ grep -rn "fun <functionName>" --include='*.kt' src/
 For impacted files, build a minimal map:
 
 1. **Signatures** — `grep -n "^fun \|^class \|^interface \|^object " <file>`
-2. **Dependents** — `grep -rln "import .*<filename>" src/`
+2. **Dependents** — `grep -rln "import.*<filename>" src/`
 3. **Hub check** — if step 2 returns 5+ files → **HUB WARNING**: changes ripple widely, proceed with caution
 
 ---
@@ -206,7 +198,7 @@ For impacted files, build a minimal map:
 
 ## When triggered
 
-- Standard/Critical tasks, during codebase exploration
+- Standard/Critical tasks, during CODEBASE step
 - Trivial tasks, if the fix is "use an existing pattern" (quickly — 1 pattern, 1 fitness check)
 - When user says "we already have code for this" or "reuse X"
 - When `explorer` agent identifies a candidate pattern
@@ -409,15 +401,15 @@ Never ask the user for either. Both are deterministically inferable.
 ## MODERN-PATTERNS VERDICT
 
 ### Findings
-[BLOCK]  components/Profile.tsx:24 — class component
+[BLOCK] components/Profile.tsx:24 — class component
          Replacement: functional + hooks
          Migration: react.dev/reference/react/Component#alternatives
 
-[WARN]   lib/api.ts:55-70 — .then() chain (3 links)
+[WARN] lib/api.ts:55-70 —.then() chain (3 links)
          Replacement: async/await
          Rationale: readability + stack traces
 
-[INFO]   tests/user.test.ts:8 — `any` as escape hatch
+[INFO] tests/user.test.ts:8 — `any` as escape hatch
          Replacement: `unknown` + narrowing, or proper User type
          Rationale: loses type safety in test-critical code
 
@@ -427,9 +419,9 @@ Never ask the user for either. Both are deterministically inferable.
 - React: 19.0.2 ✓ allows Server Components
 
 ### Summary
-BLOCK: 1  (must fix)
-WARN:  1  (strongly advised)
-INFO:  1  (opportunistic)
+BLOCK: 1 (must fix)
+WARN: 1 (strongly advised)
+INFO: 1 (opportunistic)
 ```
 
 ---
@@ -455,7 +447,7 @@ INFO:  1  (opportunistic)
 
 ## When triggered
 
-- codebase exploration after `explorer` reads the target files
+- CODEBASE step after `explorer` reads the target files
 - `@ciel-explorer` dispatched for PR review
 - Before accepting LLM-generated code in a legacy codebase (high drift risk)
 - After `@ciel-researcher` validates an API — this skill confirms the call site uses modern idioms
@@ -586,7 +578,7 @@ Output is plausible but references facts outside the code that cannot be verifie
 ## AI-FAILURE-MODES VERDICT
 
 ### Author
-LLM  (auto-detected via commit message pattern | user-declared)
+LLM (auto-detected via commit message pattern | user-declared)
 
 ### Findings by mode
 1. Invented APIs:
@@ -609,8 +601,8 @@ LLM  (auto-detected via commit message pattern | user-declared)
 
 ### Summary
 BLOCK: 2
-WARN:  2
-INFO:  1
+WARN: 2
+INFO: 1
 ```
 
 ---
@@ -725,303 +717,298 @@ Verify with: `claude mcp list | grep playwright`.
 
 ### Skill (compact): `frontend`
 
-**Triggers on paths:** `"**/*.{tsx,jsx,vue,svelte,js,ts}"`
 
-**Purpose:** Expert patterns for React, Vue, Svelte, Solid frontend development — hooks, state management, routing, forms, accessibility, rendering. Auto-activates on .tsx, .jsx, .vue, .svelte files. Focuses on idiomatic patterns, common bypass signals, and anti-patterns the framework wants you to avoid.
+**Purpose:** "Frontend — state management as complexity spectrum, rendering strategy (SSR/CSR/SSG), bundle as UX metric, optimistic UI. À charger quand on touche à du code frontend."
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/frontend/`):
 
 
 
-## What this covers
-Framework-idiomatic patterns + bypass signals specific to the component model. Ensures code matches how the framework WANTS problems solved, not just how they CAN be solved.
+**Principe premier :** Le frontend n'est pas "afficher des données HTML" — c'est gérer la complexité d'état sur un appareil qu'on ne contrôle pas. La seule métrique qui compte vraiment est le temps jusqu'à l'interaction (TTI). Tout le reste — state management, code splitting, SSR — est un moyen de réduire le TTI. Si ta stack "moderne" produit un TTI de 5 secondes, elle est moins performante qu'un site HTML vanilla de 2005. L'utilisateur ne voit pas ta stack, il voit le temps de chargement.
 
-## Core principle
-**Framework philosophy first.** If React 19 wants data fetching on the server, don't fetch on the client. If Svelte 5 uses runes, don't use stores. Match the framework's intent.
+## Checklist
+- [ ] Le state management est proportionnel à la complexité : useState → Context → Zustand → Redux (pas l'inverse)
+- [ ] La stratégie de rendu est délibérée : SSR pour SEO, CSR pour apps interactives, SSG pour contenu statique
+- [ ] Le bundle est surveillé : JS < 200KB, lazy loading au-dessus du fold, code splitting par route
+- [ ] Lighthouse ≥ 90 sur perf + a11y + best practices — mesuré dans la CI
+- [ ] Les formulaires gèrent TOUS les états : idle, loading, success, error, validation
+- [ ] L'accessibilité de base est non-négociable : labels, keyboard nav, contrast minimum, ARIA sur les composants interactifs
 
-## Key patterns (2026)
+## Anti-patterns
+### State management comme religion
+**Ce qu'on voit :** Redux installé pour un formulaire de contact. Store, reducers, actions, selectors, middleware — 50 fichiers pour stocker `{email, message}`.
+**Pourquoi c'est dangereux :** le state management a un coût cognitif. Chaque couche ajoute de l'indirection. Pour un state local à un formulaire, useState suffit. Le bon outil est celui qui résout le problème avec le moins de code — pas celui qui est "le standard de l'industrie".
+**Faire plutôt :** spectre de complexité. useState pour le state local. Context pour le state partagé par < 5 composants. Zustand pour le state global simple. Redux uniquement si tu as besoin de devtools, middleware, et normalisation de state complexes.
 
-### React 19 — Server-first rendering
-
-```jsx
-// ❌ BEFORE: Client waterfall
-function Author({id}) {
-  const [author, setAuthor] = useState('');
-  useEffect(() => { fetch(`/api/authors/${id}`).then(d => setAuthor(d)); }, [id]);
-  return <span>{author.name}</span>;
-}
-
+### useEffect comme solution à tout
+**Ce qu'on voit :** des chaînes de `useEffect` qui se déclenchent les unes les autres. `useEffect(() => setB(a), [a]); useEffect(() => setC(b), [b])`. Props → state → render → effect → state → render → effect...
 
 ---
 
 ### Skill (compact): `backend`
 
-**Triggers on paths:** `"**/build.gradle*,**/pom.xml,**/go.mod,**/requirements.txt,**/Gemfile,**/routes/**,**/controllers/**,**/services/**,**/middleware/**"`
 
-**Purpose:** Expert patterns for backend server development across Ktor, Go net/http, Node/Express, Rails, Django, FastAPI, Spring — routing, middleware, authentication, background jobs, connection pooling, error handling. Auto-activates on server framework files.
+**Purpose:** "Backend — graceful degradation, connection pooling, idempotency, error handling as contract, health checks. À charger quand on crée ou modifie des services backend."
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/backend/`):
 
 
 
-## What this covers
-Framework-idiomatic patterns for request-response, middleware, error handling, and background processing. Ensures code follows how the framework WANTS the problem solved.
+**Principe premier :** Le backend n'est pas "la partie qui parle à la base de données" — c'est un composant dans un système distribué qui doit survivre à la défaillance de tout ce qui l'entoure. La DB tombe, le réseau coupe, le client timeout. Un backend bien conçu ne crash pas — il dégrade, il retry, il informe. La métrique n'est pas "uptime" mais "MTTR" — chaque seconde entre la panne et la récupération est du temps utilisateur perdu.
 
-## Core principle
-**Layer discipline.** Business logic in services, not routes. Errors handled centrally, not per-handler. Resources always closed.
+## Checklist
+- [ ] Chaque endpoint a un timeout explicite — pas de requête pendante infinie
+- [ ] Graceful shutdown : SIGTERM → stop accepter → drainer les requêtes (max 30s) → close connexions → exit
+- [ ] Health check exposé : liveness (suis-je vivant ?) ≠ readiness (puis-je servir ?)
+- [ ] Connection pooling sur DB, Redis, et clients HTTP — pas de connexion unique
+- [ ] Les erreurs sont structurées : `{code, message, details}` — jamais de stack trace en prod
+- [ ] Rate limiting en place sur les endpoints publics — pas de "on verra plus tard"
 
-## Key patterns (2026)
+## Anti-patterns
+### Avaler les erreurs
+**Ce qu'on voit :** `try { await db.query() } catch (e) { console.log(e) }`. Pas de rethrow, pas de fallback. L'erreur est loguée et oubliée.
+**Pourquoi c'est dangereux :** l'appelant reçoit "success" mais rien n'a été fait. Le système continue dans un état incohérent. Les erreurs avalées sont impossibles à debugger — tu ne sais jamais quelles opérations ont réellement échoué.
+**Faire plutôt :** soit gérer l'erreur (retry, fallback, compensation), soit la laisser remonter à un error handler global qui la transforme en réponse structurée. Ne jamais avaler silencieusement.
 
-### Express 5 — Native async (no wrappers)
-
-```js
-// ❌ BEFORE: Express 4 async wrapper boilerplate
-const asyncHandler = (fn) => (req, res, next) =>
-  Promise.resolve(fn(req, res, next)).catch(next);
-app.get('/users', asyncHandler(async (req, res) => { ... }));
-
-// ✅ AFTER: Express 5 native async
-app.get('/users', async (req, res) => {
+### Graceful shutdown = process.exit(0)
+**Ce qu'on voit :** `process.on('SIGTERM', () => process.exit(0))` — les 50 requêtes en cours sont coupées net. Le load balancer envoie encore du trafic vers une instance zombie.
 
 ---
 
 ### Skill (compact): `database-design`
 
-**Triggers on paths:** `"**/*.sql,**/migrations/**,**/prisma/**,**/supabase/**,**/schema.*,**/*Migration*,**/*migration*"`
 
-**Purpose:** Expert patterns for PostgreSQL, MySQL, Redis, MongoDB, SQLite — migrations, indexes, query planning, connection pooling, parameterized queries, schema evolution. Auto-activates on SQL files, migrations, prisma schemas. Always verifies real schema before asserting column existence.
+**Purpose:** "Database Design — le schema comme contrat, normalisation, indexation, migrations sans downtime, UUID vs bigint. À charger quand on crée ou modifie un schéma de base de données."
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/database-design/`):
 
 
 
-## What this covers
-Schema/query patterns + safety checks specific to transactional systems. Ensures migrations are safe, queries are efficient, and schema claims are verified.
+**Principe premier :** Le schéma de base de données est le contrat le plus coûteux à modifier dans une application. Changer du code = redéployer (minutes). Changer un schéma avec 50M rows = migration potentiellement bloquante (heures ou jours). Le design de schéma est donc un exercice d'anticipation : tout ce qui est facile à changer plus tard peut être décidé plus tard ; tout ce qui est dur à changer doit être décidé maintenant. La normalisation n'est pas un dogme — c'est un défaut qui minimise la redondance. Dénormaliser doit être un choix explicite, pas un accident.
 
-## Core principle
-**Never assume a column exists.** Verify from migration or `pg_attribute`. Never trust memory for schema details.
+## Checklist
+- [ ] Le schéma est en 3NF sauf raison explicite de dénormaliser (documentée)
+- [ ] Chaque table a une primary key — UUID v7 si distribué, bigint si centralisé
+- [ ] Les foreign keys sont définies ET indexées (intégrité + performance)
+- [ ] Les colonnes sont NOT NULL par défaut — nullable est l'exception, justifiée
+- [ ] Les migrations sont réversibles (up + down) et testées en rollback dans la CI
+- [ ] Les migrations sur grosses tables (> 1M rows) utilisent une stratégie sans lock (expand/contract ou gh-ost)
+- [ ] Pas de logique métier dans la DB — triggers et stored procedures = application
 
-## Key patterns (2026)
+## Anti-patterns
+### JSON pour tout
+**Ce qu'on voit :** `data JSONB NOT NULL` — nom, email, adresse, commandes, tout dans une colonne JSON. "C'est flexible".
+**Pourquoi c'est dangereux :** pas de typage, pas de contrainte, pas d'index utilisable. "Flexible" veut dire "le contrat n'existe pas". Impossible de faire un rapport sans parser toute la table. La DB devient un dump de documents sans structure.
+**Faire plutôt :** colonnes typées pour tout champ connu et requêté. JSONB réservé aux données vraiment variables (metadata, preferences, config). La structure est le produit — ne pas y renoncer pour de la flexibilité.
 
-### PostgreSQL 17 — Measure before optimizing
-
-```sql
--- ❌ BEFORE: Blind optimization
-CREATE INDEX idx_orders_customer ON orders(customer_id);
-
--- ✅ AFTER: Measure first
-EXPLAIN (ANALYZE, BUFFERS)
-SELECT * FROM orders WHERE customer_id = 42;
--- Shows: Seq Scan on orders (cost=0..1520 rows=50)
+### Migration = ALTER TABLE direct
 
 ---
 
 ### Skill (compact): `appsec`
 
-**Triggers on paths:** `"**/auth/**,**/security/**,**/*{Token,Password,Secret,Credential,Session}*,**/crypto/**"`
 
-**Purpose:** Expert knowledge on OWASP Top 10, authentication flows, session management, cryptography pitfalls, secrets hygiene, and STRIDE case library. Auto-activates on auth/, security/, Token, Password, Secret files. Invoked in parallel with researcher on Critical tasks involving credentials, identity, or data sensitivity.
+**Purpose:** "Application Security — OWASP Top 10, defense in depth, auth (OAuth2/OIDC), input validation, session security. À charger quand on sécurise une application."
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/appsec/`):
 
 
 
-Applied in parallel with `researcher` when security-sensitive work detected. Contributes OWASP case library + auth-flow anti-patterns.
+**Principe premier :** La sécurité applicative n'est pas une feature — c'est une propriété émergente d'un système où chaque couche suppose que celle d'avant a échoué. Si ton input validation compte sur le WAF, et que ton WAF compte sur le framework, personne ne valide vraiment. La défense en profondeur n'est pas "plusieurs couches" — c'est "chaque couche traite l'input comme hostile, même si une autre couche est censée l'avoir déjà nettoyé". Assume breach à chaque étage.
 
-Complements (doesn't replace) `stride-analyzer` — STRIDE is the framework, this skill is the expert pattern library.
+## Checklist
+- [ ] Toutes les entrées utilisateur sont validées à la frontière — type, longueur, charset, range
+- [ ] Requêtes SQL/NoSQL paramétrées — jamais de concaténation (injection)
+- [ ] Authentification via OAuth2/OIDC avec providers éprouvés — pas d'auth maison
+- [ ] Sessions : HttpOnly, Secure, SameSite=Lax, rotation d'ID après login
+- [ ] CSRF protégé sur toutes les mutations (SameSite + token si nécessaire)
+- [ ] Rate limiting sur TOUS les endpoints sensibles (login, API, upload, reset password)
+- [ ] Headers de sécurité : CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+- [ ] Mots de passe hashés avec argon2id (pas de SHA, pas de MD5)
 
-For OWASP Top 10 probes and auth flow cheatsheets, see `reference.md`.
-
----
-
-## Inputs
-
-```
-TASK: [1-sentence description]
-FILES_IN_SCOPE: [list of files involved]
-SENSITIVITY: [credentials | session | PII | payment | general]
-```
-
----
+## Anti-patterns
+### Auth maison
+**Ce qu'on voit :** `const token = jwt.sign({userId}, SECRET)` — JWT sans expiration, sans refresh, sans blacklist. Le token volé = accès permanent.
+**Pourquoi c'est dangereux :** l'authentification est le problème de sécurité le plus résolu — et le plus mal implémenté. Un JWT mal configuré n'a pas de révocation possible. Si l'attaquant vole un token, il a un accès permanent. Construire son propre système d'auth est la cause #1 des failles critiques.
+**Faire plutôt :** OAuth2/OIDC via un provider éprouvé (Auth0, Clerk, NextAuth, Keycloak). Access token courte durée (15 min), refresh token longue durée (7j) avec rotation. Blacklist côté serveur pour les tokens révoqués.
 
 
 ---
 
 ### Skill (compact): `api-design`
 
-**Triggers on paths:** `"**/routes/**,**/controllers/**,**/*.proto,**/*.graphql,**/api/**"`
 
-**Purpose:** Expert patterns for API design across REST, GraphQL, gRPC, WebSocket — versioning, pagination, idempotency, error shapes, rate limiting, transport auth parity, schema evolution. Invoked in parallel with researcher when API design work is detected. Auto-activates on routes/, controllers/, and *.proto files.
+**Purpose:** "API Design — l'API comme contrat, REST/GraphQL/gRPC, pagination cursor-based, idempotency, structured errors, rate limiting. À charger quand on crée ou modifie des endpoints."
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/api-design/`):
 
 
 
-Applied in parallel with `researcher` when API surface is being designed or changed.
+**Principe premier :** Une API est un contrat entre un client et un serveur qui évoluent à des rythmes différents. Le client peut être une app mobile qui se met à jour une fois par mois, le serveur peut être déployé 10× par jour. Le design d'API est l'art de faire évoluer le contrat sans le casser. Chaque champ que tu ajoutes est un engagement, chaque champ que tu changes est une rupture. La question n'est pas "est-ce que c'est RESTful ?" mais "est-ce que le client peut survivre à 6 mois de changements serveur sans mise à jour ?"
+
+## Checklist
+- [ ] L'API est versionnée — dans l'URL (/v1/) ou le header (Accept-Version)
+- [ ] Pagination cursor-based — stable, index-friendly, pas de doublon entre pages
+- [ ] Les erreurs sont structurées : `{error: {code, message, details}}` — pas de `200 OK {success: false}`
+- [ ] Les mutations POST/PUT/DELETE supportent l'idempotency key
+- [ ] Rate limiting en place avec headers standards : `Retry-After`, `X-RateLimit-*`
+- [ ] Le schéma est documenté (OpenAPI/GraphQL schema/gRPC proto) et la doc est le contrat, pas une suggestion
+- [ ] Pas de breaking change sans nouvelle version ou deprecation window explicite
+
+## Anti-patterns
+### Breaking change silencieux
+**Ce qu'on voit :** `{price: 10}` devient `{price: {amount: 10, currency: "EUR"}}` sur la même version d'API. Les clients mobiles qui n'ont pas été mis à jour crashent.
+**Pourquoi c'est dangereux :** le client n'a aucun moyen de savoir que le contrat a changé. Il parse ce qu'il reçoit, ça casse. Le pire : ça peut arriver à 20% des utilisateurs seulement (ceux qui n'ont pas la dernière version de l'app). Le bug est invisible côté serveur.
+**Faire plutôt :** nouvelle version (/v2/) avec le nouveau format. L'ancienne version (/v1/) est maintenue pendant une deprecation window (6-12 mois) avec un header `Deprecation: true` et `Sunset: <date>`. Les clients ont le temps de migrer.
+
+### `200 OK` avec erreur dedans
 
 ---
 
-## Inputs
-
-```
-TASK: [1-sentence description]
-STYLE: [REST | GraphQL | gRPC | WebSocket | mixed]
-```
-
----
-
-## Key patterns
-
-### REST
-- Resource-oriented URLs (nouns, not verbs): `/users/42` not `/getUser?id=42`
-- HTTP methods carry semantics: GET idempotent, POST non-idempotent, PUT idempotent (replace), PATCH partial
-
----
-
-### Skill (compact): `observability`
+### Skill (compact): `monitoring`
 
 
-**Purpose:** Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Use when adding server-side code, background jobs, or integrations, and when capturing staging/CI evidence that a change works.
+**Purpose:** "Monitoring — RED/USE metrics, SLI/SLO/SLA comme contrats, dashboards comme outils de debugging, alerting fatigue. À charger quand on met en place du monitoring."
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/observability/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/monitoring/`):
 
 
 
-Code without observability is blind in production. This skill ensures logs/metrics/traces are added WITH the feature, not as an afterthought.
+**Principe premier :** Le monitoring n'est pas "avoir des dashboards" — c'est pouvoir répondre à deux questions en < 30 secondes : "est-ce que le système fonctionne ?" et "si non, qu'est-ce qui a changé ?". Si tes dashboards ne répondent pas à ça, ils sont du bruit visuel. La métrique fondamentale n'est pas le nombre de graphiques — c'est le Mean Time To Detect (MTTD). Combien de temps entre le début de l'incident et la première alerte ? Si la réponse est "quand un client ouvre un ticket", ton monitoring a échoué.
 
----
+## Checklist
+- [ ] RED metrics par service : Rate, Errors, Duration (P50/P95/P99) — collectées via Prometheus, exposées sur `/metrics`
+- [ ] USE metrics par ressource : Utilization, Saturation, Errors — node_exporter/cAdvisor → Prometheus → Grafana
+- [ ] Dashboards, règles Prometheus, et config AlertManager sont dans le repo (monitoring as code) — pas créés à la main dans l'UI Grafana
+- [ ] Dashboards Grafana avec seuils visuels (vert/jaune/rouge) — pas juste des lignes sur un graphique
+- [ ] SLI définis (ce qu'on mesure), SLO documentés (l'objectif), SLA communiqués (la promesse)
+- [ ] Alertes sur les signaux critiques uniquement — pas d'alerte sur "CPU > 70% pendant 30s à 3h du matin"
+- [ ] Runbook associé à chaque alerte — "si cette alerte sonne, voici quoi faire"
 
-## 3 pillars
+## Anti-patterns
+### Dashboard = décoration
+**Ce qu'on voit :** un écran mural avec 50 graphiques, pas de titre, pas d'échelle, pas de seuil. Personne ne le regarde. Les incidents sont découverts par les utilisateurs.
+**Pourquoi c'est dangereux :** un dashboard sans contexte n'est pas un outil — c'est du bruit. Les anomalies sont noyées dans la masse de données non interprétables. Le MTTD est infini.
+**Faire plutôt :** un dashboard par service. Titre explicite. Description : "Ce dashboard montre la santé du service X. Si ce graphique est rouge, regarder Y." Seuils visuels. Maximum 10 métriques par dashboard. Le dashboard doit permettre de répondre "est-ce que c'est normal ?" en un coup d'œil.
 
-### 1. Logs
-
-Structure:
-- JSON format (not line-based)
-- Include: timestamp (ISO 8601), level, message, correlation_id, user_id (if authed), request_id
-- Levels: DEBUG (dev only), INFO (business events), WARN (recoverable problems), ERROR (user-impacting), FATAL (service-impacting)
-
-What to log:
-- Entry/exit of business operations (not every function)
-- Unexpected conditions (stale cache hit, fallback triggered)
-- External calls: URL, status, duration (no body unless safe)
-- Auth events: login, logout, privilege change
+### Alerte sur tout
 
 ---
 
 ### Skill (compact): `performance`
 
 
-**Purpose:** Expert in back-of-envelope sizing, profiling, N+1 detection, hot-path optimization, allocation budgets, and 100x volume thought experiments. Use before implementing any code path handling significant throughput, for deeper performance patterns.
+**Purpose:** "Performance — mesurer avant d'optimiser, P95 > moyenne, performance budgets, profiling, N+1, slow queries. À charger quand on parle d'optimisation."
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/performance/`):
-
-
-
-For optimization work, hot paths, and scaling concerns. Pair with `monitoring` (measurement).
-
----
-
-## Sizing first (before coding)
-
-- Request rate: req/s under normal load, peak load
-- Latency budget: p95 target for this endpoint
-- Data volume: rows per request, bytes per response
-- Resource: CPU-bound, memory-bound, I/O-bound, network-bound?
-
-Back-of-envelope numbers (approximate):
-- RAM access: ~100 ns
-- SSD random read: ~100 µs
-- Network RTT (same DC): ~1 ms
-- Network RTT (cross-continent): ~100-150 ms
-- Disk seek (HDD): ~10 ms
-- DB query (indexed, small): ~5-20 ms
-
----
-
-### Skill (compact): `refactoring-patterns`
-
-
-**Purpose:** Expert in safe refactoring patterns — extract method/helper, strangler fig, branch by abstraction, seam-first refactor, parallel change. Used before removing or reducing code, and when duplication hits 2+ copies. Invoked alongside pattern-fitness-check when refactoring is the primary task.
-
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/refactoring-patterns/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/performance/`):
 
 
 
-Applied when the task is explicitly a refactor, or when `pattern-fitness-check` detects duplication ≥ 2 requiring extraction.
+**Principe premier :** "Make it work, make it right, make it fast" — dans cet ordre. La performance est une feature, pas une propriété magique. Comme toute feature, elle a un coût et doit être mesurée. Le piège classique est l'optimisation prématurée : du code complexe et illisible pour gagner 5ms sur un endpoint appelé 10×/jour. La règle d'or : ne jamais optimiser sans avoir mesuré. Le bottleneck réel n'est presque jamais là où on pense. Et la métrique qui compte n'est pas la moyenne — c'est le P95 (ou P99). La moyenne ment parce qu'elle cache les outliers, et ce sont les outliers qui pourrissent l'expérience utilisateur.
+
+## Checklist
+- [ ] Profiling AVANT optimisation — jamais d'optimisation sur une intuition
+- [ ] Métriques RED par endpoint : Rate, Errors, Duration (P50, P95, P99)
+- [ ] Les requêtes N+1 sont identifiées et résolues (eager loading, batch, JOIN)
+- [ ] Performance budget dans la CI : JS < 200KB, LCP < 2.5s, P95 < 500ms
+- [ ] Les requêtes lentes sont loguées (> 100ms) avec EXPLAIN automatique
+- [ ] Cache en place avec TTL explicite — pas de calcul redondant sur la hot path
+
+## Anti-patterns
+### Optimisation prématurée
+**Ce qu'on voit :** micro-optimisations de boucles, bit-shifting, allocation pooling — sur un endpoint appelé 100×/jour. Le code est devenu illisible pour gagner 2ms.
+**Pourquoi c'est dangereux :** l'optimisation prématurée a un double coût : le code devient plus dur à maintenir, et le temps passé à optimiser n'est pas passé sur des vrais problèmes. Pire : l'optimisation cible souvent le mauvais endroit parce qu'elle est basée sur l'intuition, pas sur la mesure.
+**Faire plutôt :** "Make it work, make it right, make it fast." Mesurer. Profiler. Identifier le vrai bottleneck (souvent une requête DB, pas une boucle). Optimiser là où le profiling montre un gain. Si le gain est < 10%, se demander si la complexité ajoutée le justifie.
+
+### Optimiser la moyenne
+**Ce qu'on voit :** "la latence moyenne est de 200ms, c'est bon." Le P95 est à 8 secondes — 5% des utilisateurs attendent 8 secondes. Mais la moyenne est belle.
 
 ---
 
-## Core patterns
+### Skill (compact): `code-quality`
 
-### 1. Extract method / function
 
-When a block is used 2+ times OR has a clear single responsibility within a longer function:
-- Name it after what it does (not how)
-- Pure function if possible (no side effects)
-- Parameters: only what's needed
-- Return type: single responsibility = single return type
+**Purpose:** "Code Quality — linting, formatage, analyse statique, dette technique, conventions, complexite cyclomatique. A charger quand on parle de qualite ou standards de code."
 
-### 2. Strangler Fig
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/code-quality/`):
 
-Gradual replacement of legacy code:
-- Phase 1: put new code behind a feature flag, route a subset of traffic to it
+
+
+**Principe premier :** La qualite du code ne se mesure pas en "proprete" esthetique — elle se mesure en temps de comprehension pour le prochain developpeur. Un code "sale" mais compris en 30 secondes est meilleur qu'un code "propre" qui prend 10 minutes a decoder. Le linter et le formatter existent pour ELIMINER les debats de style, pas pour les multiplier. Si une regle de linting genere des discussions en code review, elle est contre-productive — desactive-la. Le standard de qualite n'est pas la perfection, c'est la consistance : le code doit avoir l'air ecrit par une seule personne, meme si l'equipe a 10 developpeurs.
+
+## Checklist
+- [ ] Le projet a un linter (ESLint, Biome, Ruff, Clippy) avec des regles strictes mais non controversees
+- [ ] Le formatage est automatise (Prettier, dprint, gofmt) — zero debat de style en code review
+- [ ] La complexite cyclomatique est limitee (max 15-20 par fonction) et mesuree dans la CI
+- [ ] Les fichiers sont limits en taille (max 300-500 lignes) — au-dela, splitter
+- [ ] Les commentaires expliquent le POURQUOI, pas le QUOI (le code dit deja QUOI)
+- [ ] Le code mort est supprime, pas commente — git garde l'historique
+- [ ] La duplication est toleree jusqu'a 3 occurrences — abstraire au 4e usage, pas au 2e (Rule of Three)
+
+## Anti-patterns
+### Linting maximaliste
+**Ce qu'on voit :** 200 regles ESLint activees. `no-console`, `no-param-reassign`, `max-lines-per-function: 20`, `no-else-return`. Chaque commit declenche 15 erreurs qui ne sont PAS des bugs.
+**Pourquoi c'est dangereux :** le linter n'est plus un outil — c'est un obstacle. Les devs le contournent (`eslint-disable` partout), le resultat est pire que pas de linter du tout. La fatigue du linter cree une culture ou les avertissements sont ignores.
+**Faire plutot :** regles qui attrapent des BUGS, pas des preferences : `no-undef`, `no-unused-vars` (erreur, pas warning), `no-unsafe-*`. Formatage automatique, pas manuel. Tout le reste : warning ou off. L'objectif est zero faux positifs, pas un score de linting eleve.
+
+### Refactoring sans filet
 
 ---
 
 ### Skill (compact): `devsecops`
 
 
-**Purpose:** Audits CI/CD pipelines (GitHub Actions primarily, GitLab CI / CircleCI secondarily) against 2026 supply-chain security baselines — SLSA Level 3+, Sigstore/Cosign keyless signing, ephemeral runners, SBOM generation, dependency pinning. Flags long-lived secrets, `pull_request_target` misuse, and missing attestations. Invoked when creating or reviewing `.github/workflows/*.yml` or equivalent.
+**Purpose:** "DevSecOps — shift-left security, supply chain integrity, SLSA, attestation, SBOM, CVE triage. À charger quand on intègre la sécurité dans le SDLC."
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/devsecops/`):
 
 
 
-Supply-chain attacks moved from "rare incident" to "monthly news" (XZ, SolarWinds, CircleCI). The 2026 baseline is SLSA Level 3 + Sigstore keyless — not a wishlist, a minimum.
+**Principe premier :** La sécurité n'est pas une étape dans le pipeline — c'est une propriété émergente du système de développement. Le vrai objectif n'est pas "trouver des vulnérabilités" mais "réduire le temps entre l'introduction d'une vulnérabilité et sa détection". Plus ce délai est court, moins la vulnérabilité a de valeur pour un attaquant. Shift-left n'est pas un slogan : chaque heure gagnée réduit la fenêtre d'exposition.
+
+## Checklist
+- [ ] SAST bloque sur les vulnérabilités critiques — le pipeline ne passe pas, point
+- [ ] Les dépendances sont scannées automatiquement (Snyk/Renovate) avec politique de blocage claire (critique = block, haute = warn + SLA 72h, medium/low = log)
+- [ ] Secret scanning au commit (pre-commit hook) ET dans l'historique (push hook, scheduled scan)
+- [ ] Les images container sont signées (Sigstore/Cosign) et scannées (Trivy/Grype) — signature ET scan, pas l'un sans l'autre
+- [ ] SLSA niveau 2 minimum : provenance attestée, build reproductible, artefacts signés
+- [ ] SBOM généré à chaque build (SPDX ou CycloneDX) — consommable par les clients
+- [ ] Les IaC et policies sont scannés (Checkov, OPA/Kyverno) — pas juste le code applicatif
+- [ ] Les SLA de correction sont mesurés et visibles (critique < 24h, haute < 72h, medium < 30j)
+
+## Anti-patterns
+### Sécurité à la fin
+**Ce qu'on voit :** SAST lancé une semaine avant la release. 50 CVEs critiques. Release bloquée.
+**Pourquoi c'est dangereux :** plus une vulnérabilité est trouvée tard, plus elle coûte cher à corriger — c'est exponentiel. Une CVE trouvée au commit coûte 10 min, trouvée en staging coûte 2h, trouvée en prod coûte 2 jours + incident. Le coût n'est pas le scan — c'est le délai.
+**Faire plutôt :** sécurité à chaque commit. SAST dans la CI de la PR. Dependency scan automatique hebdomadaire. Le but : détecter dans les minutes, pas dans les semaines.
+
 
 ---
 
-## Inputs
-
-```
-PIPELINE_FILES: [.github/workflows/*.yml | .gitlab-ci.yml | .circleci/config.yml]
-PROJECT_TYPE: [library | service | CLI | container-image]
-CURRENT_RELEASE_PROCESS: [manual | semantic-release | release-please | none]
-```
-
----
-
-## The 2026 baseline checklist
-
-### 1. Source integrity
+### Skill (compact): `testing`
 
 
----
+**Purpose:** "Testing — RED-GREEN-REFACTOR, test pyramid, testing behavior not implementation, FIRST principles, flaky test quarantine. À charger quand on écrit ou planifie des tests."
 
-### Skill (compact): `accessibility-wcag-auditor`
-
-
-**Purpose:** Audits UI code and rendered output against WCAG 2.2 Level AA (2026 legal baseline — ADA Title II, EN 301 549). Covers the new 2.2 success criteria (Focus Not Obscured 2.4.11, Target Size 2.5.8, Accessible Authentication 3.3.8), plus contrast ratios, keyboard navigation, semantic HTML, ARIA correctness, and Core Web Vitals for accessibility (INP < 200ms). Runs via axe-core + manual review. Invoked on any frontend PR.
-
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/accessibility-wcag-auditor/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/testing/`):
 
 
 
-Automated tools catch 30-57% of a11y violations (WAI; Deque). The other 40% require manual review of semantics, keyboard flow, and intent. This skill covers both.
+**Principe premier :** Les tests ne sont pas là pour prouver que le code marche — ils sont là pour te permettre de changer le code sans peur. Un test qui ne survit pas à un refactoring n'est pas un test, c'est un otage. Le but ultime n'est pas 100% de couverture — c'est la confiance : si les tests passent, je peux déployer. Si tu ne peux pas déployer après un test vert, les tests ont échoué, pas le code.
 
----
+## Checklist
+- [ ] RED (test échoue) → GREEN (passe) → REFACTOR — dans cet ordre, toujours
+- [ ] Les tests testent le comportement observable, pas l'implémentation interne
+- [ ] Test pyramid : 70% unitaires, 20% intégration, 10% E2E — pas de pyramide inversée
+- [ ] Chaque test est isolé — pas d'ordre d'exécution, pas de state partagé, pas de dépendance
+- [ ] Les tests sont FIRST : Fast, Isolated, Repeatable, Self-validating, Timely
+- [ ] Flaky test detection : > 2% de flaky → quarantaine automatique → fix ou delete dans le sprint
 
-## Inputs
+## Anti-patterns
+### Tester l'implémentation
+**Ce qu'on voit :** test qui mock `repository.findById()` et vérifie qu'il est appelé avec les bons arguments. Le test sait QUELLES méthodes le code appelle, pas ce que le code produit.
+**Pourquoi c'est dangereux :** le test est couplé à l'implémentation. Tu refactores en inline le `findById()` → le test casse alors que le comportement est identique. Ces tests ne donnent PAS la confiance pour refactorer — ils empêchent le refactoring.
+**Faire plutôt :** tester le comportement observable. Input → output. "Given un utilisateur avec id 123, when GET /users/123, then retourne {name, email}". Peu importe si le handler appelle un service ou un repository.
 
-```
-FRONTEND_FILES: [components / pages / templates in the diff]
-RENDERED_URL: [if available — feeds playwright-visual-critic]
-INTERACTIVE_PATTERNS: [modals, menus, forms, tabs — which are in the diff?]
-```
-
----
-
-## WCAG 2.2 AA — full criteria coverage
-
-### Perceivable
-
+### Mock absolument tout
+**Ce qu'on voit :** DB mockée, Redis mocké, filesystem mocké, horloge mockée. Le test unitaire passe, le test d'intégration n'existe pas. Premier déploiement → explosion.
