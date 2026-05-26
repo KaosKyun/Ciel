@@ -194,15 +194,18 @@ describe("CLI package structure", () => {
     assert.ok(existsSync("./assets/AGENTS.md"), "AGENTS.md should exist");
   });
 
-  it("agent template is v6 enriched (119 lines, guards present)", () => {
+  it("agent template is v9 orchestrator (lean thin shell, key sections present)", () => {
     const fs = require("node:fs");
     const content = fs.readFileSync("./assets/platforms/opencode/.opencode/agents/ciel.md", "utf-8");
-    assert.ok(content.includes("Top 10 Guards"), "Should have guards");
-    assert.ok(content.includes("Subagent Dispatch"), "Should have dispatch rules");
-    assert.ok(content.includes("@ciel-critic MODE=RELIRE"), "Should have RELIRE mode");
-    assert.ok(content.includes("@ciel-critic MODE=CRITIQUER"), "Should have CRITIQUER mode");
-    assert.ok(content.includes("depth-classifier"), "Should reference depth-classifier skill");
-    assert.ok(content.includes("TEST-FIRST (RED)"), "Should have test-first rule");
+    assert.ok(content.includes("v9"), "Should be the v9 orchestrator");
+    assert.ok(content.includes("Guards"), "Should have a Guards section");
+    assert.ok(content.includes("Subagents"), "Should have a Subagents dispatch section");
+    assert.ok(content.includes("@ciel-critic"), "Should dispatch the critic subagent");
+    assert.ok(content.includes("@ciel-researcher"), "Should dispatch the researcher subagent");
+    assert.ok(content.includes("4 risques"), "Critic contract should be 4 risques");
+    assert.ok(content.includes("Boucle autonome"), "Should have the autonomous loop");
+    assert.ok(content.includes("Depth"), "Should have the depth section");
+    assert.ok(content.includes("Test d'abord"), "Should have the test-first rule");
     assert.ok(!content.includes("ciel-plan"), "Should NOT reference orphaned ciel-plan");
   });
 
