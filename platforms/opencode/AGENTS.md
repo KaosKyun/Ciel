@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v6.16.1)
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v6.16.2)
 
 Source: https://github.com/KaosKyun/Ciel
 
