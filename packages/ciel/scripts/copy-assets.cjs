@@ -36,7 +36,7 @@ const TEMPLATE_PATTERNS = [
   { src: ".claude/agents/ciel-improver.md", dest: ".claude/agents/ciel-improver.md" },
   { src: "hooks/block-destructive.sh", dest: ".claude/hooks/block-destructive.sh" },
   { src: "hooks/track-file.sh", dest: ".claude/hooks/track-file.sh" },
-  { src: "hooks/session-version-check.sh", dest: ".claude/hooks/session-version-check.sh" },
+  { src: "hooks/track-verification.sh", dest: ".claude/hooks/track-verification.sh" },
   { src: "hooks/pre-tool-write.sh", dest: ".claude/hooks/pre-tool-write.sh" },
   { src: "hooks/pre-agent-gate.sh", dest: ".claude/hooks/pre-agent-gate.sh" },
   { src: "hooks/check-dispatch-gate.sh", dest: ".claude/hooks/check-dispatch-gate.sh" },

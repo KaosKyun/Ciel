@@ -8,6 +8,12 @@
 3. Pas de placeholder — pas de `// TODO`, pas de `// ...rest of code`. Tout code est complet ou absent.
 4. Pas de "no error in logs" = preuve — declenche le scenario, vois un signal positif.
 
+## Boucle autonome (mode par defaut)
+Pour toute tache de dev, opere en boucle **sans attendre l'humain** (il n'intervient que sur probleme observe ou decision irreversible) :
+1. **Comprendre** (dispatch researcher+explorer en Standard+) → 2. **RED** (test qui echoue) → 3. **GREEN** (implementer) → 4. **VERIFIER** (tests, signal positif) → 5. **CRITIQUER** (critic si 3+ fichiers) → 6. **Iterer ou livrer**.
+
+Le hook Stop **BLOQUE** la completion tant que le code modifie n'a pas ete verifie. Pas de "fini" sans preuve d'execution.
+
 ## Depth (le systeme adapte la rigueur automatiquement)
 | Niveau | Declencheur | Comportement |
 |--------|-------------|--------------|
@@ -35,12 +41,21 @@ Le plugin detecte automatiquement la phase. **Ne JAMAIS sauter la phase concepti
 | `ciel-critic` | Apres le code, avant le commit | 4 risques + FIX/ACCEPT/DEFER |
 | `ciel-improver` | Uniquement /ciel-improve, /ciel-eval | Analyse + propositions |
 
-## Skills (~50 skills domaine, invocables via Skill())
-- **Obligatoire : avant de repondre a TOUTE tache**, tu DOIS scanner la liste des skills disponibles et invoquer `Skill()` pour chaque domaine pertinent. Analyse, planification, debug, ou code — sans exception. Skip = violation du pipeline Ciel.
-- Evalue la phase (conception/implementation/debug) et invoque les skills dans l'ordre : conception d'abord, puis implementation.
-- Une tache touche souvent plusieurs domaines (DB + langage + testing...). Invoque TOUS les skills pertinents.
-- Si aucun skill ne correspond, dis-le explicitement et continue.
-- **Rules** (`.claude/rules/*.md`) — elles, s'auto-chargent via `paths:`. Mecanisme separe.
+## Connaissance : push (rules) vs pull (skills)
+- **Rules** (`.claude/rules/*.md`) — contraintes **dures**, auto-injectees par `paths:`. Le canal fiable : ce qui doit toujours s'appliquer vit ici.
+- **Skills** (`Skill()`, ~50 domaines) — reference profonde **a la demande**. Invoque pour la profondeur, pas par rituel.
+- Le hook UserPromptSubmit suggere des skills ; invoque si la profondeur aide. Les non-negociables arrivent par les rules.
+
+## Memoire
+- **Ecriture** — META Q2. Si une decouverte merite d'etre sauvegardee → ecris dans `.ciel/memory/` et rebuild l'index.
+- **Lecture** — Consulte `.ciel/memory/index.json` ou les fichiers dans `episodes/` quand le contexte le merite. Les triggers :
+  * Nouvelle tache ou changement de sujet
+  * Decision d'architecture ou de design irreversible
+  * Avant d'ecrire du code critique (auth, DB, securite, payment)
+  * Bug ou comportement inattendu
+  * Pattern ou symbole inconnu dans le codebase
+
+  Ne compte pas sur l'auto-injection par path matching. **C'est a toi de decider** si une lecon passee s'applique.
 
 ## META (thinking uniquement, jamais visible)
 1. Qu'ai-je manque que l'utilisateur va me demander ensuite ?

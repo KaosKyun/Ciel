@@ -3,7 +3,10 @@ paths:
   - "**/*.sql"
   - "**/migrations/**"
   - "**/schema/**"
+  - "**/*repository*"
   - "**/*Repository*"
+  - "**/*repositories*"
+  - "**/*Repositories*"
   - "**/*Database*"
 ---
 

@@ -96,7 +96,7 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     // Claude Code hooks
     ".claude/hooks/block-destructive.sh",
     ".claude/hooks/track-file.sh",
-    ".claude/hooks/session-version-check.sh",
+    ".claude/hooks/track-verification.sh",
     ".claude/hooks/pre-tool-write.sh",
     ".claude/hooks/pre-agent-gate.sh",
     ".claude/hooks/check-dispatch-gate.sh",

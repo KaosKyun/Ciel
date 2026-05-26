@@ -65,36 +65,8 @@ if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   echo "$DEPTH" > "$CLAUDE_PROJECT_DIR/.ciel/last-depth" 2>/dev/null || true
 fi
 
-# ─── compact_skill — extract description + first 15 body lines ──────────
-# Mirrors bundle_skills_compact() from scripts/build-platforms.sh
-compact_skill() {
-  local name="$1"
-  [ -z "$PROJECT_DIR" ] && return 1
-  local skill_md="$PROJECT_DIR/.claude/skills/$name/SKILL.md"
-  [ ! -f "$skill_md" ] && return 1
-
-  local desc
-  desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md" 2>/dev/null || echo "")
-
-  echo "### $name"
-  [ -n "$desc" ] && echo "$desc"
-  echo ""
-
-  # Strip YAML frontmatter, strip H1, take first 15 body lines
-  awk '
-    BEGIN { in_yaml=0; done=0 }
-    /^---$/ {
-      if (!done) {
-        if (in_yaml) { in_yaml=0; done=1; next }
-        else { in_yaml=1; next }
-      }
-    }
-    !in_yaml { print }
-  ' "$skill_md" 2>/dev/null | sed '/^# /d' | head -15
-  return 0
-}
-
-# ─── Phase detection ────────────────────────────────────────────────────
+# ─── Phase detection + skill routing ────────────────────────────────────
+# Determines phase, maps to skill names. No compact body — delegates to Skill() native.
 PHASE=""
 if prompt_matches "(architecture|design pattern|conception|structur.e?|schema.?archi|trade.?off|decoupage|ddd|monolithe|microservice|flux.*donn.e?|diagram|c4.?model|vision.*technique|plan.*architecture|hld|lld|system.?design|choisir.*techno|compare.*stack|refonte.*archi|audit.*archi|concevoir|designer)"; then
   PHASE="conception"
@@ -104,90 +76,60 @@ elif prompt_matches "(implement|code|write|creer|creat|setup|configure|deploy|mi
   PHASE="implementation"
 fi
 
-# ─── Auto-inject compact skills based on phase ──────────────────────────
-# Skipped for Trivial depth (rename, typo, 1-liner)
-SKILL_INJECT=""
-SKILL_BLOCK=""
+# ─── Skill routing — names only, no compact bodies ─────────────────────
+# Native Skill() loads full SKILL.md in tool_result (optimal context position).
 SKILL_NAMES=""
-if [ "$DEPTH" != "Trivial" ]; then
+SKILL_INJECT=""
 
-load_skills() {
+route_skill() {
   for name in "$@"; do
-    local content
-    content=$(compact_skill "$name" 2>/dev/null || true)
-    if [ -n "$content" ]; then
-      SKILL_BLOCK="${SKILL_BLOCK}
-$content"
-      SKILL_NAMES="${SKILL_NAMES}Skill(\"$name\"), "
-    fi
+    SKILL_NAMES="${SKILL_NAMES}Skill(\"$name\"), "
   done
 }
 
-case "$PHASE" in
-  conception)
-    load_skills "system-design" "architecture"
-    if prompt_matches "(ha|high.availability|resilience|failover|fallback|disaster|recovery)"; then
-      load_skills "high-availability" "resilience"
-    fi
-    if prompt_matches "(ddd|domain|cqrs|event.source|event.driven|message|queue|kafka)"; then
-      load_skills "ddd" "event-driven"
-    fi
-    ;;
-  implementation)
-    load_skills "testing"
-    if prompt_matches "(backend|api|route|endpoint|controller|service|server|express|fastify|spring|django|go|rust)"; then
-      load_skills "backend" "api-design"
-    fi
-    if prompt_matches "(frontend|react|vue|svelte|component|ui|css|tailwind|next|nuxt)"; then
-      load_skills "frontend"
-    fi
-    if prompt_matches "(database|db|sql|prisma|orm|migration|schema|postgres|mysql|sqlite|mongo)"; then
-      load_skills "database-design"
-    fi
-    if prompt_matches "(auth|security|token|oauth|jwt|password|secret|permission)"; then
-      load_skills "appsec"
-    fi
-    ;;
-  debug)
-    load_skills "logging" "monitoring"
-    if prompt_matches "(trace|span|opentelemetry|distributed|propagation)"; then
-      load_skills "tracing"
-    fi
-    if prompt_matches "(auth|security|token|injection|xss|csrf|vuln|exploit)"; then
-      load_skills "appsec"
-    fi
-    if prompt_matches "(slow|perf|performance|leak|memory|cpu|bottleneck|latency)"; then
-      load_skills "performance"
-    fi
-    ;;
-  *)
-    load_skills "research"
-    ;;
-esac
+if [ "$DEPTH" != "Trivial" ]; then
+  case "$PHASE" in
+    conception)
+      route_skill "system-design" "architecture"
+      prompt_matches "(ha|high.availability|resilience|failover|fallback|disaster|recovery)" && route_skill "high-availability" "resilience"
+      prompt_matches "(ddd|domain|cqrs|event.source|event.driven|message|queue|kafka)" && route_skill "ddd" "event-driven"
+      ;;
+    implementation)
+      route_skill "testing"
+      prompt_matches "(backend|api|route|endpoint|controller|service|server|express|fastify|spring|django|go|rust)" && route_skill "backend" "api-design"
+      prompt_matches "(frontend|react|vue|svelte|component|ui|css|tailwind|next|nuxt)" && route_skill "frontend"
+      prompt_matches "(database|db|sql|prisma|orm|migration|schema|postgres|mysql|sqlite|mongo)" && route_skill "database-design"
+      prompt_matches "(auth|security|token|oauth|jwt|password|secret|permission)" && route_skill "appsec"
+      # Intent-bound (no reliable file glob — routed by prompt keywords)
+      prompt_matches "(crypto|chiffr|encrypt|decrypt|\bhash|signature|\btls\b|certificat|cle.*priv)" && route_skill "crypto"
+      prompt_matches "(resilience|circuit.?breaker|retry|timeout|fallback|bulkhead|degradation|failover)" && route_skill "resilience"
+      prompt_matches "(caching|cache (strategy|layer|invalidation|stampede|aside|hit|miss|key|eviction)|cache.?stampede|\bredis\b|memcache|\bttl\b)" && route_skill "caching"
+      prompt_matches "(performance|\blatency\b|\bp95\b|profiling|bottleneck|n\+1|slow.?quer)" && route_skill "performance"
+      prompt_matches "(serverless|lambda|cloud.?function|\bfaas\b|cold.?start|step.?function)" && route_skill "serverless"
+      prompt_matches "(nosql|dynamo|cassandra)" && route_skill "nosql"
+      prompt_matches "(event.?driven|kafka|rabbitmq|\bsqs\b|pub.?sub|message.*queue|outbox)" && route_skill "event-driven"
+      ;;
+    debug)
+      route_skill "logging" "monitoring"
+      prompt_matches "(trace|span|opentelemetry|distributed|propagation)" && route_skill "tracing"
+      prompt_matches "(auth|security|token|injection|xss|csrf|vuln|exploit)" && route_skill "appsec"
+      prompt_matches "(slow|perf|performance|leak|memory|cpu|bottleneck|latency)" && route_skill "performance"
+      prompt_matches "(circuit|retry|timeout|cascading|outage|flaky|intermittent)" && route_skill "resilience"
+      ;;
+    *)
+      route_skill "research"
+      ;;
+  esac
 
-SKILL_BLOCK=$(echo "$SKILL_BLOCK" | sed '/^$/N;/^\n$/d' 2>/dev/null || true)
-SKILL_NAMES=$(echo "$SKILL_NAMES" | sed 's/, $//')
-if [ -n "$SKILL_BLOCK" ]; then
-  SKILL_INJECT="
-[CIEL SKILLS] Compact preview. You MUST now invoke for full anti-patterns + patterns:
-→ $SKILL_NAMES
-$SKILL_BLOCK"
-fi
-
-fi  # [ "$DEPTH" != "Trivial" ]
-
-# ─── Phase-aware skill loading order ────────────────────────────────────
-SKILL_MSG=""
-if [ "$PHASE" = "conception" ]; then
-  SKILL_MSG="Phase CONCEPTION — charge les skills conception d'abord (system-design, architecture), puis skills techniques."
-elif [ "$PHASE" = "implementation" ]; then
-  SKILL_MSG="Phase IMPLEMENTATION — charge les skills techniques d'abord, puis implementation."
-elif [ "$PHASE" = "debug" ]; then
-  SKILL_MSG="Phase DEBUG — charge d'abord logging, tracing, monitoring, appsec pour investiguer."
+  SKILL_NAMES=$(echo "$SKILL_NAMES" | sed 's/, $//')
+  if [ -n "$SKILL_NAMES" ]; then
+    SKILL_INJECT="
+[CIEL] Skills pertinents (profondeur a la demande — invoque si utile, les contraintes dures arrivent par les rules) : → $SKILL_NAMES"
+  fi
 fi
 
 # ─── Build context injection ────────────────────────────────────────────
-MSG="CIEL depth: $DEPTH. | Dispatch researcher+explorer before writing code.$INTERVENTION_GATE | $SKILL_MSG$SKILL_INJECT"
+MSG="CIEL depth: $DEPTH. | Dispatch researcher+explorer before writing code.$INTERVENTION_GATE$SKILL_INJECT"
 
 MSG_BASE="$MSG" MEMORY_OUTPUT="$MEMORY_OUTPUT" python3 -c "
 import os, json

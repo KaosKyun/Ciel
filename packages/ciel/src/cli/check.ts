@@ -61,10 +61,12 @@ const CLAUDE_AGENTS = [
   "ciel-improver.md",
 ];
 
-const CLAUDE_HOOKS = [
+// Exported for test/ciel-gates.test.ts parity check — must stay in sync with
+// CIEL_HOOK_FILES (claude.ts) and the hooks shipped in assets/.claude/hooks/.
+export const CLAUDE_HOOKS = [
   "block-destructive.sh",
   "track-file.sh",
-  "session-version-check.sh",
+  "track-verification.sh",
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
   "check-dispatch-gate.sh",

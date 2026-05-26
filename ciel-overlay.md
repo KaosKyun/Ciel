@@ -32,38 +32,27 @@
 
 Fichiers/dossiers à traiter comme **Critical** dans les hooks :
 
-- `.opencode/plugins/ciel.ts` — Plugin principal OpenCode (v5)
-- `.claude/settings.json` — Hooks Claude Code
-- `.claude/hooks/*.sh` — Scripts d'automation Claude Code (4 hooks)
-- `.claude/agents/*.md` — Définitions agents Claude Code
-- `hooks/*` — Scripts d'automation (8 hooks)
-- `skills/ciel/` — Orchestrator principal
-- `skills/workflow/` — Pipeline CRÉER/CRITIQUER
-- `skills/security/` — Security hardening
-- `skills/meta/` — Self-improvement subsystem
-- `agents/ciel-*.md` — Définitions des agents
+- `.claude/hooks/*.sh` — Hooks Claude Code
+- `.claude/settings.json` — Configuration hooks
+- `.claude/agents/*.md` — Definitions agents
+- `hooks/*` — Scripts d'automation
+- `skills/` — Skills domaine (~50)
+- `src/plugin/index.ts` — Plugin principal
 
 ---
 
 ## Commandes CI / Vérification
 
-- **CI système:** GitHub Actions
-- **Runners:** ubuntu-latest
-- **Build local:** `cd .opencode && npm install`
-- **Test local:** `cd .opencode && npx tsx test-ciel.ts`
+- **Build:** `npm run build` (packages/ciel/)
+- **Test:** `npm test` (packages/ciel/)
 - **Lint:** `shellcheck hooks/*.sh .claude/hooks/*.sh`
-- **Type check dans le plugin:** activer OPENCODE_EXPERIMENTAL_LSP_TOOL=true pour le navigateur LSP
-- **Staging URL:** https://staging.ciel-plugin.dev (simulé)
-- **Deploy staging:** `git push origin main`
-- **Délai deploy:** ~1-2 minutes
 
 ### Workflows GitHub Actions
 
-| Workflow | Fichier | Déclencheur | Purpose |
-|----------|---------|-------------|---------|
-| **CI** | `.github/workflows/ci.yml` | push main + PR | Lint hooks, test Ciel, validate agents/permissions/parity, skills, plugin size |
-| **Test Hooks** | `.github/workflows/test-hooks.yml` | push hooks/ + PR | Test .claude/hooks/ (9 cas) + hooks/ legacy |
-| **Publish NPM** | `.github/workflows/publish-npm.yml` | tag v* | Publie @neikyun/ciel sur npm avec provenance Sigstore |
+| Workflow | Declencheur | Purpose |
+|----------|-------------|---------|
+| **CI** | push main + PR | Build, test, validate |
+| **Publish NPM** | tag v* | Publie @neikyun/ciel sur npm |
 
 ---
 
@@ -97,20 +86,10 @@ Aucun secret requis pour la CI actuelle.
 
 ## Règles projet-spécifiques
 
-> Ce qui override ou complète les defaults Ciel — patterns du projet, conventions, contraintes
-
-- **SHA-pinned actions uniquement** — Toutes les GitHub Actions doivent être pinées par SHA (SLSA L3)
-- **Permissions minimales** — `contents: read` par défaut, écrire uniquement si nécessaire
-- **Timeout sur chaque job** — Maximum 15 minutes par job
-- **Concurrency avec cancel** — Annuler les jobs en cours sur PR
-- **Hooks shell validés** — Tous les scripts `.sh` doivent passer `shellcheck`
-- **Documentation à jour** — CHANGELOG.md doit être mis à jour avant chaque release
-- **Tests avant implémentation** — Suivre le workflow FAIRE (test-first RED)
-- **ASK avant d'assumer** — Utiliser le `question` tool d'OpenCode pour clarifier les ambiguites (ASK window)
-- **LSP tool disponible** — `OPENCODE_EXPERIMENTAL_LSP_TOOL=true` active le LSP pour explorer avec goToDefinition
-- **SPIKE mode** — `.ciel/exploration.active` pour les prototypes, gates assouplies
-- **Byte limits strictes** — Chaque platform a ses limites (6KB-65KB), validation CI bloquante
-- **7 platforms supportées** — Cursor, Windsurf, Codex, OpenCode, Kilocode, Ollama, LM Studio
+- **SHA-pinned actions** — GitHub Actions pinées par SHA (SLSA L3)
+- **Permissions minimales** — `contents: read` par défaut
+- **Hooks shell validés** — `shellcheck` obligatoire
+- **Tests avant implémentation** — Test-first RED
 
 ---
 
@@ -118,44 +97,19 @@ Aucun secret requis pour la CI actuelle.
 
 ```
 Ciel/
-├── .github/workflows/     # CI/CD (3 workflows)
-│   ├── ci.yml             # CI principale (10 jobs)
-│   ├── test-hooks.yml     # Test hooks (9 cas .claude/hooks/)
-│   └── publish-npm.yml    # Publication npm @neikyun/ciel
-├── .opencode/             # Configuration OpenCode (v5)
-│   ├── agents/            # 5 agents (ciel, ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)
-│   ├── commands/          # 8 commandes slash
-│   └── plugins/           # ciel.ts (plugin principal v5)
-├── .claude/               # Configuration Claude Code (v5)
-│   ├── agents/            # 4 subagents (ciel-researcher, ciel-explorer, ciel-critic, ciel-improver)
-│   ├── hooks/             # 4 hooks (check-test-first, block-destructive, track-file, meta-critiquer)
-│   ├── settings.json      # Hooks configuration
-│   └── rules/             # Path-scoped rules (à venir)
-├── .ciel/                 # État persistant Ciel
-│   ├── map.json           # Carte du projet
-│   ├── memory.json        # Mémoire cross-session
-│   ├── parking.md         # Découvertes fortuites
-│   └── learnings.md       # Leçons apprises
-├── CLAUDE.md              # Instructions Claude Code (importe AGENTS.md)
-├── AGENTS.md              # Instructions OpenCode (v5) + philosophie
-├── ciel-overlay.md        # Overlay projet
-├── agents/                # Définitions agents (source)
-├── commands/              # Commandes slash (source)
-├── hooks/                 # 8 hooks bash/powershell
-├── skills/                # ~50 compétences Ciel
-├── scripts/               # Installation, build, tests
-│   ├── install.sh         # Installateur universel
-│   ├── build-platforms.sh # Build multi-platforms
-│   └── test-stop-hook.sh  # Test hooks (8 cas)
-├── evals/                 # Self-improvement harness
-└── platforms/             # Builds multi-platforms (7 platforms)
-    ├── cursor/
-    ├── windsurf/
-    ├── codex/
-    ├── opencode/
-    ├── kilocode/
-    ├── ollama/
-    └── lmstudio/
+├── .github/workflows/     # CI/CD
+├── .claude/               # Configuration Claude Code
+│   ├── agents/            # Subagents (ciel-researcher, explorer, critic, improver)
+│   ├── hooks/             # Hooks (user-prompt-submit, dispatch gate, etc.)
+│   └── skills/            # Skills domaine (~50)
+├── hooks/                 # Source hooks
+├── packages/ciel/         # Package npm @neikyun/ciel
+│   ├── src/               # Source TypeScript
+│   ├── assets/            # Hooks/skills pour distribution
+│   └── test/              # Tests
+├── CLAUDE.md              # Instructions projet
+├── VERSION                # Version courante
+└── ciel-overlay.md        # Ce fichier
 ```
 
 ---
@@ -163,17 +117,3 @@ Ciel/
 ## Version courante
 
 Voir fichier `VERSION` à la racine.
-
-## Leçons projet
-
-[2026-04-26] MISTAKE: les fichiers `.opencode/` (plugins/agents/commands) étaient supprimés du working tree mais toujours trackés dans git → RULE: toujours vérifier `git status` pour détecter les fichiers trackés supprimés accidentellement du working tree
-
-[2026-04-26] MISTAKE: le script `install.sh` copiait les fichiers OpenCode depuis `$SRC_DIR/.opencode/` mais les templates de distribution sont dans `$SRC_DIR/platforms/opencode/.opencode/` → RULE: l'install script doit copier depuis `platforms/opencode/.opencode/` (templates built), pas depuis `.opencode/` (propre config du projet Ciel)
-
-[2026-04-26] MISTAKE: le script `install.sh` générait un `opencode.json` minimal sans définitions d'agents → RULE: le `opencode.json` généré par install.sh doit inclure les 5 agents (ciel + 4 subagents) pour que le pipeline marche out-of-the-box
-
-[2026-05-06] MISTAKE: ciel-audit a revele que le dispatch gate (Task subagent=ciel-researcher/explorer) n'est pas enforce par hook → RULE: pre-tool-write.sh verifie /tmp/ciel_dispatched (cree par SubagentStart) et emet un avertissement stderr si absent
-
-[2026-05-06] MISTAKE: intentions "feature"/"implement" non reconnues pour prompts francais → RULE: SKILL.md a section "Routage des intentions" avec equivalents francais (faire, mettre en place, configurer, deployer, ajouter, creer) + fallback semantique
-
-[2026-05-06] MISTAKE: PreToolUse hooks en JSON stdout (hookSpecificOutput) non visibles → RULE: reminders de hook utilisent stderr (>2) canal fiable confirme

@@ -13,9 +13,8 @@ set -uo pipefail
 input_json=$(cat 2>/dev/null || echo "{}")
 [ -z "$input_json" ] && exit 0
 
-# Parse subagent_type and prompt head — prefer python3, fall back to grep
-if command -v python3 &>/dev/null; then
-  parsed=$(echo "$input_json" | python3 -c "
+# Parse subagent_type and prompt head
+parsed=$(echo "$input_json" | python3 -c "
 import json, sys
 try:
     d = json.load(sys.stdin)
@@ -26,12 +25,6 @@ try:
 except Exception:
     print('\t')
 " 2>/dev/null)
-else
-  # Fallback: grep-based extraction (no python3 available)
-  subagent_type=$(echo "$input_json" | grep -o '"subagent_type"\s*:\s*"[^"]*"' | head -1 | sed 's/.*"subagent_type"\s*:\s*"\([^"]*\)".*/\1/' 2>/dev/null || echo "")
-  prompt_head=$(echo "$input_json" | grep -o '"prompt"\s*:\s*"[^"]*"' | head -1 | cut -c1-200 2>/dev/null || echo "")
-  parsed="${subagent_type}\t${prompt_head}"
-fi
 
 subagent_type="${parsed%%$'\t'*}"
 prompt_head="${parsed#*$'\t'}"
@@ -43,6 +36,15 @@ fi
 
 # Allow ciel-* subagent types
 if [[ "$subagent_type" == ciel-* ]]; then
+    # Dispatch marker: a research dispatch satisfies the write/read gate for
+    # this session. Project-local + session-scoped (SessionStart clears it),
+    # replacing the old /tmp/ciel_dispatched.* scheme that had no writer.
+    if [[ "$subagent_type" == "ciel-researcher" || "$subagent_type" == "ciel-explorer" ]]; then
+        if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+            mkdir -p "$CLAUDE_PROJECT_DIR/.ciel" 2>/dev/null || true
+            date -u +%Y-%m-%dT%H:%M:%SZ > "$CLAUDE_PROJECT_DIR/.ciel/dispatched" 2>/dev/null || true
+        fi
+    fi
     exit 0
 fi
 

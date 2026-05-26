@@ -41,6 +41,18 @@ _resolve_ciel_version() {
 }
 CIEL_VERSION="$(_resolve_ciel_version)"
 
+# ─── Session reset — scope the dispatch + verification gates to this session ──
+# Without this, a prior session's markers leak forward (stale dispatch token,
+# false "unverified" Stop blocks). Cleared here so each session starts clean.
+if [ -n "$CWD" ] && [ -d "$CWD" ]; then
+  mkdir -p "$CWD/.ciel" 2>/dev/null || true
+  rm -f "$CWD/.ciel/dispatched" \
+        "$CWD/.ciel/last-code-edit" \
+        "$CWD/.ciel/last-verification" \
+        "$CWD/.ciel/relire-required" 2>/dev/null || true
+  echo "[]" > "$CWD/.ciel/tracked-files.json" 2>/dev/null || true
+fi
+
 MSG="Ciel v${CIEL_VERSION} — Trace: ${TRACE_ID}."
 if [[ -n "$OVERLAY" ]]; then
   MSG+=" Overlay: $OVERLAY."

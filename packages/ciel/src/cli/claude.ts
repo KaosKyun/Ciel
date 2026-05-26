@@ -24,7 +24,7 @@ export interface InstallResult {
 export const CIEL_HOOK_FILES = [
   "block-destructive.sh",
   "track-file.sh",
-  "session-version-check.sh",
+  "track-verification.sh",
   "pre-tool-write.sh",
   "pre-agent-gate.sh",
   "check-dispatch-gate.sh",
