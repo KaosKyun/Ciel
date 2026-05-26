@@ -16,13 +16,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# Skills may be at ROOT/skills (GitHub layout) or ROOT/Ciel/skills (dev layout)
-if [ -d "$ROOT/skills" ]; then
-  SKILLS="$ROOT/skills"
-elif [ -d "$ROOT/Ciel/skills" ]; then
-  SKILLS="$ROOT/Ciel/skills"
+# Canonical skills source: flat domain at the top level + nested
+# workflow/meta/utility/research groups (single source of truth, src/skills).
+if [ -d "$ROOT/src/skills" ]; then
+  SKILLS="$ROOT/src/skills"
 else
-  echo "ERROR: skills/ not found at $ROOT/skills or $ROOT/Ciel/skills"
+  echo "ERROR: canonical skills not found at $ROOT/src/skills"
   exit 1
 fi
 PLATFORMS="$ROOT/platforms"
@@ -1092,16 +1091,16 @@ _emit_agent_bundled_skills() {
       echo ""
       echo "> Match the detected stack to the skill whose \`paths\` glob applies, then apply its checks."
       bundle_skills_compact \
-        "$SKILLS/domain/frontend-mastery/SKILL.md" \
-        "$SKILLS/domain/backend-mastery/SKILL.md" \
-        "$SKILLS/domain/database-mastery/SKILL.md" \
-        "$SKILLS/domain/security-hardening/SKILL.md" \
-        "$SKILLS/domain/api-architecture/SKILL.md" \
-        "$SKILLS/domain/observability/SKILL.md" \
-        "$SKILLS/domain/performance-engineering/SKILL.md" \
-        "$SKILLS/domain/refactoring-patterns/SKILL.md" \
-        "$SKILLS/domain/cicd-security-hardener/SKILL.md" \
-        "$SKILLS/domain/accessibility-wcag-auditor/SKILL.md"
+        "$SKILLS/frontend/SKILL.md" \
+        "$SKILLS/backend/SKILL.md" \
+        "$SKILLS/database-design/SKILL.md" \
+        "$SKILLS/appsec/SKILL.md" \
+        "$SKILLS/api-design/SKILL.md" \
+        "$SKILLS/monitoring/SKILL.md" \
+        "$SKILLS/performance/SKILL.md" \
+        "$SKILLS/code-quality/SKILL.md" \
+        "$SKILLS/devsecops/SKILL.md" \
+        "$SKILLS/testing/SKILL.md"
       ;;
     critic)
       bundle_skills_inline \

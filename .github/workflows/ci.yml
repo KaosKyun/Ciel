@@ -315,7 +315,7 @@ jobs:
         run: |
           echo "=== Validating Skills ==="
           failed=0
-          for skill in skills/*/SKILL.md; do
+          for skill in src/skills/*/SKILL.md; do
             [ ! -f "$skill" ] && continue
             name=$(basename "$(dirname "$skill")")
             # Check YAML frontmatter (--- at start)

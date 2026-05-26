@@ -491,70 +491,28 @@ PY
         done
         download_if_needed ".claude/settings.json"
         download_if_needed "CLAUDE.md"
-        # Ciel skill (/ciel command on Claude Code) — skip if file not on CDN
-        download_if_needed "skills/ciel/SKILL.md"
-        download_if_needed "skills/ciel/reference.md"
-        [ -f "$TMP_DIR/skills/ciel/SKILL.md" ] && cp "$TMP_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" || true
-        [ -f "$TMP_DIR/skills/ciel/reference.md" ] && cp "$TMP_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" || true
-        # ── Skills (curl mode) ───────────────────────────────────────────
-        # Mirrored to .claude/skills/<group>/<name>/SKILL.md for auto-discovery.
-        # WARNING: these lists MUST stay in sync with tracked files in skills/.
-        # Run `git ls-files skills/ | grep SKILL.md` and `.claude/rules/` to verify.
-        # Local-mode installs use `find` and are always in sync dynamically.
-
-        # Domain skills (14 — skills/domain/<name>/SKILL.md)
-        for skill in accessibility-wcag-auditor api-architecture backend-mastery cicd-pipeline-designer cicd-security-hardener database-mastery frontend-mastery mcp-configurator observability performance-engineering refactoring-patterns security-hardening test-writing ts-js-patterns; do
-          download_if_needed "skills/domain/${skill}/SKILL.md"
-          if [ -f "$TMP_DIR/skills/domain/${skill}/SKILL.md" ]; then
-            mkdir -p "$target_dir/.claude/skills/domain/${skill}"
-            cp "$TMP_DIR/skills/domain/${skill}/SKILL.md" "$target_dir/.claude/skills/domain/${skill}/SKILL.md"
-          fi
-        done
-
-        # Workflow skills (29 — skills/workflow/<name>/SKILL.md)
-        for skill in adr-auto ai-failure-modes-detector ask-window avec-quoi-versioner ci-watcher ciel-dev-process critiquer-auditor debug-reasoning-rca depth-classifier diverge doc-validator-official evaluer-sizer faire-gatekeeper flux-narrator memoire memoire-consolidator meta-critiquer modern-patterns-checker pattern-fitness-check playwright-visual-critic pr-review-responder prouver-verifier quoi-framer relire-critic security-regression-check self-consistency-verifier spike-mode stride-analyzer test-strategy-vitest-playwright; do
-          download_if_needed "skills/workflow/${skill}/SKILL.md"
-          if [ -f "$TMP_DIR/skills/workflow/${skill}/SKILL.md" ]; then
-            mkdir -p "$target_dir/.claude/skills/workflow/${skill}"
-            cp "$TMP_DIR/skills/workflow/${skill}/SKILL.md" "$target_dir/.claude/skills/workflow/${skill}/SKILL.md"
-          fi
-        done
-
-        # Meta skills (6 — skills/meta/<name>/SKILL.md)
-        for skill in ciel-improve learnings-capture skill-creator skill-freshness-auditor skill-variant-evaluator skills-first-design-auditor; do
-          download_if_needed "skills/meta/${skill}/SKILL.md"
-          if [ -f "$TMP_DIR/skills/meta/${skill}/SKILL.md" ]; then
-            mkdir -p "$target_dir/.claude/skills/meta/${skill}"
-            cp "$TMP_DIR/skills/meta/${skill}/SKILL.md" "$target_dir/.claude/skills/meta/${skill}/SKILL.md"
-          fi
-        done
-
-        # Utility skills (9 — skills/utility/<name>/SKILL.md)
-        for skill in branch-cleaner branch-setup changelog-updater commit-writer issue-closer issue-creator pr-merger pr-opener release-publisher; do
-          download_if_needed "skills/utility/${skill}/SKILL.md"
-          if [ -f "$TMP_DIR/skills/utility/${skill}/SKILL.md" ]; then
-            mkdir -p "$target_dir/.claude/skills/utility/${skill}"
-            cp "$TMP_DIR/skills/utility/${skill}/SKILL.md" "$target_dir/.claude/skills/utility/${skill}/SKILL.md"
-          fi
-        done
-
-        # Research skills (6 — skills/research/<name>/SKILL.md)
-        for skill in fact-check-claims research-forums research-github-issues research-web-sources synthesize-findings validate-source-credibility; do
-          download_if_needed "skills/research/${skill}/SKILL.md"
-          if [ -f "$TMP_DIR/skills/research/${skill}/SKILL.md" ]; then
-            mkdir -p "$target_dir/.claude/skills/research/${skill}"
-            cp "$TMP_DIR/skills/research/${skill}/SKILL.md" "$target_dir/.claude/skills/research/${skill}/SKILL.md"
-          fi
-        done
-
-        # Rules — auto-inject on matching file paths via .claude/rules/
-        # Only 2 rules exist (security, testing). Kept as explicit list so missing
-        # rules are noticed rather than silently skipped.
-        mkdir -p "$target_dir/.claude/rules"
-        for rule in security testing; do
-          download_if_needed ".claude/rules/${rule}.md"
-          [ -f "$TMP_DIR/.claude/rules/${rule}.md" ] && cp "$TMP_DIR/.claude/rules/${rule}.md" "$target_dir/.claude/rules/${rule}.md" || true
-        done
+        # ── Skills + rules (curl mode) — enumerate the canonical src/ tree ──
+        # One recursive git-trees API call, no hardcoded lists to drift. Skills
+        # mirror to .claude/skills/<rel> (flat domain + nested workflow/meta/…);
+        # rules to .claude/rules/. Degrades gracefully if jq or the API is absent.
+        mkdir -p "$target_dir/.claude/skills" "$target_dir/.claude/rules"
+        TREE_JSON=$(curl -fsSL "https://api.github.com/repos/KaosKyun/Ciel/git/trees/main?recursive=1" 2>/dev/null)
+        if [ -z "$TREE_JSON" ] || ! command -v jq >/dev/null 2>&1; then
+          warn "Skills: git-trees API or jq unavailable — skipping curl-mode skill install (use 'npm install -g @neikyun/ciel' for full skills)"
+        else
+          for path in $(printf '%s' "$TREE_JSON" | jq -r '.tree[].path | select(test("^src/skills/.+/(SKILL|reference)\\.md$"))' 2>/dev/null); do
+            rel="${path#src/skills/}"
+            download_if_needed "$path"
+            if [ -f "$TMP_DIR/$path" ]; then
+              mkdir -p "$target_dir/.claude/skills/$(dirname "$rel")"
+              cp "$TMP_DIR/$path" "$target_dir/.claude/skills/$rel"
+            fi
+          done
+          for path in $(printf '%s' "$TREE_JSON" | jq -r '.tree[].path | select(test("^src/rules/[^/]+\\.md$"))' 2>/dev/null); do
+            download_if_needed "$path"
+            [ -f "$TMP_DIR/$path" ] && cp "$TMP_DIR/$path" "$target_dir/.claude/rules/$(basename "$path")" || true
+          done
+        fi
         ensure cp "$TMP_DIR/.claude/agents/"*.md "$target_dir/.claude/agents/"
         ensure cp "$TMP_DIR/.claude/hooks/"*.sh "$target_dir/.claude/hooks/"
         [ -f "$TMP_DIR/.claude/hooks/memory-engine.py" ] && cp "$TMP_DIR/.claude/hooks/memory-engine.py" "$target_dir/.claude/hooks/" 2>/dev/null || true
@@ -598,23 +556,23 @@ PY
         # Flat skills live at skills/<name>/SKILL.md. Grouped skills (workflow,
         # research, meta, utility) live at skills/<group>/<name>/SKILL.md. Ciel
         # skill also copies reference.md.
-        if [ -d "$SRC_DIR/skills" ]; then
+        if [ -d "$SRC_DIR/src/skills" ]; then
           if [ -f "$target_dir/.claude/skills" ]; then rm -f "$target_dir/.claude/skills" 2>/dev/null || true; fi
           mkdir -p "$target_dir/.claude/skills"
 
           # Ciel skill — special case (copies reference.md too)
-          if [ -f "$SRC_DIR/skills/ciel/SKILL.md" ]; then
+          if [ -f "$SRC_DIR/src/skills/ciel/SKILL.md" ]; then
             mkdir -p "$target_dir/.claude/skills/ciel"
-            cp $CP_FLAG "$SRC_DIR/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null || true
-            cp $CP_FLAG "$SRC_DIR/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null || true
+            cp $CP_FLAG "$SRC_DIR/src/skills/ciel/SKILL.md" "$target_dir/.claude/skills/ciel/SKILL.md" 2>/dev/null || true
+            cp $CP_FLAG "$SRC_DIR/src/skills/ciel/reference.md" "$target_dir/.claude/skills/ciel/reference.md" 2>/dev/null || true
           fi
 
           # All other skills — iterate source to discover both flat and grouped.
           # skills/<name>/SKILL.md          -> .claude/skills/<name>/SKILL.md
           # skills/<group>/<name>/SKILL.md  -> .claude/skills/<group>/<name>/SKILL.md
-          for skill_src in $(find "$SRC_DIR/skills" -name "SKILL.md" -not -path "*/.legacy*" -not -path "*/ciel/*"); do
+          for skill_src in $(find "$SRC_DIR/src/skills" -name "SKILL.md" -not -path "*/.legacy*" -not -path "*/ciel/*"); do
             [ -f "$skill_src" ] || continue
-            rel="${skill_src#$SRC_DIR/skills/}"
+            rel="${skill_src#$SRC_DIR/src/skills/}"
             skill_dir="$(dirname "$rel")"
             mkdir -p "$target_dir/.claude/skills/${skill_dir}"
             cp $CP_FLAG "$skill_src" "$target_dir/.claude/skills/${skill_dir}/SKILL.md" 2>/dev/null || true

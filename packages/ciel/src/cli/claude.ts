@@ -146,9 +146,15 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     }
   }
 
+  // Skills source: npm assets ship them flat under skills/; the repo keeps the
+  // canonical tree under src/skills/ (local install). Resolve whichever exists.
+  const skillsRoot = existsSync(join(srcDir, "skills"))
+    ? join(srcDir, "skills")
+    : join(srcDir, "src/skills");
+
   // Ciel skill (SKILL.md + reference.md)
-  const skillSrc = join(srcDir, "skills/ciel/SKILL.md");
-  const skillRefSrc = join(srcDir, "skills/ciel/reference.md");
+  const skillSrc = join(skillsRoot, "ciel/SKILL.md");
+  const skillRefSrc = join(skillsRoot, "ciel/reference.md");
   if (existsSync(skillSrc)) {
     const action = copyIfNewer(skillSrc, join(skillsDest, "SKILL.md"), force);
     if (action === "copied") installed.push(".claude/skills/ciel/SKILL.md");
@@ -203,7 +209,7 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
   // The top-level loop ships discoverable skills (domain + ciel + the three
   // recovered: environments/github/research); nested workflow/meta dirs have no
   // root SKILL.md so they are skipped — Claude discovery is top-level only.
-  const skillsSrcDir = join(srcDir, "skills");
+  const skillsSrcDir = skillsRoot;
   const skillsDestDir = join(targetDir, ".claude/skills");
   if (existsSync(skillsSrcDir)) {
     for (const entry of readdirSync(skillsSrcDir)) {

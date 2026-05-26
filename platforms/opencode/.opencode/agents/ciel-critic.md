@@ -134,6 +134,105 @@ If your output is < 200 tokens on a Standard/Critical RELIRE → suspect truncat
 
 ---
 
+### Skill: `relire-critic`
+
+
+# Code Self-Review — Hostile Critique Methodology
+
+## What this covers
+
+How to review your own code as if someone else wrote it. Self-review fails because the author reinforces their own blind spots (degeneration of thought, CriticBench 2024). This methodology forces adversarial thinking.
+
+## Core principle
+
+Read changed files **as if someone else wrote them**. Your job is to find what could fail, not to confirm what works.
+
+## Methodology: 3 RISQUES
+
+Generate EXACTLY 3 specific critiques of the changed code. Not 2, not 5 — 3 forces focus.
+
+### Mandatory distribution
+
+Each set of 3 RISQUES must include:
+
+1. **Functional risk** — what breaks for users? "This fails when..."
+2. **Import/API surface check** — does this import path actually exist? Is the API contract correct?
+3. **Data assumption check** — does this DB column / response shape / format actually match reality?
+
+### Specificity rules
+
+- Concrete, not abstract: "might have bugs" is invalid
+- Reference specific `file:line` where the risk lives
+- Can't generate 3 specific critiques → you don't understand the code → read more
+
+### Format
+
+```
+RISQUE: [what could fail] parce que [root cause] — IMPACT: [consequence]
+```
+
+## Resolution
+
+For each RISQUE, choose ONE:
+
+- **FIX**: exact correction needed — name the code change
+- **ACCEPT**: why the risk is acceptable (TTL? cosmetic? window < 1s?)
+- **DEFER**: issue reference + why out of scope
+
+If 0 fixes needed → suspicious. Re-examine for specificity.
+
+## Quality checklist (8 items)
+
+Apply after resolving RISQUES:
+
+1. Quality gates respected? (complexity < 15, nesting < 4, functions < 50 lines)
+2. All new imports exist in actual files at stated paths?
+3. All DB columns referenced exist in real schema?
+4. Test mocks on same host:port as actual requests?
+5. Tests could fail independently of implementation?
+6. Duplicated logic with existing code?
+7. Linter clean? (0 new violations vs base branch)
+8. Would a staff engineer approve this without changes?
+
+Each item: evidence (`file:line` or command output) or explicit "N/A because X".
+
+## Output format
+
+```
+## RISQUES
+1. RISQUE: <X> parce que <Y> — IMPACT: <Z>
+   → FIX/ACCEPT/DEFER: <resolution>
+2. ...
+3. ...
+
+## CHECKLIST
+- [✓/✗/N/A] <item> — <evidence>
+...
+
+## VERDICT
+BLOCKING: <list or "none">
+IMPORTANT: <list or "none">
+MINOR: <list or "none">
+```
+
+## How to verify
+
+- [ ] Exactly 3 RISQUES (no more, no less)?
+- [ ] Distribution: 1 functional + 1 import + 1 data-assumption?
+- [ ] Each RISQUE has file:line evidence?
+- [ ] Each RISQUE has resolution (FIX/ACCEPT/DEFER)?
+- [ ] Quality checklist (8 items) completed?
+- [ ] VERDICT issued (BLOCKING/IMPORTANT/MINOR)?
+
+## Common mistakes
+
+- **Generic critiques**: "might not scale" → too vague. "Loads all users into memory at line 47, O(n)" → specific.
+- **Skipping distribution**: all 3 are functional risks, no import or data check → incomplete.
+- **Too many RISQUES**: 5 critiques dilute focus. Pick top 3 by severity.
+- **Not reading code**: reviewing the description instead of the actual file → always read code first.
+
+---
+
 ### Skill: `critiquer-auditor`
 
 
@@ -266,6 +365,102 @@ VALIDATED: <what was verified>
 - **Skipping STRIDE categories**: all 6 must be explicit, even if N/A
 - **BLOCKING without FIX**: if you can't name the fix, it's not actionable enough for BLOCKING
 - **No VALIDATED section**: reviews that only report problems miss what the code got right
+
+---
+
+### Skill: `stride-analyzer`
+
+
+# STRIDE Threat Modeling — Security Analysis Methodology
+
+## What this covers
+
+How to do a security threat model using STRIDE. STRIDE is the framework; grep is the evidence. No theater — every finding needs `file:line` proof.
+
+## Core principle
+
+**Anti-theater rule**: every checklist item needs evidence (file:line or grep output). "Checked ✓" with no evidence = not checked.
+
+## Pass 1: Risk rank (mechanical signals)
+
+Classify the change:
+
+- **Critical** if ANY: `auth/`, `security/`, DB tables (users, sessions, tokens), `.executeQuery`, `.executeUpdate`, `userId`, `password`, `token`, `secret`
+- **Important** if ANY: diff > 5 files, `validate`, `sanitize`, `rateLimit`, route handlers
+- **Routine** otherwise
+
+→ Critical = all 3 passes. Important = passes 2+3. Routine = pass 3 only.
+
+## Pass 2: STRIDE 6 categories (Critical/Important)
+
+For each category, answer with grep-backed evidence:
+
+| Category | Question | Evidence type |
+|----------|----------|--------------|
+| **S**poofing | Can I impersonate someone? | Auth checks, token validation |
+| **T**ampering | Can input be modified in transit? | Input validation, integrity checks |
+| **R**epudiation | Can a user deny this action? | Audit logging, timestamps |
+| **I**nfo Disclosure | What leaks? | Error messages, logs, responses |
+| **D**oS | Can this be flooded/exhausted? | Rate limits, resource bounds |
+| **E**levation | Can I access what I shouldn't? | Authorization checks, role validation |
+
+Each answer: grep-backed or "N/A because X". **Mark N/A explicitly, never skip silently.**
+
+**OPS lens** (overlayed on STRIDE): unclosed connections, memory leaks, locks, behavior at 100x volume.
+
+## Pass 3: Killer checklist (all levels)
+
+- Same field = same validation everywhere? (grep to verify)
+- Same domain = same auth on ALL transports (REST + WS + SSE)?
+- Identity fields resolved server-side, never client-supplied?
+- SQL parameterized, never interpolated?
+- PII touched = anonymization covered?
+
+Each item: evidence (`file:line` or grep output) or N/A.
+
+## Output format
+
+```
+## STRIDE ANALYSIS
+
+### Risk rank: <Critical | Important | Routine>
+Signals: <list>
+
+### STRIDE (if Critical/Important)
+- S (Spoofing): <N/A because X | RISQUE: ... — evidence: file:line>
+- T (Tampering): <...>
+- R (Repudiation): <...>
+- I (Info Disclosure): <...>
+- D (DoS): <...>
+- E (Elevation): <...>
+
+OPS: <connections | memory | locks | 100x volume>
+
+### Killer checklist
+- [✓/✗] Same validation everywhere — evidence: <grep output>
+- [✓/✗] Auth parity across transports — evidence: <...>
+- [✓/✗] Identity server-side — evidence: <...>
+- [✓/✗] SQL parameterized — evidence: <...>
+- [✓/✗] PII anonymization — evidence: <...>
+
+### VERDICT
+BLOCKING: <list or none>
+IMPORTANT: <list or none>
+```
+
+## How to verify
+
+- [ ] Pass 1 (Risk rank) completed with mechanical signals?
+- [ ] Pass 2 (STRIDE 6 categories) — all categories have findings or explicit "N/A because X"?
+- [ ] Pass 3 (Killer checklist) completed?
+- [ ] VERDICT issued (PROCEED / BLOCK / INVESTIGATE)?
+- [ ] Evidence format: `file:line` or grep output?
+
+## Key rules
+
+- **Don't skip categories silently**: every STRIDE category gets a finding or explicit "N/A because X"
+- **Evidence format**: `path/to/file.ext:123` or `grep -n "pattern" src/` output
+- **Rotate stale items**: if a checklist item catches nothing in 10+ audits, consider replacing it
 
 ---
 

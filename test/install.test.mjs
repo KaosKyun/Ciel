@@ -15,6 +15,13 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BIN = join(ROOT, "packages", "ciel", "bin", "ciel.js");
 
+test("legacy root skills/ tree is removed — src/skills is the only source", () => {
+  assert.ok(
+    !existsSync(join(ROOT, "skills")),
+    "root skills/ must be deleted; all readers now point at src/skills",
+  );
+});
+
 test("ciel init -y installs the canonical skill set into the project", () => {
   const proj = mkdtempSync(join(tmpdir(), "ciel-init-"));
   // Mark as a Claude Code project so installClaude runs.

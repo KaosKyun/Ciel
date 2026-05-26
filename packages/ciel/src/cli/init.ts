@@ -133,13 +133,13 @@ async function downloadTemplatesToTemp(): Promise<string | null> {
     "commands/ciel-audit.md",
     "commands/ciel-memory-init.md",
     "commands/ciel-memory.md",
-    // Ciel skill
-    "skills/ciel/SKILL.md",
-    "skills/ciel/reference.md",
+    // Ciel skill (canonical src/ tree; resolved flat by installClaude)
+    "src/skills/ciel/SKILL.md",
+    "src/skills/ciel/reference.md",
     // Domain skills (invoked via Skill() by rules Dispatch)
-    "skills/environments/SKILL.md",
-    "skills/github/SKILL.md",
-    "skills/research/SKILL.md",
+    "src/skills/environments/SKILL.md",
+    "src/skills/github/SKILL.md",
+    "src/skills/research/SKILL.md",
   ];
 
   let downloaded = 0;
