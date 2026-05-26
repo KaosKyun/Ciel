@@ -1,5 +1,12 @@
 # Ciel — Changelog
 
+## [6.16.3](https://github.com/KaosKyun/Ciel/compare/v6.16.2...v6.16.3) (2026-05-26)
+
+
+### Bug Fixes
+
+* **cli:** detect CLAUDE.md as Claude marker + fix repair re-exec arg leak ([#94](https://github.com/KaosKyun/Ciel/issues/94)) ([02040a1](https://github.com/KaosKyun/Ciel/commit/02040a1ee80cc722e04bc3e08fd604142664cc8b))
+
 ## [6.16.2](https://github.com/KaosKyun/Ciel/compare/v6.16.1...v6.16.2) (2026-05-26)
 
 
