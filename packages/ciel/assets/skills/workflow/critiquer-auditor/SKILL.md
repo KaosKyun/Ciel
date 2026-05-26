@@ -89,8 +89,8 @@ Every finding: RISQUE format. Every BLOCKING: specific FIX + NOT-X (what solutio
 
 ### Assumptions
 1. <assumption> — verified: <yes/no, evidence>
-2. ...
-3. ...
+2....
+3....
 
 ### Scope
 - Nothing-counterfactual: <consequence if no change>
@@ -100,8 +100,8 @@ Every finding: RISQUE format. Every BLOCKING: specific FIX + NOT-X (what solutio
 - Code vs model: <matches | deviates at file:line>
 - Bypass signals: <N/3 flagged>
 - STRIDE:
-  - S: <N/A because X | RISQUE: ...>
-  - T/R/I/D/E: ...
+  - S: <N/A because X | RISQUE:...>
+  - T/R/I/D/E:...
 
 ### Consistency
 - Pattern: <grep evidence>

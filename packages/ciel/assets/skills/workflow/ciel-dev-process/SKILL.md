@@ -68,8 +68,8 @@ Feature / Bug
 
 ```bash
 # Sync hooks & CLAUDE.md to distribution copies
-cp hooks/pre-tool-write.sh .claude/hooks/
-cp hooks/user-prompt-submit.sh .claude/hooks/
+cp hooks/pre-tool-write.sh.claude/hooks/
+cp hooks/user-prompt-submit.sh.claude/hooks/
 cp CLAUDE.md packages/ciel/assets/CLAUDE.md
 cp hooks/*.sh packages/ciel/assets/.claude/hooks/
 

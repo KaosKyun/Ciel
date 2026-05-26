@@ -1,6 +1,6 @@
 ---
 name: spike-mode
-description: How to use SPIKE mode in Ciel — prototype/exploration mode with assoupli gates. Create .ciel/exploration.active to enter spike mode. Quality gates relaxed, code marked FIXME/TODO. Used for POC, draft, experimental, throwaway code. Must be refactored properly after.
+description: How to use SPIKE mode in Ciel — prototype/exploration mode with assoupli gates. Create.ciel/exploration.active to enter spike mode. Quality gates relaxed, code marked FIXME/TODO. Used for POC, draft, experimental, throwaway code. Must be refactored properly after.
 ---
 
 # SPIKE Mode — Explore Without Commitment (Ciel)
@@ -31,7 +31,7 @@ Do NOT use SPIKE mode for:
 ## How to enter SPIKE mode
 
 ```bash
-touch .ciel/exploration.active
+touch.ciel/exploration.active
 ```
 
 The plugin detects this file and:
@@ -42,7 +42,7 @@ The plugin detects this file and:
 ## How to exit SPIKE mode
 
 ```bash
-rm .ciel/exploration.active
+rm.ciel/exploration.active
 ```
 
 Or when the exploration is done,
@@ -94,7 +94,7 @@ Follow-up task: <describe the proper implementation>
 
 ## How to verify
 
-- [ ] .ciel/exploration.active exists?
+- [ ].ciel/exploration.active exists?
 - [ ] All exploratory code has FIXME/TODO markers?
 - [ ] Exit criteria defined?
 - [ ] Follow-up task created for proper implementation?

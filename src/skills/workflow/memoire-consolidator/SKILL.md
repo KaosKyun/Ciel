@@ -1,6 +1,6 @@
 ---
 name: memoire-consolidator
-description: Periodic maintenance of .ciel/memory/ — promotes high-frequency episodes to concepts, merges duplicates, marks stale entries, rebuilds index.json. Run manually or via /ciel-improve. Keeps the cued-recall corpus from accumulating noise as projects age.
+description: Periodic maintenance of.ciel/memory/ — promotes high-frequency episodes to concepts, merges duplicates, marks stale entries, rebuilds index.json. Run manually or via /ciel-improve. Keeps the cued-recall corpus from accumulating noise as projects age.
 ---
 
 # Consolidate Cued-Recall Memory
@@ -63,10 +63,10 @@ After running, emit a summary:
 ```
 [memoire-consolidator] 2026-05-08
 Promoted: 3 episodes → concepts
-Merged:   2 episode pairs → 2 concepts
-Stale:    7 entries flagged
-Dead:     1 anchor needs review (see .ciel/memory/review-queue.md)
-Index:    rebuilt — 42 active memories, 9 stale, 51 total
+Merged: 2 episode pairs → 2 concepts
+Stale: 7 entries flagged
+Dead: 1 anchor needs review (see.ciel/memory/review-queue.md)
+Index: rebuilt — 42 active memories, 9 stale, 51 total
 ```
 
 ## Anti-patterns to avoid

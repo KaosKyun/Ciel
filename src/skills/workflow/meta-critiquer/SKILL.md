@@ -7,11 +7,11 @@ description: How to reflect on completed work — 10-item post-task reflection c
 
 ## What this covers
 
-How to reflect on completed work and capture learnings. In Ciel, this is the last pipeline step (etape 16: META). Always run after every task, even trivial ones.
+How to reflect on completed work and capture learnings. Run it at the end of a task, even trivial ones, to close the feedback loop.
 
 ## Core principle
 
-**Always reflect, even after trivial tasks.** 30 seconds is cheap; missed reflections compound. In v5, the reflection covers not just the code but the project map, parking lot, and boy-scout rule.
+**Always reflect, even after trivial tasks.** 30 seconds is cheap; missed reflections compound.
 
 ## The 10 checks (v5)
 
@@ -26,12 +26,12 @@ Was the task processed at the right depth?
 
 Did something go wrong that current gates didn't catch?
 - Yes -> add a new gate immediately
-- Capture the pattern for future reference (in .ciel/learnings.md)
+- Capture the pattern for future reference (in.ciel/learnings.md)
 
 ### 3. User correction?
 
 Did the user correct you during the task?
-- Yes -> persist to .ciel/learnings.md
+- Yes -> persist to.ciel/learnings.md
 - Don't just note it -- save it so it doesn't happen again
 
 ### 4. Stale branches?
@@ -52,10 +52,10 @@ After Critical task or 3+ agent dispatches: consider context compression or new 
 ### 7. Dead code sweep
 
 Run language-specific linter:
-- **Python**: `ruff check --select F401,F811,F841 . && vulture . --min-confidence 80`
+- **Python**: `ruff check --select F401,F811,F841. && vulture. --min-confidence 80`
 - **TypeScript**: `npx knip` or manual grep for unused exports
 - **Kotlin**: Detekt `UnusedPrivateMember` + `UnusedImport`
-- **Go**: `go vet ./...`
+- **Go**: `go vet./...`
 - **Rust**: `cargo clippy -- -W unused`
 
 ### 8. Map update (v5)
@@ -67,7 +67,7 @@ Has the project map (.ciel/map.json) been updated with new modules, key files, o
 ### 9. Parking lot (v5)
 
 Were any tangential discoveries made during the task?
-- Yes -> note in .ciel/parking.md
+- Yes -> note in.ciel/parking.md
 - Don't act on them now -- just note them
 
 ### 10. Boy-scout rule (v5)
@@ -83,7 +83,7 @@ Did you leave the code better than you found it?
 
 1. Depth match: <match | over/under-processed>
 2. New failure mode: <none | detected>
-3. User correction: <none | captured in .ciel/learnings.md>
+3. User correction: <none | captured in.ciel/learnings.md>
 4. Stale branches: <N branches | cleanup recommended>
 5. Uncovered issues: <none | #N needs closure>
 6. Context health: <N% | compact recommended>

@@ -1,19 +1,19 @@
 ---
 name: faire-gatekeeper
-description: How to implement code safely — 6 quality gates for Ciel (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode relaxes gates. A checklist for implementation discipline during FAIRE (etape 11).
+description: How to implement code safely — 6 quality gates (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode relaxes gates. A checklist for implementation discipline.
 ---
 
 # Implementation Safety — 6 Quality Gates (Ciel)
 
 ## What this covers
 
-How to implement code with discipline during Ciel FAIRE phase (etape 11). These gates run during coding and are enforced by hooks. After FAIRE, the pipeline continues to TESTER (run test suite).
+How to implement code with discipline. These gates run during coding and are enforced by hooks; once implementation passes, run the test suite.
 
 ## Core principle
 
 **Check gates per-file, not per-task.** Each write/edit gets its own gate check. In SPIKE mode, gates 1 and 6 are optional but the code must be marked FIXME/TODO.
 
-**After FAIRE: TESTER.** Once implementation is done, the next mandatory step is TESTER — run the project's test suite. RED means back to FAIRE. GREEN means continue to ADR/RELIRE.
+**Then test.** Once implementation is done, run the project's test suite. RED means back to coding. GREEN means continue (ADR if a design decision was made, then review).
 
 ## The 6 gates (v5)
 
@@ -68,11 +68,11 @@ After the change: is the code better than before?
 ## FAIRE gates
 
 Gate 1 (test-first): <PASS | BLOCKED | SPIKE>
-Gate 2 (alternatives): <X > Y because ...>
-Gate 3 (idiomatic): <PASS | bypass justified: ...>
+Gate 2 (alternatives): <X > Y because...>
+Gate 3 (idiomatic): <PASS | bypass justified:...>
 Gate 4 (quality): <complexity N, nesting N, length N | PASS>
-Gate 5 (removal): <no removal | safe: ...>
-Gate 6 (boy-scout): <improved: ... | status quo>
+Gate 5 (removal): <no removal | safe:...>
+Gate 6 (boy-scout): <improved:... | status quo>
 ```
 
 ## How to verify

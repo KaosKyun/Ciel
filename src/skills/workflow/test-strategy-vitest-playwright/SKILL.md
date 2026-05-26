@@ -90,7 +90,7 @@ it('paginates offset correctly when page is 0', () => {
 
 - Pyramid ratios are targets, not strict quotas — a pure-UI feature may skew E2E higher; a pure-algorithm feature may be 95% unit
 - No E2E without unit first
-- One test per behavior — tests named `it('does many things', ...)` are code smell
+- One test per behavior — tests named `it('does many things',...)` are code smell
 - Avoid snapshot tests for dynamic output — they become "update snapshots" rituals that don't catch bugs
 - Accessibility-tree > CSS selectors in Playwright — `getByRole` survives refactors
 - Flaky test policy: first flake → debug. Second flake → quarantine (`test.skip` + ISSUE). Third flake → delete unless Critical

@@ -25,7 +25,7 @@ FLAKY_THRESHOLD: [default 15 — % fail rate on main that classifies as flaky]
 ### Auto-inference sources
 
 - **BRANCH** → `git rev-parse --abbrev-ref HEAD`
-- **PR_NUMBER** → `gh pr view --json number --jq .number 2>/dev/null`
+- **PR_NUMBER** → `gh pr view --json number --jq.number 2>/dev/null`
 - **WORKFLOW** → all workflows that ran on the branch
 
 ---
@@ -67,14 +67,14 @@ gh run list --branch="$BRANCH" --limit=5 --json databaseId,name,status,conclusio
 
 ```bash
 # Get failing jobs for this run
-FAILED_JOBS=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .name')
+FAILED_JOBS=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure") |.name')
 
 # For each failed job, check history on the base branch
-BASE=$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName 2>/dev/null || echo "main")
+BASE=$(gh pr view "$PR_NUMBER" --json baseRefName --jq.baseRefName 2>/dev/null || echo "main")
 
 for JOB in $FAILED_JOBS; do
   # Last 50 runs on base branch for same workflow
-  WORKFLOW=$(gh run view "$RUN_ID" --json workflowName --jq .workflowName)
+  WORKFLOW=$(gh run view "$RUN_ID" --json workflowName --jq.workflowName)
   FAIL_RATE=$(gh run list \
     --branch="$BASE" \
     --workflow="$WORKFLOW" \
@@ -115,7 +115,7 @@ For handoff to `debug-reasoning-rca`:
 
 ```bash
 for JOB in $REAL_FAILURES; do
-  JOB_ID=$(gh run view "$RUN_ID" --json jobs --jq ".jobs[] | select(.name == \"$JOB\") | .databaseId")
+  JOB_ID=$(gh run view "$RUN_ID" --json jobs --jq ".jobs[] | select(.name == \"$JOB\") |.databaseId")
 
   # Last 50 lines of the failing step
   gh run view --job="$JOB_ID" --log-failed | tail -50
@@ -171,8 +171,8 @@ Handoff (if real failures):
 ```
 
 ```
-❌ sleep 300 && gh run list       # blocked by harness; also cache-cold
-✅ gh run watch --exit-status     # streams, no sleep
+❌ sleep 300 && gh run list # blocked by harness; also cache-cold
+✅ gh run watch --exit-status # streams, no sleep
 ```
 
 ---

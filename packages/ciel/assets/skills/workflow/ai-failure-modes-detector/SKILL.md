@@ -115,7 +115,7 @@ Output is plausible but references facts outside the code that cannot be verifie
 ## AI-FAILURE-MODES VERDICT
 
 ### Author
-LLM  (auto-detected via commit message pattern | user-declared)
+LLM (auto-detected via commit message pattern | user-declared)
 
 ### Findings by mode
 1. Invented APIs:
@@ -138,8 +138,8 @@ LLM  (auto-detected via commit message pattern | user-declared)
 
 ### Summary
 BLOCK: 2
-WARN:  2
-INFO:  1
+WARN: 2
+INFO: 1
 ```
 
 ---

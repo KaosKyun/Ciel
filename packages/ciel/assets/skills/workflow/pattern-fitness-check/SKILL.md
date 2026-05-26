@@ -53,7 +53,7 @@ grep -rn "fun <functionName>" --include='*.kt' src/
 For impacted files, build a minimal map:
 
 1. **Signatures** — `grep -n "^fun \|^class \|^interface \|^object " <file>`
-2. **Dependents** — `grep -rln "import .*<filename>" src/`
+2. **Dependents** — `grep -rln "import.*<filename>" src/`
 3. **Hub check** — if step 2 returns 5+ files → **HUB WARNING**: changes ripple widely, proceed with caution
 
 ---

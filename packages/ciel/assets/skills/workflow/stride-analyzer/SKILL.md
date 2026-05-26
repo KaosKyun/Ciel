@@ -60,7 +60,7 @@ Each item: evidence (`file:line` or grep output) or N/A.
 Signals: <list>
 
 ### STRIDE (if Critical/Important)
-- S (Spoofing): <N/A because X | RISQUE: ... — evidence: file:line>
+- S (Spoofing): <N/A because X | RISQUE:... — evidence: file:line>
 - T (Tampering): <...>
 - R (Repudiation): <...>
 - I (Info Disclosure): <...>
