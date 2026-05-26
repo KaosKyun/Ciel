@@ -1,4 +1,4 @@
-// Ciel — OpenCode plugin (v6.16.3)
+// Ciel — OpenCode plugin (v6.17.0)
 // Ciel v5 plugin. Pure TS, no shell dependency.
 //
 // Injection model (verified against @opencode-ai/plugin/dist/index.d.ts):
