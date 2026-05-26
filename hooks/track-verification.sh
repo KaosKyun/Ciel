@@ -24,7 +24,7 @@ except:
 
 # Test/verification runners across ecosystems. Generous on purpose: any of these
 # running after a code edit clears the Stop verification gate for this session.
-if echo "$CMD" | grep -qiE '(\bnpm (run )?test|\byarn (run )?test|\bpnpm (run )?test|\bbun test|\bvitest|\bjest|\bmocha|node --test|tsx --test|\bpytest|python[0-9.]* -m pytest|\bgo test|\bcargo test|\bphpunit|\brspec|\bmvn test|gradle.*test|\bctest|dotnet test)'; then
+if echo "$CMD" | grep -qiE '(\bnpm (run )?test|\byarn (run )?test|\bpnpm (run )?test|\bbun test|\bvitest|\bjest|\bmocha|node --test|tsx --test|\bpytest|python[0-9.]* -m pytest|\bgo test|\bcargo test|\bphpunit|\brspec|\bmvn test|gradle.*test|\bctest|dotnet test|make (test|check|verify)|npm run (check|verify|ci|typecheck)|bash [^&|;]*test[^&|;]*\.sh|scripts/test-|tsx [^&|;]*test|\.sh --check)'; then
   mkdir -p "$CLAUDE_PROJECT_DIR/.ciel" 2>/dev/null || true
   date -u +%Y-%m-%dT%H:%M:%SZ > "$CLAUDE_PROJECT_DIR/.ciel/last-verification" 2>/dev/null || true
 fi

@@ -61,6 +61,22 @@ describe("track-verification.sh", () => {
     }
   });
 
+  it("records for project-local verification commands (bash test scripts, --check, make, tsx test)", () => {
+    for (const cmd of [
+      "bash scripts/test-install-coverage.sh",
+      "bash scripts/sync-mirrors.sh --check",
+      "npx tsx .opencode/test-ciel.ts",
+      "make test",
+      "make check",
+    ]) {
+      const dir = tmpProject();
+      try {
+        runHook("track-verification.sh", { tool_input: { command: cmd } }, dir);
+        assert.ok(existsSync(join(dir, ".ciel", "last-verification")), `${cmd} ⇒ marker`);
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+  });
+
   it("does NOT record for a non-test command", () => {
     const dir = tmpProject();
     try {
