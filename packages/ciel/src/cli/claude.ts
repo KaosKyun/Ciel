@@ -66,12 +66,25 @@ export const CIEL_OWNED_SETTINGS_KEYS = [
 ] as const;
 
 /**
- * Detect if the project has Claude Code configuration.
+ * Detect if the project is used with Claude Code.
+ *
+ * Markers:
+ *  - .claude/ directory (incl. settings.json) — Claude install artifacts.
+ *  - CLAUDE.md — treated as a positive signal so a fresh repo that carries a
+ *    CLAUDE.md (no .claude/ yet) still gets Claude wiring.
+ *
+ * NOTE: CLAUDE.md is a SHARED marker (OpenCode also reads it as an AGENTS.md
+ * fallback — opencode.ai/docs/rules), so it is NOT a Claude-vs-OpenCode
+ * discriminator. Detection is independent per platform — a repo can be both,
+ * and the two integrations live in separate paths (.claude/ vs .opencode/).
+ * Consequence (intentional, per product decision): an OpenCode repo that keeps
+ * a CLAUDE.md is treated as a Claude project too.
  */
 export function detectClaude(targetDir: string): boolean {
   return (
     existsSync(join(targetDir, ".claude/settings.json")) ||
-    existsSync(join(targetDir, ".claude"))
+    existsSync(join(targetDir, ".claude")) ||
+    existsSync(join(targetDir, "CLAUDE.md"))
   );
 }
 

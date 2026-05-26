@@ -14,7 +14,7 @@ import { runCheck, checkVersionOnly } from "./check";
 import { doctorMain } from "./doctor";
 import { memoryMain } from "./memory";
 import { getVersion } from "./version";
-import { say, warn } from "./utils";
+import { say, warn, buildReexecArgs } from "./utils";
 
 function usage(): void {
   const v = getVersion();
@@ -103,7 +103,7 @@ async function main(): Promise<void> {
         }
         if (updated) {
           // Re-exec with the freshly updated binary to run init
-          const passthrough = [...process.argv.slice(1).filter(a => a !== "update" && a !== "repair"), "update", "--skip-npm-update", "--yes"];
+          const passthrough = buildReexecArgs(process.argv);
           // Prefer `ciel` (global install), fallback to npx
           const runner = (() => {
             try { execSync("which ciel 2>/dev/null || where ciel 2>nul", { stdio: "pipe" }); return "ciel"; } catch { return `npx @neikyun/ciel`; }

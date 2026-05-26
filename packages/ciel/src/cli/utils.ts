@@ -55,3 +55,24 @@ export function promptConfirm(msg: string, defaultYes: boolean = true): Promise<
 }
 
 // Platform detection moved to opencode.ts and claude.ts (detectOpenCode, detectClaude)
+
+/**
+ * Build the argument vector for re-executing the freshly-updated `ciel`
+ * binary as a clean `update`. Takes the raw process.argv.
+ *
+ * Contract: the re-exec must ALWAYS run `update` and nothing else. The
+ * downstream CLI resolves its command as the first non-flag token
+ * (args.find(a => !a.startsWith("-"))), so ANY surviving positional poisons
+ * resolution — the leaked absolute script path (slice(1) kept argv[1], e.g.
+ * /opt/homebrew/bin/ciel → "Unknown command: /opt/homebrew/bin/ciel") was one
+ * instance; a stray `ciel repair foo` would be another.
+ *
+ * So: drop every positional (node binary, script path, the update/repair
+ * token, and any extra positional), keep only the user's flags, then append a
+ * canonical `update`. `--skip-npm-update --yes` force a non-interactive run
+ * that does not re-trigger the npm-update re-exec loop.
+ */
+export function buildReexecArgs(argv: string[]): string[] {
+  const flags = argv.slice(2).filter((a) => a.startsWith("-"));
+  return [...flags, "update", "--skip-npm-update", "--yes"];
+}
