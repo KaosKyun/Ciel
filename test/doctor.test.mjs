@@ -6,11 +6,23 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkVersions, checkMirrors, checkLabels } from "../scripts/doctor.mjs";
+import { checkVersions, checkMirrors, checkLabels, deriveConsumers } from "../scripts/doctor.mjs";
+
+// Build a minimal release-please-config.json for fixtures.
+const rpConfig = (extraFiles) =>
+  JSON.stringify({ "release-type": "node", packages: { ".": { "release-type": "node", "extra-files": extraFiles } } });
+const DEFAULT_EXTRA_FILES = [
+  "VERSION",
+  { type: "json", path: "packages/ciel/package.json", jsonpath: "$.version" },
+  { type: "json", path: ".claude-plugin/plugin.json", jsonpath: "$.version" },
+  { type: "json", path: ".claude-plugin/marketplace.json", jsonpath: "$.version" },
+  { type: "json", path: ".claude-plugin/marketplace.json", jsonpath: "$.plugins[0].version" },
+  { type: "generic", path: "scripts/install.sh" },
+];
 
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), "ciel-doctor-"));
-  return {
+  const api = {
     dir,
     write(rel, content) {
       const p = join(dir, rel);
@@ -21,7 +33,32 @@ function fixture() {
       rmSync(dir, { recursive: true, force: true });
     },
   };
+  // checkVersions DERIVES its consumer set from release-please-config.json; seed a
+  // default so version tests have a derivation source (tests may overwrite it).
+  api.write(".github/release-please-config.json", rpConfig(DEFAULT_EXTRA_FILES));
+  return api;
 }
+
+test("deriveConsumers is derived from release-please-config (not a hardcoded list)", () => {
+  const f = fixture();
+  try {
+    f.write(".github/release-please-config.json", rpConfig(DEFAULT_EXTRA_FILES));
+    const labels = deriveConsumers(f.dir).map((c) => c.label || c.file);
+    // node package "." → its own package.json is auto-bumped (not in extra-files)
+    assert.ok(labels.some((l) => l.startsWith("package.json")), `derive root package.json: ${labels}`);
+    // extra-files entries map to consumers
+    assert.ok(labels.some((l) => l.startsWith("packages/ciel/package.json")), `derive packages/ciel/package.json: ${labels}`);
+    assert.ok(labels.some((l) => l.includes("marketplace.json") && l.includes("plugins[0]")), `derive nested jsonpath: ${labels}`);
+    assert.ok(labels.some((l) => l.startsWith("scripts/install.sh")), `derive generic install.sh: ${labels}`);
+    // VERSION is the authoritative anchor, never a consumer
+    assert.ok(!labels.some((l) => l === "VERSION"), `VERSION must be the anchor, not a consumer: ${labels}`);
+    // adding a new extra-file to the config is tracked automatically
+    f.write(".github/release-please-config.json", rpConfig([...DEFAULT_EXTRA_FILES, { type: "json", path: "newfile.json", jsonpath: "$.version" }]));
+    assert.ok(deriveConsumers(f.dir).some((c) => c.file === "newfile.json"), "new extra-file must be auto-tracked");
+  } finally {
+    f.cleanup();
+  }
+});
 
 test("checkVersions passes when all version files match VERSION", () => {
   const f = fixture();

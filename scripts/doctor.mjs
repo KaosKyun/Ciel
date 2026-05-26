@@ -13,11 +13,14 @@ import { MIRRORS, excluded } from "./mirrors.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Tracked files whose version must equal the authoritative VERSION file.
-// This set MUST mirror release-please's `extra-files` (.github/release-please-config.json)
-// plus its manifest — tracking only a subset is exactly what let plugin.json,
-// marketplace.json and install.sh silently fall behind to 6.14.1 / 6.13.0 while
-// VERSION was 6.16.0. .ciel/version is a gitignored local sentinel (tolerated absent).
+// The version-consumer set is DERIVED from release-please's config so the two
+// can never drift out of parity: add an extra-file in .github/release-please-config.json
+// and the doctor tracks it automatically. Tracking a hand-maintained subset is what
+// let plugin.json/marketplace.json/install.sh fall behind (6.14.1 / 6.13.0) while
+// VERSION was 6.16.0, undetected.
+const RP_CONFIG = ".github/release-please-config.json";
+const MARKER_RE = /x-release-please-(?:major|minor|patch|version)/;
+
 const jsonGet = (accessor = (o) => o.version) => (raw) => accessor(JSON.parse(raw));
 // release-please's `generic` updater rewrites ONLY the line carrying the marker
 // comment — key off that line, never the ${CIEL_VERSION} interpolations elsewhere.
@@ -27,16 +30,58 @@ const markerGet = (re) => (raw) => {
   return m ? m[1] : null;
 };
 
-const VERSION_CONSUMERS = [
-  { file: "packages/ciel/package.json", get: jsonGet() },
-  { file: "package.json", get: jsonGet() },
-  { file: "packages/ciel/.ciel/version", get: (raw) => raw.trim() },
-  { file: ".claude-plugin/plugin.json", get: jsonGet() },
-  { file: ".claude-plugin/marketplace.json", label: ".claude-plugin/marketplace.json#$.version", get: jsonGet((o) => o.version) },
-  { file: ".claude-plugin/marketplace.json", label: ".claude-plugin/marketplace.json#$.plugins[0].version", get: jsonGet((o) => o.plugins?.[0]?.version) },
-  { file: "scripts/install.sh", label: "scripts/install.sh#x-release-please-version", get: markerGet(/x-release-please-(?:major|minor|patch|version)/) },
-  { file: ".github/.release-please-manifest.json", label: ".github/.release-please-manifest.json#$['.']", get: jsonGet((o) => o["."]) },
+// Minimal JSONPath → accessor for the forms release-please uses: $.a, $.a.b, $.a[0].b.
+function jsonpathAccessor(jp) {
+  const keys = [];
+  const re = /\.([A-Za-z_$][\w$]*)|\[(\d+)\]/g;
+  let m;
+  while ((m = re.exec(jp))) keys.push(m[1] !== undefined ? m[1] : Number(m[2]));
+  return (obj) => keys.reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+
+// Map one release-please extra-files entry to a consumer descriptor (null = skip).
+function extraFileToConsumer(ef) {
+  if (typeof ef === "string") {
+    if (ef === "VERSION") return null; // the authoritative source, not a consumer
+    return { file: ef, label: `${ef}#x-release-please`, get: markerGet(MARKER_RE) };
+  }
+  const jp = ef.jsonpath;
+  if (ef.type === "json" || jp) {
+    const accessor = jsonpathAccessor(jp || "$.version");
+    return { file: ef.path, label: `${ef.path}#${jp || "$.version"}`, get: (raw) => accessor(JSON.parse(raw)) };
+  }
+  return { file: ef.path, label: `${ef.path}#x-release-please`, get: markerGet(MARKER_RE) };
+}
+
+// Version files NOT in release-please's config but still tracked: a gitignored
+// Ciel sentinel + release-please's own manifest (its desync produced stale PR #69).
+const DOCTOR_EXTRAS = [
+  { file: "packages/ciel/.ciel/version", label: "packages/ciel/.ciel/version", get: (raw) => raw.trim() },
+  { file: ".github/.release-please-manifest.json", label: ".github/.release-please-manifest.json#['.']", get: (raw) => JSON.parse(raw)["."] },
 ];
+
+// Derive consumers from release-please-config.json: each node package's own
+// package.json (auto-bumped by release-type) + every extra-files entry, plus the
+// doctor-specific extras. Deduped by label. Tolerates an absent config (extras only).
+export function deriveConsumers(root) {
+  const consumers = [];
+  const seen = new Set();
+  const add = (c) => { if (c && !seen.has(c.label)) { seen.add(c.label); consumers.push(c); } };
+  const raw = readRaw(root, RP_CONFIG);
+  if (raw) {
+    const cfg = JSON.parse(raw);
+    for (const [pkgPath, pkg] of Object.entries(cfg.packages || {})) {
+      if ((pkg["release-type"] || cfg["release-type"]) === "node") {
+        const pj = pkgPath === "." ? "package.json" : `${pkgPath}/package.json`;
+        add({ file: pj, label: `${pj}#$.version`, get: jsonGet() });
+      }
+      for (const ef of pkg["extra-files"] || []) add(extraFileToConsumer(ef));
+    }
+    for (const ef of cfg["extra-files"] || []) add(extraFileToConsumer(ef));
+  }
+  for (const c of DOCTOR_EXTRAS) add(c);
+  return consumers;
+}
 
 function walk(dir) {
   const out = [];
@@ -64,7 +109,7 @@ export function checkVersions(root) {
   if (!raw || !raw.trim()) return ["VERSION file missing or empty"];
   const authoritative = raw.trim();
   const failures = [];
-  for (const c of VERSION_CONSUMERS) {
+  for (const c of deriveConsumers(root)) {
     const body = readRaw(root, c.file);
     if (body === null) continue; // absent ≠ drift
     const label = c.label || c.file;
