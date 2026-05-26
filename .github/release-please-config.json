@@ -1,7 +1,5 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "_comment_bootstrap-sha": "Anchors the first release-please commit scan to the v6.16.0 commit (releases 6.12-6.16 were manual, so release-please never authored a PR to anchor to). Exclusive boundary: only commits AFTER 6.16.0 enter the changelog. REMOVE this key after release-please merges its first release PR — it is ignored thereafter.",
-  "bootstrap-sha": "d7847919570ced9cf7427a82c5ab0d5e554e7f69",
   "release-type": "node",
   "include-component-in-tag": false,
   "packages": {
