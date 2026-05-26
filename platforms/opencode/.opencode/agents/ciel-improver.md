@@ -4,14 +4,16 @@ mode: subagent
 model: anthropic/claude-sonnet-4-6
 temperature: 0.2
 tools:
-  write: false
-  edit: false
+  write: true
+  edit: true
   bash: true
   read: true
   glob: true
   grep: true
   webfetch: true
   websearch: true
+permission:
+  skill: allow
 ---
 
 
@@ -86,14 +88,6 @@ Improver typically consumes 1-2M tokens (several sub-skill invocations × headle
 - User explicit request via `/ciel-improve`
 
 Do NOT invoke this agent as part of regular task workflows — `researcher` / `explorer` / `critic` handle those.
-
----
-
-## Skills invoked (bundled inline)
-
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
 
 ---
 

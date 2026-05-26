@@ -6,12 +6,14 @@ temperature: 0.2
 tools:
   write: false
   edit: false
-  bash: false
+  bash: true
   read: true
   glob: false
   grep: false
   webfetch: true
   websearch: true
+permission:
+  skill: allow
 ---
 
 
@@ -93,14 +95,6 @@ Return ONLY the canonical report produced by `synthesize-findings`:
 
 Target: ≤ 500 tokens for the final report.
 Internal skills can produce more; `synthesize-findings` compresses.
-
----
-
-## Skills invoked (bundled inline)
-
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
 
 ---
 

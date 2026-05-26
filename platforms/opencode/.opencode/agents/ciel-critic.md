@@ -12,6 +12,8 @@ tools:
   grep: true
   webfetch: false
   websearch: false
+permission:
+  skill: allow
 ---
 
 
@@ -115,14 +117,6 @@ VALIDATED: [what's confirmed correct]
 - CRITIQUER: ~500-800 tokens (comprehensive audit)
 
 If your output is < 200 tokens on a Standard/Critical RELIRE → suspect truncation, re-invoke `relire-critic` with narrower scope.
-
----
-
-## Skills invoked (bundled inline)
-
-> The following skills are bundled here because OpenCode has no native 'skills' primitive.
-> Each skill below is a complete procedure you invoke by following its "process" section.
-> These bundles replace the skill references in the process above — same semantics, inline.
 
 ---
 
