@@ -1,4 +1,4 @@
-# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v6.15.2)
+# AGENTS.md — Ciel deep-reasoning workflow (OpenCode, v6.15.5)
 
 Source: https://github.com/KaosKyun/Ciel
 
@@ -17,8 +17,8 @@ Ciel is installed as OpenCode-native primitives:
 | Level | Example | Pipeline |
 |-------|---------|----------|
 | **Trivial** | rename, typo, 1-line fix | `QUOI` → `FAIRE` → `META` |
-| **Standard** | hook, route, component, service | Full pipeline, dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
-| **Critical** | auth, DB schema, security, payment | Full pipeline + STRIDE threat model + `@ciel-critic` mandatory |
+| **Standard** | hook, route, component, service | Dispatch `@ciel-researcher` + `@ciel-explorer` in parallel before coding |
+| **Critical** | auth, DB schema, security, payment | STRIDE threat model + `@ciel-critic` mandatory |
 
 Unsure → Standard. Touching user data or auth → Critical.
 
@@ -58,7 +58,7 @@ Unsure → Standard. Touching user data or auth → Critical.
 
 | Agent | When | Context | Permissions |
 |-------|------|---------|-------------|
-| `@ciel-researcher` | RECHERCHE step (Standard + Critical) | Isolated fork — no session bias | webfetch allowed, no edit |
+| `@ciel-researcher` | research (Standard + Critical) | Isolated fork — no session bias | webfetch allowed, no edit |
 | `@ciel-explorer` | CODEBASE + FLUX (Standard + Critical) | Isolated fork — reads codebase fresh | bash/read, no edit |
 | `@ciel-critic` | RELIRE after FAIRE / CRITIQUER on diff | Isolated fork — different blind spots | bash/read, no edit |
 | `@ciel-improver` | On `/ciel-improve` only | Extended token budget | webfetch allowed, no edit |

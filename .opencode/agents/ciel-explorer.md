@@ -1,5 +1,5 @@
 ---
-description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, cicd-security-hardener, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
+description: Isolated-context explorer subagent for Ciel. Dispatch for CODEBASE + FLUX steps — pattern-fitness-check, flux-narrator, domain mastery, modern-patterns-checker, ai-failure-modes-detector, test-strategy, playwright-visual-critic, devsecops, accessibility-wcag-auditor. Reads the codebase fresh, free of main-session bias. Tools — read/grep/glob allowed, no bash/edit/write.
 mode: subagent
 model: anthropic/claude-haiku-4-5-20251001
 temperature: 0.2
@@ -37,10 +37,10 @@ PROJECT_ROOT: [absolute path to project root]
 ## Your process
 
 1. **Detect stack signals** — from PROJECT_ROOT + TASK + FIND:
-   - React/Vue/Svelte files → dispatch `frontend-mastery` IN PARALLEL
-   - Ktor/Express/Django files → dispatch `backend-mastery` IN PARALLEL
-   - SQL / migrations → dispatch `database-mastery` IN PARALLEL
-   - Auth / Security files → dispatch `security-hardening` IN PARALLEL
+   - React/Vue/Svelte files → dispatch `frontend` IN PARALLEL
+   - Ktor/Express/Django files → dispatch `backend` IN PARALLEL
+   - SQL / migrations → dispatch `database-design` IN PARALLEL
+   - Auth / Security files → dispatch `appsec` IN PARALLEL
 2. **Invoke `pattern-fitness-check`** — discover existing patterns + fitness-check each (3 questions) + mini repo-map + duplication check
 3. **Invoke `flux-narrator`** — narrate end-to-end data flow with BOUNDARIES / ASSUMPTIONS / BREAK POINTS. If TASK involves writing tests, includes the 4 test-specific items.
 4. **Merge outputs** — combine into the canonical report below
@@ -80,7 +80,7 @@ Timing: expected [X ms], CI runner: [capable | insufficient ⚠️]
 Test level: [unit | integration | E2E] — [justification]
 
 ## DOMAIN INSIGHTS (from parallel domain skill, if any)
-[output from frontend-mastery / backend-mastery / database-mastery / security-hardening]
+[output from frontend / backend / database-design / appsec]
 ```
 
 ## Rules
@@ -91,7 +91,7 @@ Test level: [unit | integration | E2E] — [justification]
 - **Domain skill gate**: skip domain skill parallel dispatch if TASK contains rename/typo/comment/1-line signals (Trivial depth). Domain skill adds 5-15K tokens to internal context — justify before dispatching.
 - **Always invoke fitness-check FIRST**: copying a pattern without fitness = top Ciel failure mode
 - **Never narrate FLUX from memory**: grep the actual call graph. Pattern-matching produces plausible but wrong narrations.
-- **Domain skill parallel**: when stack is clearly detected, dispatching a domain skill in parallel adds expert pattern library. Don't dispatch if stack is unclear — wait for `avec-quoi-versioner`.
+- **Domain skill parallel**: when stack is clearly detected, dispatching a domain skill in parallel adds expert pattern library. Don't dispatch if the stack is unclear — confirm it first.
 - **Return ONLY the structured report** — no preamble.
 - **Do not re-read files the main session already read** — rely on grep + first-reads.
 
@@ -118,7 +118,7 @@ Test level: [unit | integration | E2E] — [justification]
 
 # pattern-fitness-check — Don't copy patterns blindly
 
-Part of CRÉER step 5 (CODEBASE). Pattern-matching without fitness checking is the single most common LLM coding failure (per Ciel's Guards table).
+Part of codebase exploration. Pattern-matching without fitness checking is the single most common LLM coding failure (per Ciel's Guards table).
 
 ---
 
@@ -214,7 +214,7 @@ For impacted files, build a minimal map:
 
 ## When triggered
 
-- Standard/Critical tasks, during CODEBASE step
+- Standard/Critical tasks, during codebase exploration
 - Trivial tasks, if the fix is "use an existing pattern" (quickly — 1 pattern, 1 fitness check)
 - When user says "we already have code for this" or "reuse X"
 - When `explorer` agent identifies a candidate pattern
@@ -463,7 +463,7 @@ INFO:  1  (opportunistic)
 
 ## When triggered
 
-- CODEBASE step after `explorer` reads the target files
+- codebase exploration after `explorer` reads the target files
 - `@ciel-explorer` dispatched for PR review
 - Before accepting LLM-generated code in a legacy codebase (high drift risk)
 - After `@ciel-researcher` validates an API — this skill confirms the call site uses modern idioms
@@ -731,13 +731,13 @@ Verify with: `claude mcp list | grep playwright`.
 
 ---
 
-### Skill (compact): `frontend-mastery`
+### Skill (compact): `frontend`
 
 **Triggers on paths:** `"**/*.{tsx,jsx,vue,svelte,js,ts}"`
 
 **Purpose:** Expert patterns for React, Vue, Svelte, Solid frontend development — hooks, state management, routing, forms, accessibility, rendering. Auto-activates on .tsx, .jsx, .vue, .svelte files. Focuses on idiomatic patterns, common bypass signals, and anti-patterns the framework wants you to avoid.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/frontend-mastery/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/frontend/`):
 
 
 
@@ -762,13 +762,13 @@ function Author({id}) {
 
 ---
 
-### Skill (compact): `backend-mastery`
+### Skill (compact): `backend`
 
 **Triggers on paths:** `"**/build.gradle*,**/pom.xml,**/go.mod,**/requirements.txt,**/Gemfile,**/routes/**,**/controllers/**,**/services/**,**/middleware/**"`
 
 **Purpose:** Expert patterns for backend server development across Ktor, Go net/http, Node/Express, Rails, Django, FastAPI, Spring — routing, middleware, authentication, background jobs, connection pooling, error handling. Auto-activates on server framework files.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/backend-mastery/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/backend/`):
 
 
 
@@ -793,13 +793,13 @@ app.get('/users', async (req, res) => {
 
 ---
 
-### Skill (compact): `database-mastery`
+### Skill (compact): `database-design`
 
 **Triggers on paths:** `"**/*.sql,**/migrations/**,**/prisma/**,**/supabase/**,**/schema.*,**/*Migration*,**/*migration*"`
 
 **Purpose:** Expert patterns for PostgreSQL, MySQL, Redis, MongoDB, SQLite — migrations, indexes, query planning, connection pooling, parameterized queries, schema evolution. Auto-activates on SQL files, migrations, prisma schemas. Always verifies real schema before asserting column existence.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/database-mastery/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/database-design/`):
 
 
 
@@ -824,13 +824,13 @@ SELECT * FROM orders WHERE customer_id = 42;
 
 ---
 
-### Skill (compact): `security-hardening`
+### Skill (compact): `appsec`
 
 **Triggers on paths:** `"**/auth/**,**/security/**,**/*{Token,Password,Secret,Credential,Session}*,**/crypto/**"`
 
 **Purpose:** Expert knowledge on OWASP Top 10, authentication flows, session management, cryptography pitfalls, secrets hygiene, and STRIDE case library. Auto-activates on auth/, security/, Token, Password, Secret files. Invoked in parallel with researcher on Critical tasks involving credentials, identity, or data sensitivity.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/security-hardening/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/appsec/`):
 
 
 
@@ -855,13 +855,13 @@ SENSITIVITY: [credentials | session | PII | payment | general]
 
 ---
 
-### Skill (compact): `api-architecture`
+### Skill (compact): `api-design`
 
 **Triggers on paths:** `"**/routes/**,**/controllers/**,**/*.proto,**/*.graphql,**/api/**"`
 
 **Purpose:** Expert patterns for API design across REST, GraphQL, gRPC, WebSocket — versioning, pagination, idempotency, error shapes, rate limiting, transport auth parity, schema evolution. Invoked in parallel with researcher when API design work is detected. Auto-activates on routes/, controllers/, and *.proto files.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/api-architecture/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/api-design/`):
 
 
 
@@ -889,7 +889,7 @@ STYLE: [REST | GraphQL | gRPC | WebSocket | mixed]
 ### Skill (compact): `observability`
 
 
-**Purpose:** Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Invoked during FAIRE step when adding server-side code, background jobs, or integrations. Complements prouver-verifier (staging evidence capture).
+**Purpose:** Expert patterns for logs (structured + correlation IDs), metrics (RED/USE), traces (OpenTelemetry), and Monitor usage for live verification. Ensures new code is observable in production. Use when adding server-side code, background jobs, or integrations, and when capturing staging/CI evidence that a change works.
 
 **Key checks** (excerpt — full skill available on Claude Code at `skills/domain/observability/`):
 
@@ -916,16 +916,16 @@ What to log:
 
 ---
 
-### Skill (compact): `performance-engineering`
+### Skill (compact): `performance`
 
 
-**Purpose:** Expert in back-of-envelope sizing, profiling, N+1 detection, hot-path optimization, allocation budgets, and 100x volume thought experiments. Invoked during ÉVALUER step and before FAIRE on any code path handling significant throughput. Complements evaluer-sizer workflow skill with deeper performance patterns.
+**Purpose:** Expert in back-of-envelope sizing, profiling, N+1 detection, hot-path optimization, allocation budgets, and 100x volume thought experiments. Use before implementing any code path handling significant throughput, for deeper performance patterns.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/performance-engineering/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/performance/`):
 
 
 
-For optimization work, hot paths, and scaling concerns. Works alongside `evaluer-sizer` (sizing) and `observability` (measurement).
+For optimization work, hot paths, and scaling concerns. Pair with `monitoring` (measurement).
 
 ---
 
@@ -976,12 +976,12 @@ Gradual replacement of legacy code:
 
 ---
 
-### Skill (compact): `cicd-security-hardener`
+### Skill (compact): `devsecops`
 
 
 **Purpose:** Audits CI/CD pipelines (GitHub Actions primarily, GitLab CI / CircleCI secondarily) against 2026 supply-chain security baselines — SLSA Level 3+, Sigstore/Cosign keyless signing, ephemeral runners, SBOM generation, dependency pinning. Flags long-lived secrets, `pull_request_target` misuse, and missing attestations. Invoked when creating or reviewing `.github/workflows/*.yml` or equivalent.
 
-**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/cicd-security-hardener/`):
+**Key checks** (excerpt — full skill available on Claude Code at `skills/domain/devsecops/`):
 
 
 
