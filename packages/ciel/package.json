@@ -16,7 +16,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.cjs",
+    "build": "node ../../scripts/build.mjs && tsc && node scripts/copy-assets.cjs",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('assets',{recursive:true,force:true})\"",
     "test": "tsx --test test/*.test.ts && python3 ../../test/memory_engine_test.py",
     "postinstall": "node scripts/postinstall.cjs",

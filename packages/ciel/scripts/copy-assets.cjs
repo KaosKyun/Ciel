@@ -34,19 +34,8 @@ const TEMPLATE_PATTERNS = [
   { src: ".claude/agents/ciel-explorer.md", dest: ".claude/agents/ciel-explorer.md" },
   { src: ".claude/agents/ciel-critic.md", dest: ".claude/agents/ciel-critic.md" },
   { src: ".claude/agents/ciel-improver.md", dest: ".claude/agents/ciel-improver.md" },
-  { src: "hooks/block-destructive.sh", dest: ".claude/hooks/block-destructive.sh" },
-  { src: "hooks/track-file.sh", dest: ".claude/hooks/track-file.sh" },
-  { src: "hooks/track-verification.sh", dest: ".claude/hooks/track-verification.sh" },
-  { src: "hooks/pre-tool-write.sh", dest: ".claude/hooks/pre-tool-write.sh" },
-  { src: "hooks/pre-agent-gate.sh", dest: ".claude/hooks/pre-agent-gate.sh" },
-  { src: "hooks/check-dispatch-gate.sh", dest: ".claude/hooks/check-dispatch-gate.sh" },
-  { src: "hooks/stop.sh", dest: ".claude/hooks/stop.sh" },
-  { src: "hooks/subagent-stop.sh", dest: ".claude/hooks/subagent-stop.sh" },
-  // Cued-recall memory hooks
-  { src: "hooks/session-start.sh", dest: ".claude/hooks/session-start.sh" },
-  { src: "hooks/user-prompt-submit.sh", dest: ".claude/hooks/user-prompt-submit.sh" },
-  { src: "hooks/memory-bootstrap.sh", dest: ".claude/hooks/memory-bootstrap.sh" },
-  { src: "hooks/memory-engine.py", dest: ".claude/hooks/memory-engine.py" },
+  // Hooks are owned by scripts/build.mjs (canonical src/hooks → assets/.claude/hooks,
+  // committed + gated by `git diff --exit-code` in CI). Not copied here anymore.
   { src: ".claude/settings.json", dest: ".claude/settings.json" },
   { src: "CLAUDE.md", dest: "CLAUDE.md" },
   { src: "AGENTS.md", dest: "AGENTS.md" },
@@ -62,69 +51,20 @@ const TEMPLATE_PATTERNS = [
   { src: "commands/ciel-memory.md", dest: "commands/ciel-memory.md" },
   { src: "commands/ciel-compile.md", dest: "commands/ciel-compile.md" },
 
-  // Ciel skill files (for Claude Code)
-  { src: "skills/ciel/SKILL.md", dest: "skills/ciel/SKILL.md" },
-  { src: "skills/ciel/reference.md", dest: "skills/ciel/reference.md" },
+  // Skills (incl. the ciel skill) are owned by scripts/build.mjs
+  // (canonical src/skills → assets/skills, committed + gated in CI).
 
   // Compiled plugin JS (for local reference, no node_modules needed)
   { src: "packages/ciel/dist/plugin/index.js", dest: "dist/plugin/index.js" },
 ];
 
-// Auto-discover workflow skills (skills/workflow/<name>/SKILL.md). Avoids the
-// 28-entry hardcoded list — every new workflow skill gets shipped automatically.
-const workflowDir = join(REPO_ROOT, "skills", "workflow");
-if (existsSync(workflowDir)) {
-  for (const entry of readdirSync(workflowDir)) {
-    const skillPath = join("skills", "workflow", entry, "SKILL.md");
-    if (existsSync(join(REPO_ROOT, skillPath))) {
-      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
-    }
-    // Some workflow skills carry a reference.md sidecar.
-    const refPath = join("skills", "workflow", entry, "reference.md");
-    if (existsSync(join(REPO_ROOT, refPath))) {
-      TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
-    }
-  }
-}
+// Skills (domain + workflow + meta + the ciel skill) are owned by scripts/build.mjs
+// (canonical src/skills → assets/skills, committed + gated in CI). copy-assets no
+// longer reads the gitignored .claude/skills here — that was the non-reproducible
+// build input (a clean clone produced a different package).
 
-// Auto-discover meta skills (skills/meta/<name>/SKILL.md).
-const metaDir = join(REPO_ROOT, "skills", "meta");
-if (existsSync(metaDir)) {
-  for (const entry of readdirSync(metaDir)) {
-    const skillPath = join("skills", "meta", entry, "SKILL.md");
-    if (existsSync(join(REPO_ROOT, skillPath))) {
-      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
-    }
-  }
-}
-
-// Auto-discover domain skills (.claude/skills/*/SKILL.md) and their sidecars.
-const domainSkillsDir = join(REPO_ROOT, ".claude", "skills");
-if (existsSync(domainSkillsDir)) {
-  for (const entry of readdirSync(domainSkillsDir)) {
-    const skillPath = join(".claude", "skills", entry, "SKILL.md");
-    if (existsSync(join(REPO_ROOT, skillPath))) {
-      TEMPLATE_PATTERNS.push({ src: skillPath, dest: skillPath });
-    }
-    const refPath = join(".claude", "skills", entry, "reference.md");
-    if (existsSync(join(REPO_ROOT, refPath))) {
-      TEMPLATE_PATTERNS.push({ src: refPath, dest: refPath });
-    }
-  }
-}
-
-// Auto-discover domain rules (.claude/rules/*.md).
-const rulesDir = join(REPO_ROOT, ".claude", "rules");
-if (existsSync(rulesDir)) {
-  for (const entry of readdirSync(rulesDir)) {
-    if (entry.endsWith(".md")) {
-      const rulePath = join(".claude", "rules", entry);
-      if (existsSync(join(REPO_ROOT, rulePath))) {
-        TEMPLATE_PATTERNS.push({ src: rulePath, dest: rulePath });
-      }
-    }
-  }
-}
+// Rules are owned by scripts/build.mjs (canonical src/rules → assets/.claude/rules,
+// committed + gated in CI). Not auto-discovered here anymore.
 
 let count = 0;
 let errors = 0;

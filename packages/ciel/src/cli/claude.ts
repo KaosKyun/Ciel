@@ -198,8 +198,12 @@ export function installClaude(opts: ClaudeOptions): InstallResult {
     }
   }
 
-  // .claude/skills/ — domain skills (v9), invoked via Skill() by rules Dispatch
-  const skillsSrcDir = join(srcDir, ".claude/skills");
+  // .claude/skills/ — skills (v9), invoked via Skill() by rules Dispatch.
+  // Read from the unified canonical asset tree (assets/skills, src-derived).
+  // The top-level loop ships discoverable skills (domain + ciel + the three
+  // recovered: environments/github/research); nested workflow/meta dirs have no
+  // root SKILL.md so they are skipped — Claude discovery is top-level only.
+  const skillsSrcDir = join(srcDir, "skills");
   const skillsDestDir = join(targetDir, ".claude/skills");
   if (existsSync(skillsSrcDir)) {
     for (const entry of readdirSync(skillsSrcDir)) {

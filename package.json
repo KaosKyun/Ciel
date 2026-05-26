@@ -1,7 +1,7 @@
 {
   "name": "ciel-monorepo",
   "private": true,
-  "version": "6.14.1",
+  "version": "6.15.5",
   "description": "Ciel — Deep-reasoning pipeline for LLM-assisted development",
   "workspaces": [
     "packages/ciel"
@@ -9,7 +9,10 @@
   "scripts": {
     "build": "npm run build -w ciel",
     "test": "npm run test -w ciel",
-    "clean": "npm run clean -w ciel"
+    "clean": "npm run clean -w ciel",
+    "build:src": "node scripts/build.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "test:consistency": "node --test --test-concurrency=1 test/build.test.mjs test/doctor.test.mjs test/memory-save.test.mjs test/install.test.mjs"
   },
   "engines": {
     "node": ">=18.0.0"

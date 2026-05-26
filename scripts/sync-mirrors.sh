@@ -147,12 +147,9 @@ for hook in "${SHARED_HOOKS[@]}"; do
   require_byte_equal "hooks/${hook}" "packages/ciel/assets/.claude/hooks/${hook}"
 done
 
-# ─── Orchestrator skill — BYTE-EQUAL ────────────────────────────────────────
-
-echo "Group: skills/ciel orchestrator — byte-equal"
-for f in SKILL.md reference.md; do
-  require_byte_equal "skills/ciel/${f}" "packages/ciel/assets/skills/ciel/${f}"
-done
+# Skills are owned by scripts/build.mjs (canonical src/skills → assets/skills) and
+# gated by scripts/doctor.mjs + the CI `git diff` on committed assets. The old root
+# skills/ tree is dead (nothing reads it); do not re-check it here.
 
 # ─── Claude Code settings template — BYTE-EQUAL ─────────────────────────────
 # .claude/settings.json is the canonical hook+permissions template that ships
@@ -161,21 +158,6 @@ done
 
 echo "Group: .claude/settings.json — byte-equal"
 require_byte_equal ".claude/settings.json" "packages/ciel/assets/.claude/settings.json"
-
-# ─── Workflow skills — BYTE-EQUAL ───────────────────────────────────────────
-# Every skills/workflow/<name>/SKILL.md must mirror to the assets dir so
-# the npm package + install.sh ship the full workflow library.
-
-echo "Group: skills/workflow — byte-equal"
-if [ -d "skills/workflow" ]; then
-  for skill_dir in skills/workflow/*/; do
-    skill_name="$(basename "$skill_dir")"
-    require_byte_equal "skills/workflow/${skill_name}/SKILL.md" "packages/ciel/assets/skills/workflow/${skill_name}/SKILL.md"
-    if [ -f "skills/workflow/${skill_name}/reference.md" ]; then
-      require_byte_equal "skills/workflow/${skill_name}/reference.md" "packages/ciel/assets/skills/workflow/${skill_name}/reference.md"
-    fi
-  done
-fi
 
 # ─── Verdict ────────────────────────────────────────────────────────────────
 
