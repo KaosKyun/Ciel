@@ -10,7 +10,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { mkdtempSync, mkdirSync, existsSync, rmSync, readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, existsSync, rmSync, readdirSync, readFileSync, writeFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 import { CIEL_HOOK_FILES } from "../src/cli/claude";
@@ -237,5 +237,85 @@ describe("user-prompt-submit.sh — routing precision (RELIRE R3 guard)", () => 
   });
   it("DOES route performance on a real latency/bottleneck prompt", () => {
     assert.ok(route("implement a fix for the p95 latency bottleneck").includes('Skill("performance")'));
+  });
+});
+
+describe("universal defer-guard (prevents global+project double-fire)", () => {
+  // Only PROJECT-WIRED hooks carry the guard. Guarding a shipped-but-unwired hook
+  // would make a global instance defer to a project copy that never runs (RELIRE R1).
+  const WIRED_HOOKS = [
+    "block-destructive.sh", "check-dispatch-gate.sh", "pre-agent-gate.sh", "pre-tool-write.sh",
+    "session-start.sh", "stop.sh", "track-file.sh", "track-verification.sh", "user-prompt-submit.sh",
+  ];
+
+  for (const h of WIRED_HOOKS) {
+    it(`${h} carries the CIEL-DEFER-GUARD`, () => {
+      assert.ok(readFileSync(join(HOOKS, h), "utf8").includes("CIEL-DEFER-GUARD"), `${h} is missing the defer-guard`);
+    });
+  }
+
+  it("subagent-stop.sh is NOT guarded (shipped but not project-wired — RELIRE R1)", () => {
+    assert.ok(!readFileSync(join(HOOKS, "subagent-stop.sh"), "utf8").includes("CIEL-DEFER-GUARD"),
+      "guarding an unwired hook makes a global instance defer to a project copy that never runs");
+  });
+
+  it("every guarded hook is actually wired in the shipped settings.json (guarded ⟺ wired)", () => {
+    const settings = JSON.parse(readFileSync(join(__dirname, "..", "assets", ".claude", "settings.json"), "utf8"));
+    const wired = new Set<string>();
+    for (const arr of Object.values<any>(settings.hooks ?? {})) {
+      for (const w of arr) for (const hk of (w.hooks ?? [])) {
+        for (const m of String(hk.command ?? "").match(/[a-z-]+\.sh/g) ?? []) wired.add(m);
+      }
+    }
+    for (const h of WIRED_HOOKS) {
+      assert.ok(wired.has(h), `${h} carries the guard but is not wired in assets/.claude/settings.json`);
+    }
+  });
+
+  // Behavioral (track-file.sh — observable side effect). RELIRE R3: the project's
+  // OWN instance must RUN even when CLAUDE_PROJECT_DIR is presented un-canonically
+  // (trailing slash, or asymmetric symlink vs invocation path) — it must never self-defer.
+  function deferCounts(setup: (realProj: string) => { envProjectDir: string; invokeDir: string }) {
+    const realProj = mkdtempSync(join(tmpdir(), "ciel-proj-"));
+    const globalDir = mkdtempSync(join(tmpdir(), "ciel-global-"));
+    try {
+      mkdirSync(join(realProj, ".claude", "hooks"), { recursive: true });
+      mkdirSync(join(realProj, ".ciel"), { recursive: true });
+      writeFileSync(join(realProj, ".ciel", "tracked-files.json"), "[]");
+      const canonical = readFileSync(join(HOOKS, "track-file.sh"), "utf8");
+      writeFileSync(join(realProj, ".claude", "hooks", "track-file.sh"), canonical);
+      writeFileSync(join(globalDir, "track-file.sh"), canonical);
+      const { envProjectDir, invokeDir } = setup(realProj);
+      const env = { ...process.env, CLAUDE_PROJECT_DIR: envProjectDir };
+      const input = JSON.stringify({ tool_input: { file_path: "src/x.ts" } });
+      const count = () => JSON.parse(readFileSync(join(realProj, ".ciel", "tracked-files.json"), "utf8")).length;
+      try { execFileSync("bash", [join(globalDir, "track-file.sh")], { input, encoding: "utf8", env }); } catch {}
+      const afterGlobal = count();
+      try { execFileSync("bash", [join(invokeDir, ".claude", "hooks", "track-file.sh")], { input, encoding: "utf8", env }); } catch {}
+      return { afterGlobal, afterProject: count() };
+    } finally {
+      rmSync(realProj, { recursive: true, force: true });
+      rmSync(globalDir, { recursive: true, force: true });
+    }
+  }
+
+  it("clean path: global defers, project runs", { skip: !hasJq ? "jq not installed" : false }, () => {
+    const { afterGlobal, afterProject } = deferCounts((p) => ({ envProjectDir: p, invokeDir: p }));
+    assert.equal(afterGlobal, 0, "global must defer");
+    assert.equal(afterProject, 1, "project must run");
+  });
+
+  it("trailing-slash CLAUDE_PROJECT_DIR: project still runs (RELIRE R3)", { skip: !hasJq ? "jq not installed" : false }, () => {
+    const { afterProject } = deferCounts((p) => ({ envProjectDir: p + "/", invokeDir: p }));
+    assert.equal(afterProject, 1, "project instance must RUN despite a trailing slash (must not self-defer)");
+  });
+
+  it("symlinked CLAUDE_PROJECT_DIR vs real invocation path: project still runs (RELIRE R3)", { skip: !hasJq ? "jq not installed" : false }, () => {
+    const { afterProject } = deferCounts((p) => {
+      const link = join(mkdtempSync(join(tmpdir(), "ciel-link-")), "proj");
+      symlinkSync(p, link);
+      return { envProjectDir: link, invokeDir: p }; // env uses symlink, invocation uses realpath
+    });
+    assert.equal(afterProject, 1, "project instance must RUN when CLAUDE_PROJECT_DIR is a symlink but invocation is the realpath");
   });
 });

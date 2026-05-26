@@ -3,11 +3,15 @@
 # Injects: depth hint + cued-recall memory + intervention detection + auto-skill content
 # Never blocks (exit 0 always)
 
-# ─── Defer to project-level hook if this is a global plugin instance ─────
-if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.sh" ]; then
-  SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/$(basename "${BASH_SOURCE[0]}")"
-  PROJECT_HOOK="$CLAUDE_PROJECT_DIR/.claude/hooks/user-prompt-submit.sh"
-  if [ "$SCRIPT_PATH" != "$PROJECT_HOOK" ]; then
+# CIEL-DEFER-GUARD — a global plugin instance no-ops when the project ships AND
+# wires its own copy of this hook. Paths are canonicalized (pwd -P) on BOTH sides
+# so a symlinked or trailing-slash CLAUDE_PROJECT_DIR cannot make the project's
+# own instance wrongly defer (which would disable Ciel entirely in the project).
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  _ciel_name="$(basename "${BASH_SOURCE[0]}")"
+  _ciel_self="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)"
+  _ciel_proj="$(cd "$CLAUDE_PROJECT_DIR/.claude/hooks" 2>/dev/null && pwd -P)"
+  if [ -n "$_ciel_proj" ] && [ -f "$_ciel_proj/$_ciel_name" ] && [ "$_ciel_self" != "$_ciel_proj" ]; then
     exit 0
   fi
 fi
