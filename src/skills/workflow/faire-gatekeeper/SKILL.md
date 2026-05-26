@@ -1,13 +1,13 @@
 ---
 name: faire-gatekeeper
-description: How to implement code safely — 6 quality gates for Ciel v5 (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode relaxes gates. A checklist for implementation discipline during FAIRE (etape 11).
+description: How to implement code safely — 6 quality gates for Ciel (test-first, alternatives, idiomatic, quality, removal, boy-scout). SPIKE mode relaxes gates. A checklist for implementation discipline during FAIRE (etape 11).
 ---
 
-# Implementation Safety — 6 Quality Gates (Ciel v5)
+# Implementation Safety — 6 Quality Gates (Ciel)
 
 ## What this covers
 
-How to implement code with discipline during Ciel v8 FAIRE phase (etape 11). These gates run during coding and are enforced by hooks. After FAIRE, the pipeline continues to TESTER (run test suite).
+How to implement code with discipline during Ciel FAIRE phase (etape 11). These gates run during coding and are enforced by hooks. After FAIRE, the pipeline continues to TESTER (run test suite).
 
 ## Core principle
 

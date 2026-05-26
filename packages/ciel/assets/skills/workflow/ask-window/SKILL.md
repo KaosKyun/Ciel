@@ -1,13 +1,13 @@
 ---
 name: ask-window
-description: How to use the ASK window in Ciel v5 — before coding, clarify ambiguities using the question tool (OpenCode) or plan mode (Claude Code). Covers etapes 3 (ASK) and 10 (ASK2) of the pipeline. Prevents coding on assumptions.
+description: How to use the ASK window in Ciel — before coding, clarify ambiguities using the question tool (OpenCode) or plan mode (Claude Code). Covers etapes 3 (ASK) and 10 (ASK2) of the pipeline. Prevents coding on assumptions.
 ---
 
-# ASK Window — Clarify Before You Code (Ciel v5)
+# ASK Window — Clarify Before You Code (Ciel)
 
 ## What this covers
 
-How to use the ASK window in the Ciel v5 pipeline. Before coding, the agent must ask clarifying questions rather than assuming. This skill covers etapes 3 (ASK after QUOI) and 10 (ASK2 after EVALUER).
+How to use the ASK window in the Ciel pipeline. Before coding, the agent must ask clarifying questions rather than assuming. This skill covers etapes 3 (ASK after QUOI) and 10 (ASK2 after EVALUER).
 
 ## Core principle
 

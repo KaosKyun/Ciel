@@ -1,13 +1,13 @@
 ---
 name: meta-critiquer
-description: How to reflect on completed work — 10-item post-task reflection checklist for Ciel v5. Covers depth match, failure mode detection, user corrections, stale branches, uncovered issues, context health, dead code, map update, parking lot, and boy-scout rule. Closes the feedback loop between execution and improvement.
+description: How to reflect on completed work — 10-item post-task reflection checklist for Ciel. Covers depth match, failure mode detection, user corrections, stale branches, uncovered issues, context health, dead code, map update, parking lot, and boy-scout rule. Closes the feedback loop between execution and improvement.
 ---
 
-# Post-Task Reflection — 10-Item Checklist (Ciel v5)
+# Post-Task Reflection — 10-Item Checklist (Ciel)
 
 ## What this covers
 
-How to reflect on completed work and capture learnings. In Ciel v5, this is the last pipeline step (etape 16: META). Always run after every task, even trivial ones.
+How to reflect on completed work and capture learnings. In Ciel, this is the last pipeline step (etape 16: META). Always run after every task, even trivial ones.
 
 ## Core principle
 

@@ -118,7 +118,7 @@ if (process.argv[1] && process.argv[1].endsWith("doctor.mjs")) {
   const versionF = checkVersions(REPO);
   const labelW = checkLabels(REPO);
 
-  const fail = [...versionF, ...mirrorF];
+  const fail = [...versionF, ...mirrorF, ...labelW];
   if (versionF.length) {
     console.log("✗ version sync:");
     for (const f of versionF) console.log(`  - ${f}`);
@@ -130,10 +130,10 @@ if (process.argv[1] && process.argv[1].endsWith("doctor.mjs")) {
   } else console.log("✓ mirror drift: every mirror matches canonical src/");
 
   if (labelW.length) {
-    console.log(`⚠ stale labels (${labelW.length}, non-blocking):`);
+    console.log(`✗ stale generation labels (${labelW.length}):`);
     for (const w of labelW.slice(0, 10)) console.log(`  - ${w}`);
     if (labelW.length > 10) console.log(`  … +${labelW.length - 10} more`);
-  }
+  } else console.log("✓ labels: no stale v5/v7/v8 generation labels in src/");
 
   if (fail.length) {
     console.log(`\nDoctor: ${fail.length} consistency failure(s).`);

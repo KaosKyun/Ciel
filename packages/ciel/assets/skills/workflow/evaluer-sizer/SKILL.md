@@ -1,9 +1,9 @@
 ---
 name: evaluer-sizer
-description: How to size and assess risk before coding — back-of-envelope sizing, pre-mortem (2 failure modes), recent-churn check, diverged alternatives (v5), and counterfactual ("what if we do nothing?"). For Ciel v5 pipeline step 9 (EVALUER). Use after DIVERGE and RECHERCHE, before ASK2.
+description: How to size and assess risk before coding — back-of-envelope sizing, pre-mortem (2 failure modes), recent-churn check, diverged alternatives (v5), and counterfactual ("what if we do nothing?"). For Ciel pipeline step 9 (EVALUER). Use after DIVERGE and RECHERCHE, before ASK2.
 ---
 
-# Pre-Implementation Sizing — 5 Cheap Gates (Ciel v5)
+# Pre-Implementation Sizing — 5 Cheap Gates (Ciel)
 
 ## What this covers
 

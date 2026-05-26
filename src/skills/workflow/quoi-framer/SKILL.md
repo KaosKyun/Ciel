@@ -1,13 +1,13 @@
 ---
 name: quoi-framer
-description: How to frame a task before starting — forces explicit goal, NOT-X constraint, intention partagee, and measurable definition of done. For Ciel v5 pipeline step 2 (QUOI). Use after DOCS phase, before ASK phase.
+description: How to frame a task before starting — forces explicit goal, NOT-X constraint, intention partagee, and measurable definition of done. For Ciel pipeline step 2 (QUOI). Use after DOCS phase, before ASK phase.
 ---
 
-# Task Framing — Define Before You Start (Ciel v5)
+# Task Framing — Define Before You Start (Ciel)
 
 ## What this covers
 
-How to define a task clearly before doing any work. This is the first step of the Ciel v5 pipeline (etape 2: QUOI). Applied after DOCS phase (etape 1) and before ASK (etape 3). Prevents scope drift, wasted research, and "I thought you meant..." conversations.
+How to define a task clearly before doing any work. This is the first step of the Ciel pipeline (etape 2: QUOI). Applied after DOCS phase (etape 1) and before ASK (etape 3). Prevents scope drift, wasted research, and "I thought you meant..." conversations.
 
 ## Core principle
 

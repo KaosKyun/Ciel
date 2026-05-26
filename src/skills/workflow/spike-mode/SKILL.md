@@ -1,13 +1,13 @@
 ---
 name: spike-mode
-description: How to use SPIKE mode in Ciel v5 — prototype/exploration mode with assoupli gates. Create .ciel/exploration.active to enter spike mode. Quality gates relaxed, code marked FIXME/TODO. Used for POC, draft, experimental, throwaway code. Must be refactored properly after.
+description: How to use SPIKE mode in Ciel — prototype/exploration mode with assoupli gates. Create .ciel/exploration.active to enter spike mode. Quality gates relaxed, code marked FIXME/TODO. Used for POC, draft, experimental, throwaway code. Must be refactored properly after.
 ---
 
-# SPIKE Mode — Explore Without Commitment (Ciel v5)
+# SPIKE Mode — Explore Without Commitment (Ciel)
 
 ## What this covers
 
-How to use SPIKE mode in Ciel v5 for prototyping and exploration. When you need to test an idea quickly without going through the full quality pipeline. The mode is triggered by creating a `.ciel/exploration.active` file in the project root.
+How to use SPIKE mode in Ciel for prototyping and exploration. When you need to test an idea quickly without going through the full quality pipeline. The mode is triggered by creating a `.ciel/exploration.active` file in the project root.
 
 ## Core principle
 

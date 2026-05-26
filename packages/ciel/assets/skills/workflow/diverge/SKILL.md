@@ -1,13 +1,13 @@
 ---
 name: diverge
-description: How to explore 2-3 radically different approaches before choosing one (Ciel v5 etape 5). Used after AVEC QUOI, before RECHERCHE. Prevents single-approach bias and premature convergence. Use when the task is non-trivial and there are multiple valid approaches.
+description: How to explore 2-3 radically different approaches before choosing one (Ciel etape 5). Used after AVEC QUOI, before RECHERCHE. Prevents single-approach bias and premature convergence. Use when the task is non-trivial and there are multiple valid approaches.
 ---
 
-# Divergent Exploration — 2-3 Approaches Before Choosing (Ciel v5)
+# Divergent Exploration — 2-3 Approaches Before Choosing (Ciel)
 
 ## What this covers
 
-How to explore multiple approaches before committing to one. In Ciel v5, this is etape 5 (DIVERGE). The goal is to avoid premature convergence on the first viable approach that comes to mind.
+How to explore multiple approaches before committing to one. In Ciel, this is etape 5 (DIVERGE). The goal is to avoid premature convergence on the first viable approach that comes to mind.
 
 ## Core principle
 

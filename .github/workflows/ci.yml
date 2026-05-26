@@ -523,5 +523,7 @@ jobs:
       - name: Consistency doctor
         run: node scripts/doctor.mjs
 
-      - name: Build / doctor / memory-save tests
-        run: node --test test/build.test.mjs test/doctor.test.mjs test/memory-save.test.mjs
+      # Serial: these integration tests mutate shared repo dirs (build.mjs rewrites
+      # .claude/* and assets/*), so parallel test files would race.
+      - name: Build / doctor / memory-save / install tests
+        run: node --test --test-concurrency=1 test/build.test.mjs test/doctor.test.mjs test/memory-save.test.mjs test/install.test.mjs

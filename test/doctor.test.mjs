@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkVersions, checkMirrors } from "../scripts/doctor.mjs";
+import { checkVersions, checkMirrors, checkLabels } from "../scripts/doctor.mjs";
 
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), "ciel-doctor-"));
@@ -69,6 +69,18 @@ test("checkMirrors detects a hand-edited / stale / missing target file", () => {
     f.write(".claude/rules/orphan.md", "stale\n"); // not in src
     const failures = checkMirrors(f.dir, [{ src: "src/rules", targets: [".claude/rules"] }]);
     assert.ok(failures.length >= 2, `expected drift+orphan, got: ${failures}`);
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("checkLabels flags stale v5/v7/v8 generation labels in src/, passes when clean", () => {
+  const f = fixture();
+  try {
+    f.write("src/skills/x/SKILL.md", "# X\nUsed in Ciel v5 pipeline.\n");
+    assert.equal(checkLabels(f.dir).length, 1, "must flag a Ciel v5 label");
+    f.write("src/skills/x/SKILL.md", "# X\nA standalone Ciel technique.\n");
+    assert.deepEqual(checkLabels(f.dir), [], "clean src must produce no label findings");
   } finally {
     f.cleanup();
   }
