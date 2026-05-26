@@ -27,10 +27,11 @@ function walkSkills(dir) {
   return out.sort();
 }
 
-test("src/skills/ is the canonical flat-domain source (>=99 skills)", () => {
+test("src/skills/ is the canonical flat-domain source (>=90 skills)", () => {
   assert.ok(existsSync(SRC_SKILLS), "src/skills/ must exist");
   const skills = walkSkills(SRC_SKILLS).filter((p) => p.endsWith("SKILL.md"));
-  assert.ok(skills.length >= 99, `expected >=99 canonical skills, got ${skills.length}`);
+  // Floor lowered from 99 → 90 after the legacy v5 workflow skills were removed (93 remain).
+  assert.ok(skills.length >= 90, `expected >=90 canonical skills, got ${skills.length}`);
 });
 
 // Content-freshness canary. The `ciel` skill drifted across mirrors: some carry

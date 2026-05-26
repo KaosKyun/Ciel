@@ -19,7 +19,7 @@ v2.0.0 is a **total refactor** toward Anthropic's Skills-first paradigm (Barry Z
 ### Skills (33 total, organized in 5 categories)
 
 - `skills/ciel/` — Lightweight orchestrator (~220 lines) that classifies depth and routes to specialized skills
-- `skills/workflow/` — **13 skills** replacing the old monolithic CRÉER/CRITIQUER pipeline: `depth-classifier`, `quoi-framer`, `avec-quoi-versioner`, `stride-analyzer`, `pattern-fitness-check`, `evaluer-sizer`, `flux-narrator`, `faire-gatekeeper`, `security-regression-check`, `relire-critic`, `prouver-verifier`, `critiquer-auditor`, `meta-critiquer`
+- `skills/workflow/` — **19 internal technique skills** (v9 dropped the legacy v5 pipeline-step skills): e.g. `depth-classifier`, `stride-analyzer`, `pattern-fitness-check`, `flux-narrator`, `security-regression-check`, `relire-critic`, `critiquer-auditor`, `debug-reasoning-rca`, `memoire`
 - `skills/research/` — **6 meta-research skills**: `research-web-sources`, `research-github-issues`, `research-forums`, `validate-source-credibility`, `synthesize-findings`, `fact-check-claims`
 - `skills/domain/` — **8 domain expertise skills**: `frontend-mastery`, `backend-mastery`, `database-mastery`, `security-hardening`, `api-architecture`, `observability`, `performance-engineering`, `refactoring-patterns`
 - `skills/utility/` — **5 utility skills**: `commit-writer`, `pr-body-generator`, `issue-closer`, `changelog-updater`, `staging-verifier`
