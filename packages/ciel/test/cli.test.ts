@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 // Import the modules
 import { detectOpenCode } from "../src/cli/opencode";
 import { detectClaude } from "../src/cli/claude";
+import { buildReexecArgs } from "../src/cli/utils";
 
 // Helper to create temporary project directories
 function createTempProject(): string {
@@ -63,6 +64,61 @@ describe("CLI — Platform detection", () => {
     assert.ok(detectClaude(dir), "Claude Code should be detected");
     cleanupTempProject(dir);
   });
+
+  it("detects Claude Code project by CLAUDE.md", () => {
+    const dir = createTempProject();
+    writeFileSync(join(dir, "CLAUDE.md"), "# project rules");
+    assert.equal(detectClaude(dir), true);
+    cleanupTempProject(dir);
+  });
+
+  it("detects BOTH when OpenCode markers + CLAUDE.md but no .claude/ (Pantheon regression)", () => {
+    // A dual-tool repo: opencode.json + AGENTS.md + CLAUDE.md, no .claude/ yet.
+    // Ciel must install for Claude too, not only OpenCode.
+    const dir = createTempProject();
+    writeFileSync(join(dir, "opencode.json"), "{}");
+    writeFileSync(join(dir, "AGENTS.md"), "# agents");
+    writeFileSync(join(dir, "CLAUDE.md"), "# claude");
+    assert.ok(detectOpenCode(dir), "OpenCode should be detected");
+    assert.ok(detectClaude(dir), "Claude Code should be detected via CLAUDE.md");
+    cleanupTempProject(dir);
+  });
+});
+
+describe("CLI — re-exec passthrough args", () => {
+  // Mirror of index.ts command resolution (args.find(a => !a.startsWith("-")))
+  // — the actual SEAM the re-exec args feed into. Assert behavior here, not
+  // just the literal array, so a stray positional that mis-resolves is caught.
+  const resolveCommand = (args: string[]): string | undefined =>
+    args.find((a) => !a.startsWith("-"));
+
+  it("drops the node binary and script path (regression: 'Unknown command: /opt/homebrew/bin/ciel')", () => {
+    // process.argv on `ciel repair` = [node, /opt/homebrew/bin/ciel, repair]
+    const argv = ["/usr/local/bin/node", "/opt/homebrew/bin/ciel", "repair"];
+    const result = buildReexecArgs(argv);
+    assert.ok(
+      !result.includes("/opt/homebrew/bin/ciel"),
+      "script path must not leak into re-exec args"
+    );
+    assert.deepEqual(result, ["update", "--skip-npm-update", "--yes"]);
+    assert.equal(resolveCommand(result), "update", "downstream must run `update`");
+  });
+
+  it("preserves user flags while forcing a clean update", () => {
+    const argv = ["node", "/some/path/ciel", "update", "--quiet"];
+    const result = buildReexecArgs(argv);
+    assert.deepEqual(result, ["--quiet", "update", "--skip-npm-update", "--yes"]);
+    assert.equal(resolveCommand(result), "update", "downstream must run `update`");
+  });
+
+  it("never lets a stray positional become the downstream command", () => {
+    // `ciel repair stray` — `stray` must NOT survive to poison command resolution
+    // (same bug class as the leaked script path).
+    const argv = ["node", "/p/ciel", "repair", "stray"];
+    const result = buildReexecArgs(argv);
+    assert.ok(!result.includes("stray"), "stray positional must be dropped");
+    assert.equal(resolveCommand(result), "update", "downstream must still run `update`");
+  });
 });
 
 describe("CLI — Integrity check", () => {
@@ -74,6 +130,22 @@ describe("CLI — Integrity check", () => {
     assert.ok(
       result.errors.some((e: string) => e.includes("No Ciel platform")),
       "should mention no platform detected"
+    );
+    cleanupTempProject(dir);
+  });
+
+  it("flags missing Claude files when a CLAUDE.md exists without .claude/ (intentional: CLAUDE.md = Claude intent)", () => {
+    // Pinning the approved decision's consequence: an OpenCode repo carrying a
+    // CLAUDE.md is treated as a Claude project, so `check` reports the missing
+    // Claude payload (which `repair` then installs). This is by design.
+    const dir = createTempProject();
+    writeFileSync(join(dir, "opencode.json"), "{}");
+    writeFileSync(join(dir, "CLAUDE.md"), "# rules");
+    const { checkIntegrity } = require("../src/cli/check");
+    const result = checkIntegrity(dir);
+    assert.ok(
+      result.missing.some((m: string) => m.startsWith(".claude")),
+      "should report missing .claude files because CLAUDE.md marks it a Claude project"
     );
     cleanupTempProject(dir);
   });
