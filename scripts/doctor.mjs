@@ -14,11 +14,28 @@ import { MIRRORS, excluded } from "./mirrors.mjs";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Tracked files whose version must equal the authoritative VERSION file.
-// .ciel/version is gitignored (local sentinel) so it is not checked here.
+// This set MUST mirror release-please's `extra-files` (.github/release-please-config.json)
+// plus its manifest — tracking only a subset is exactly what let plugin.json,
+// marketplace.json and install.sh silently fall behind to 6.14.1 / 6.13.0 while
+// VERSION was 6.16.0. .ciel/version is a gitignored local sentinel (tolerated absent).
+const jsonGet = (accessor = (o) => o.version) => (raw) => accessor(JSON.parse(raw));
+// release-please's `generic` updater rewrites ONLY the line carrying the marker
+// comment — key off that line, never the ${CIEL_VERSION} interpolations elsewhere.
+const markerGet = (re) => (raw) => {
+  const line = raw.split("\n").find((l) => re.test(l));
+  const m = line && line.match(/(\d+\.\d+\.\d+(?:[-+.][0-9A-Za-z.-]+)?)/);
+  return m ? m[1] : null;
+};
+
 const VERSION_CONSUMERS = [
-  "packages/ciel/package.json",
-  "package.json",
-  "packages/ciel/.ciel/version",
+  { file: "packages/ciel/package.json", get: jsonGet() },
+  { file: "package.json", get: jsonGet() },
+  { file: "packages/ciel/.ciel/version", get: (raw) => raw.trim() },
+  { file: ".claude-plugin/plugin.json", get: jsonGet() },
+  { file: ".claude-plugin/marketplace.json", label: ".claude-plugin/marketplace.json#$.version", get: jsonGet((o) => o.version) },
+  { file: ".claude-plugin/marketplace.json", label: ".claude-plugin/marketplace.json#$.plugins[0].version", get: jsonGet((o) => o.plugins?.[0]?.version) },
+  { file: "scripts/install.sh", label: "scripts/install.sh#x-release-please-version", get: markerGet(/x-release-please-(?:major|minor|patch|version)/) },
+  { file: ".github/.release-please-manifest.json", label: ".github/.release-please-manifest.json#$['.']", get: jsonGet((o) => o["."]) },
 ];
 
 function walk(dir) {
@@ -34,23 +51,36 @@ function walk(dir) {
   return out.sort();
 }
 
-function readVersion(root, rel) {
+function readRaw(root, rel) {
   const p = join(root, rel);
-  if (!existsSync(p)) return null;
-  if (rel.endsWith(".json")) return JSON.parse(readFileSync(p, "utf8")).version;
-  return readFileSync(p, "utf8").trim();
+  return existsSync(p) ? readFileSync(p, "utf8") : null;
 }
 
-// Every tracked version file must equal VERSION (single source of truth).
+// Every tracked version file must equal VERSION (single source of truth). The
+// consumer set mirrors release-please's extra-files + manifest, so a partial
+// manual bump (the bug that desynced 6.13/6.14/6.16) fails the gate.
 export function checkVersions(root) {
-  const authoritative = readVersion(root, "VERSION");
-  if (!authoritative) return ["VERSION file missing or empty"];
+  const raw = readRaw(root, "VERSION");
+  if (!raw || !raw.trim()) return ["VERSION file missing or empty"];
+  const authoritative = raw.trim();
   const failures = [];
-  for (const rel of VERSION_CONSUMERS) {
-    const v = readVersion(root, rel);
-    if (v === null) continue; // absent ≠ drift
+  for (const c of VERSION_CONSUMERS) {
+    const body = readRaw(root, c.file);
+    if (body === null) continue; // absent ≠ drift
+    const label = c.label || c.file;
+    let v;
+    try {
+      v = c.get(body);
+    } catch (e) {
+      failures.push(`${label}: could not read version (${e.message})`);
+      continue;
+    }
+    if (v == null) {
+      failures.push(`${label}: version token not found`);
+      continue;
+    }
     if (v !== authoritative) {
-      failures.push(`${rel} = ${v}, expected ${authoritative} (VERSION is the single source)`);
+      failures.push(`${label} = ${v}, expected ${authoritative} (VERSION is the single source)`);
     }
   }
   return failures;
